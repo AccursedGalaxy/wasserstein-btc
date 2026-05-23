@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.venv/
+.uv-cache/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# data is reproducible from scripts/fetch_data.py, don't commit
+data/*.parquet
+data/*.csv
+
+# but DO commit the small results plots
+!results/
+results/*.npz
+results/run.log
