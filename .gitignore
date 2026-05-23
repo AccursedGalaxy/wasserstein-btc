@@ -26,3 +26,6 @@ viewer/public/data.json
 
 # launch-only drafts + monitor state
 .launch/
+
+# private outreach drafts (target lists, personalised cold emails)
+outreach/
