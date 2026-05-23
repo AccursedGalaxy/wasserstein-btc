@@ -52,7 +52,7 @@ from .forecasters import (
 from .quantiles import make_grid
 from .scoring import crps_from_quantiles, diebold_mariano
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     # data

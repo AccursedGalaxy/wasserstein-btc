@@ -8,6 +8,8 @@
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![status](https://img.shields.io/badge/status-research-orange)](docs/RESEARCH_REPORT.md)
 
+![WGeo-Ensemble vs GARCH-N vs Static on ETH/USDT h=21d, cumulative-mean CRPS over 6.75 years](assets/social_preview.png)
+
 This library forecasts the *whole conditional distribution* of future
 log-returns — not the mean and not the variance — for liquid crypto
 pairs at horizons of 1, 5 and 21 days. The market is modelled as a
@@ -168,7 +170,7 @@ quick form:
   author       = {Robin Bohrer (AccursedGalaxy)},
   title        = {wasserstein-btc: tangent-space Wasserstein-geodesic
                   distributional forecasting for crypto returns},
-  version      = {0.3.0},
+  version      = {0.4.0},
   year         = {2026},
   url          = {https://github.com/AccursedGalaxy/wasserstein-btc}
 }

@@ -14,6 +14,11 @@ data/*.csv
 # but DO commit the small results plots
 !results/
 results/*.npz
-results/run.log
-results/sweep.log
-results/long_run.log
+results/*.log
+
+# viewer: generated bundle is reproducible from build_data.py
+viewer/public/data.json
+
+# local agent + tool config
+.claude/
+.playwright-mcp/

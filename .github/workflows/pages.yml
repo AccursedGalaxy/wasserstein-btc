@@ -1,0 +1,64 @@
+name: deploy-viewer
+
+on:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # fetch full history so build_data.py / MANIFEST git_sha lookups work
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      # Fetch the daily OHLCV the viewer needs for prices/returns charts.
+      # These are gitignored (regenerable from Binance via ccxt) so CI
+      # must fetch them at build time.
+      - name: Fetch market data
+        run: |
+          uv run wbtc fetch BTC/USDT ETH/USDT SOL/USDT BNB/USDT XRP/USDT
+
+      - name: Build viewer/public/data.json
+        run: uv run python viewer/build_data.py
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: viewer/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>wbtc · Wasserstein Geodesic Forecasts of Crypto Returns</title>
+  <meta name="description" content="A research dashboard for distributional forecasting of crypto log-returns via 2-Wasserstein geodesics." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="22" height="22">
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#7cf2d6"/>
+                <stop offset="100%" stop-color="#7c83f2"/>
+              </linearGradient>
+            </defs>
+            <path d="M3 22 C 8 8, 12 30, 16 16 S 24 4, 29 22" stroke="url(#g)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <circle cx="16" cy="16" r="1.6" fill="#7cf2d6"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-name">wbtc</div>
+          <div class="brand-tag">Wasserstein-geodesic distributional forecasts</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="#overview">Overview</a>
+        <a href="#methods">Methods</a>
+        <a href="#headline">Headline</a>
+        <a href="#cumulative">Cumulative CRPS</a>
+        <a href="#extended">Extended</a>
+        <a href="#sweep">Sweep</a>
+        <a href="#markets">Markets</a>
+        <a href="#provenance">Provenance</a>
+      </nav>
+      <div class="topbar-actions">
+        <span class="chip" id="version-chip">v—</span>
+        <button id="theme-toggle" class="ghost-btn" title="Toggle theme">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero" id="overview">
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <div class="eyebrow">research dashboard · v0.4</div>
+          <h1>
+            The market as a trajectory on the
+            <span class="grad">2-Wasserstein manifold</span> of returns.
+          </h1>
+          <p class="lede">
+            <strong>wbtc</strong> forecasts the conditional distribution of crypto
+            log-returns by treating the empirical return distribution as a point on
+            the 2-Wasserstein manifold of probability measures, and extrapolating
+            along geodesics in quantile-function coordinates. Walk-forward,
+            strictly-proper-scored, and benchmarked against six classical
+            baselines plus six named econometric comparators.
+          </p>
+          <div class="hero-cta">
+            <a class="btn" href="#headline">See the headline numbers →</a>
+            <a class="btn ghost" href="#methods">Methods</a>
+          </div>
+        </div>
+        <div class="hero-stats" id="hero-stats">
+          <!-- filled by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- METHODS -->
+    <section class="band" id="methods">
+      <div class="container">
+        <header class="section-head">
+          <span class="kicker">§ 1</span>
+          <h2>Method families</h2>
+          <p class="sub">Every forecaster obeys the same fit/predict protocol and produces a quantile function on a shared grid. The headline contribution is the WGeo family.</p>
+        </header>
+        <div class="method-grid" id="method-grid">
+          <!-- filled by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- HEADLINE TABLE -->
+    <section class="band alt" id="headline">
+      <div class="container">
+        <header class="section-head">
+          <span class="kicker">§ 2</span>
+          <h2>Headline · best WGeo vs best baseline</h2>
+          <p class="sub">Walk-forward CRPS over a 6.75-year, multi-asset out-of-sample window. Negative <code>Δ</code> means the WGeo family wins. <code>p</code> is the two-sided Diebold-Mariano p-value.</p>
+        </header>
+        <div class="table-wrap card">
+          <table class="ledger" id="headline-table">
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th>h</th>
+                <th class="num">n</th>
+                <th>Best WGeo</th>
+                <th class="num">CRPS</th>
+                <th>Best baseline</th>
+                <th class="num">CRPS</th>
+                <th class="num">Δ</th>
+                <th class="num">DM stat</th>
+                <th class="num">p</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- CUMULATIVE CRPS CHART -->
+    <section class="band" id="cumulative">
+      <div class="container">
+        <header class="section-head">
+          <span class="kicker">§ 3</span>
+          <h2>Cumulative CRPS — the audit trail</h2>
+          <p class="sub">The cumulative loss curve over the entire walk-forward. A method that stays beneath another for years is genuinely better; one that crosses over only briefly is noise.</p>
+        </header>
+        <div class="card chart-card">
+          <div class="controls">
+            <div class="control-group">
+              <label>Asset</label>
+              <div class="seg" id="cum-symbol-seg"></div>
+            </div>
+            <div class="control-group">
+              <label>Horizon (days)</label>
+              <div class="seg" id="cum-h-seg"></div>
+            </div>
+            <div class="control-group grow">
+              <label>Methods</label>
+              <div class="chip-row" id="cum-methods"></div>
+            </div>
+            <div class="control-group">
+              <label>View</label>
+              <div class="seg" id="cum-view-seg">
+                <button data-v="cum" class="active">cumulative</button>
+                <button data-v="delta">Δ vs Static</button>
+              </div>
+            </div>
+          </div>
+          <div id="cum-chart" class="chart-host"></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card chart-card">
+            <header class="chart-head">
+              <h3>Mean CRPS by method</h3>
+              <p class="sub">Same (asset, h) as above. Lower is better.</p>
+            </header>
+            <div id="bar-chart" class="chart-host small"></div>
+          </div>
+          <div class="card chart-card">
+            <header class="chart-head">
+              <h3>DM significance vs Static</h3>
+              <p class="sub">Two-sided p-value (Newey-West). Bars left of the dotted line favour the WGeo variant.</p>
+            </header>
+            <div id="dm-chart" class="chart-host small"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EXTENDED -->
+    <section class="band alt" id="extended">
+      <div class="container">
+        <header class="section-head">
+          <span class="kicker">§ 4</span>
+          <h2>Extended econometric panel <span class="muted-h">· BTC</span></h2>
+          <p class="sub">v0.4 — the regime-aware WGeo ensemble against named comparators from adjacent econometric families. Walk-forward CRPS, same protocol as the headline.</p>
+        </header>
+        <div class="card chart-card">
+          <div class="controls">
+            <div class="control-group">
+              <label>Horizon</label>
+              <div class="seg" id="ext-h-seg">
+                <button data-h="1" class="active">h = 1</button>
+                <button data-h="5">h = 5</button>
+              </div>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div>
+              <h3 class="chart-mini-head">Mean CRPS</h3>
+              <div id="ext-bar" class="chart-host small"></div>
+            </div>
+            <div>
+              <h3 class="chart-mini-head">Cumulative CRPS</h3>
+              <div id="ext-cum" class="chart-host small"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SWEEP -->
+    <section class="band" id="sweep">
+      <div class="container">
+        <header class="section-head">
+          <span class="kicker">§ 5</span>
+          <h2>Hyperparameter robustness</h2>
+          <p class="sub">Mean CRPS over a 4 × 4 grid of <code>window</code> (training tail) × <code>lookback</code> (geodesic tangent fit). The objective is to make the bright corner small and the surface flat.</p>
+        </header>
+        <div class="grid-2">
+          <div class="card chart-card">
+            <header class="chart-head">
+              <h3>Early epoch · 2019–2022</h3>
+              <p class="sub">The "selection" window — used for picking defaults.</p>
+            </header>
+            <div id="sweep-early" class="chart-host small"></div>
+          </div>
+          <div class="card chart-card">
+            <header class="chart-head">
+              <h3>Late epoch · 2023–2026</h3>
+              <p class="sub">The "verification" window — must not be looked at during selection.</p>
+            </header>
+            <div id="sweep-late" class="chart-host small"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MARKETS -->
+    <section class="band alt" id="markets">
+      <div class="container">
+        <header class="section-head">
+          <span class="kicker">§ 6</span>
+          <h2>The underlying markets</h2>
+          <p class="sub">Daily candles + log-returns for each asset. This is the raw object the forecaster receives.</p>
+        </header>
+        <div class="card chart-card">
+          <div class="controls">
+            <div class="control-group">
+              <label>Asset</label>
+              <div class="seg" id="mkt-symbol-seg"></div>
+            </div>
+          </div>
+          <div id="price-chart" class="chart-host"></div>
+          <div id="return-chart" class="chart-host returns"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROVENANCE -->
+    <section class="band" id="provenance">
+      <div class="container">
+        <header class="section-head">
+          <span class="kicker">§ 7</span>
+          <h2>Provenance &amp; reproducibility</h2>
+          <p class="sub">Every chart on this page is regenerable from the same git commit, the same parquet files, the same library versions.</p>
+        </header>
+        <div class="grid-2">
+          <div class="card prov-card" id="prov-run"></div>
+          <div class="card prov-card" id="prov-data"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container footer-inner">
+      <div>
+        <div class="brand-name small">wbtc</div>
+        <div class="muted">MIT-licensed research code · static dashboard built from results/ and data/.</div>
+      </div>
+      <div class="muted small">No source code was modified to build this viewer.</div>
+    </div>
+  </footer>
+
+  <div id="loading" class="loading"><div class="spinner"></div><div>loading data…</div></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

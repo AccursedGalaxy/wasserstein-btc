@@ -2,7 +2,20 @@
 
 All notable changes to this project will be documented here. Dates ISO-8601.
 
-## [Unreleased — v0.4 ensemble + residualised DM]
+## [0.4.0] — 2026-05-23
+
+### Headline numbers (vs v0.3)
+
+| | v0.3 | v0.4 |
+|---|---:|---:|
+| WGeo-family cells winning on CRPS | 12 / 12 | 12 / 12 |
+| Cells with **vanilla DM** p<0.05 | 1 / 12 (8%) | **4 / 12 (33%)** |
+| Cells with **residualised DM** p_r<0.05 | — | **8 / 12 (67%)** |
+| 6 / 12 panel falsification floor | — | **passed** |
+| Comparator panel size (named methods) | 6 | **12** (added HAR-RV, CAViaR, FIGARCH, MS-Normal-2, SV-AR1, BVAR-GARCH) |
+
+Documented loss: CAViaR-SAV beats `WGeo-GARCH-Ens` at BTC h=1 by 0.5%
+(DM p=0.035). See `docs/RESULTS_EXTENDED.md`.
 
 ### Added (v0.4 cycle 2 — distributional gains)
 

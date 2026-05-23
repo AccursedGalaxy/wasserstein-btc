@@ -29,8 +29,9 @@ OUT_PATH = REPO_ROOT / "assets" / "social_preview.png"
 SOURCE_JSON = RESULTS_DIR / "long_ethusdt_h21.json"
 
 # Methods to plot — keep tight so the chart reads at thumbnail size.
+# v0.4 headline winner is WGeo-Ensemble (W2 barycentre of the v0.3 trio).
 FEATURED = [
-    ("WGeo-TheilSen", "#0b7285", 2.6, "-"),
+    ("WGeo-Ensemble", "#0b7285", 2.8, "-"),
     ("GARCH-N", "#c92a2a", 1.8, "--"),
     ("Static", "#868e96", 1.2, ":"),
 ]
@@ -91,14 +92,14 @@ def main() -> None:
     fig.text(
         0.06,
         0.82,
-        "WGeo family beats best classical baseline in 12 / 12 (asset × horizon) cells · 6.75y walk-forward · CRPS",
+        "12 / 12 cells beat best classical baseline · 8 / 12 cells DM-significant (residualised, p<0.05) · 6.75y walk-forward",
         fontsize=11,
         color="#868e96",
     )
     fig.text(
         0.99,
         0.015,
-        "Shown: ETH/USDT, h = 21d  ·  github.com/AccursedGalaxy/wasserstein-btc",
+        "Shown: ETH/USDT, h = 21d  ·  WGeo-Ensemble vs GARCH-N: −3.2% CRPS, residualised DM p < 0.0001  ·  github.com/AccursedGalaxy/wasserstein-btc",
         fontsize=10,
         color="#adb5bd",
         style="italic",
