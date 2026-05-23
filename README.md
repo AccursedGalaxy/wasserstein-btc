@@ -6,7 +6,7 @@
 
 **A small, falsifiable, interpretable distributional forecaster — ~4 hyperparameters, no learned weights, no neural net.**
 
-[![tests](https://github.com/AccursedGalaxy/wasserstein-btc/actions/workflows/tests.yml/badge.svg)](https://github.com/AccursedGalaxy/wasserstein-btc/actions/workflows/tests.yml)
+[![tests](https://github.com/AccursedGalaxy/wasserstein-btc/actions/workflows/test.yml/badge.svg)](https://github.com/AccursedGalaxy/wasserstein-btc/actions/workflows/test.yml)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Live dashboard](https://img.shields.io/badge/live%20dashboard-online-7c83f2)](https://accursedgalaxy.github.io/wasserstein-btc/)
