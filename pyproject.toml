@@ -1,6 +1,6 @@
 [project]
 name = "wbtc"
-version = "0.4.0"
+version = "0.4.1"
 description = "Tangent-space Wasserstein-geodesic distributional forecasting for crypto returns"
 readme = "README.md"
 license = { file = "LICENSE" }

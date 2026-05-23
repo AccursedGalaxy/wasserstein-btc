@@ -4,6 +4,12 @@ All notable changes to this project will be documented here. Dates ISO-8601.
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-05-24
+
+Internal architecture cleanup landing four 2026-05-23 architecture-review
+candidates. Mostly refactor; no behaviour change in any backtest or
+forecaster output. One new public symbol (`Forecaster` Protocol).
+
 ### Added
 
 - **`Forecaster` typing protocol.** A `typing.Protocol` at the top of
