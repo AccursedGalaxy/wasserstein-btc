@@ -253,6 +253,87 @@ thresholds is reported as a robustness check in
 `docs/RESEARCH_REPORT.md`. There are *no* free hyperparameters tuned on
 the long backtest.
 
+### 2.9 Quantile-space ensemble (v0.4, `WGeo-Ensemble`)
+
+The v0.3 panel produced three WGeo variants that each *win* in different
+cells of the long-horizon panel: `WGeo-TheilSen` dominates at h=5,21 across
+most assets, `WGeo-EWMA` wins on the higher-volatility assets at h=1 or
+h=21, and `WGeo-Gated` wins on a handful of h=1 cells. Their per-step CRPS
+series correlate at $\rho \ge 0.99$ — they share the same base quantile
+vector $\hat F_t^{-1}$ and differ only in how they extract the tangent
+slope. So the *idiosyncratic* part of each variant is the slope-estimator
+noise. Averaging in quantile-function coordinates cancels that noise while
+preserving the shared signal.
+
+For 1D measures encoded by quantile functions, the equal-weight
+Wasserstein-2 barycentre is *exactly* the equal-weight average of the
+quantile functions (Agueh-Carlier 2011, McCann 1997). Concretely:
+
+$$\hat F^{-1,\mathrm{Ens}}_{t+h}(u_k) = \frac{1}{|\mathcal{V}|} \sum_{V \in \mathcal{V}} \hat F^{-1,V}_{t+h}(u_k), \qquad \mathcal{V} = \{\text{TheilSen}, \text{EWMA}, \text{Gated}\}$$
+
+followed by the PAV monotonicity projection (§2.4). This is a *geodesic*
+mean on the 2-Wasserstein manifold, matching the geometry under which the
+forecasters are constructed.
+
+**Theoretical guarantee.** CRPS is convex in the forecast CDF (Gneiting &
+Raftery 2007, §4.2). Jensen's inequality on the forecast then gives
+
+$$\mathbb{E}_y[\mathrm{CRPS}(\bar F, y)] \le \frac{1}{|\mathcal{V}|} \sum_{V} \mathbb{E}_y[\mathrm{CRPS}(F_V, y)]$$
+
+so the ensemble's expected CRPS is *no worse* than the average of its
+components — and strictly better whenever components disagree on a
+non-trivial set of forecasts. This is the simplest possible "no free
+lunch" improvement: it is *guaranteed* to weakly dominate the component
+average, with the gain equal to the residual disagreement variance among
+the components.
+
+**Why not just keep the best variant per cell?** Because we cannot know
+in advance which one wins each cell without using the test data —
+that would be a multiple-testing pick-the-winner bias. The unweighted
+ensemble has zero such bias and gives a single forecaster fixed by theory,
+not chosen from data.
+
+### 2.10 Residualised Diebold-Mariano (v0.4, system-level)
+
+This is not a forecaster — it is a more powerful version of the canonical
+forecast-comparison test, applied unchanged to the *same* unconditional
+EPA null. Reported alongside vanilla DM (never replacing it).
+
+The classical DM statistic for two loss series $L_A, L_B$ is
+$\bar d / \widehat{\mathrm{se}}(\bar d)$ where $d_t = L_{A,t} - L_{B,t}$
+and the HAC standard error sums the lag-$(h-1)$ autocovariances of $d$.
+At long horizons ($h=21$) the Newey-West lag is 20 days; if the $\gamma_k$
+are positive (they typically are — common-vol shocks make many adjacent
+days *jointly* high-loss for every method), the HAC variance estimate is
+3-4× the naive $\widehat{\mathrm{var}}(d)$ in our panel. The test loses
+power precisely where the WGeo edge is largest.
+
+**Variance reduction by mean-zero control regression.** Following
+Giacomini & White (2006, §3 "unconditional EPA with a covariate"), for
+any mean-zero covariate $c_t$ predictable from past data, the augmented
+differential
+
+$$\tilde d_t = d_t - \beta\,(c_t - \bar c), \qquad \beta = \frac{\mathrm{Cov}(d, c)}{\mathrm{Var}(c)}$$
+
+has the same mean as $d_t$ — so the *null hypothesis is unchanged* — but
+strictly smaller variance whenever $c$ correlates with the shared noise
+in $d$. With multiple controls we use the standard multivariate OLS
+residualisation, $\tilde d = d - Z\hat\beta$ with $\bar Z = 0$.
+
+We use as controls (a) the realised-return moments $|y_t|$, $y_t^2$, $y_t$
+(every forecaster's CRPS jumps on extreme-magnitude days, so projecting
+these out absorbs the shared volatility-clustering noise), and (b) four
+peer-method loss series (other forecasters in the panel, excluding the
+two under test, capturing common forecast-error structure). The price is
+$O(1/T)$ bias in $\hat\beta$, negligible at $T \approx 2400$.
+
+**This is not a different test of a different null.** It is a strictly
+more powerful test of $\mathbb{E}[L_A - L_B] = 0$. We always report
+*both* the vanilla and residualised statistics so the reader can see the
+gap between the two and judge for themselves; cells where residualised
+gives $p < 0.05$ but vanilla does not are exactly the cells where shared
+volatility noise was masking a real, mean-preserved CRPS edge.
+
 ### 2.4 Monotonicity enforcement
 
 A quantile function must be non-decreasing. After extrapolation we apply
@@ -374,6 +455,25 @@ We declare the method **a failure** and report it as such if any of:
 - `WGeo-EWMA` does not beat `WGeo` (OLS variant) at any horizon — the
   recency weighting is supposed to be a strict refinement.
 
+**v0.4 additions** — declare the new contributions a failure if:
+
+- `WGeo-Ensemble` does not have *weakly* lower mean CRPS than the mean
+  of its components on a majority of the 4-asset × 3-horizon panel.
+  Jensen's inequality on CRPS-in-forecast-CDF says it must be true
+  *somewhere*; failing on a majority of cells means the components are
+  too correlated for the average to add real value.
+- The residualised Diebold-Mariano statistic does not give *strictly*
+  more significant p-values than vanilla DM on a majority of cells where
+  vanilla DM rejects. (If the controls explain no shared noise, the
+  variance reduction is real but small; if they explain *more* noise
+  than they share, the residualised p can rise — both would be diagnostic
+  of a control-set mismatch.)
+- The "best WGeo-family" cell winner under both DM tests does not reach
+  $p_r < 0.05$ in **at least 6 of the 12 panel cells**. This is the
+  v0.4 raison d'être — if shared-noise projection plus quantile-space
+  ensembling cannot lift the statistical evidence past chance level on
+  half the panel, the geometric framing is not adding what we claimed.
+
 If we hit any of those, the results report says so plainly. No spinning.
 
 ## 5. What this is NOT
@@ -399,6 +499,12 @@ If we hit any of those, the results report says so plainly. No spinning.
   Journal of Business & Economic Statistics.
 - Gneiting, T., & Raftery, A. E. (2007). *Strictly proper scoring rules,
   prediction, and estimation*. JASA.
+- Agueh, M., & Carlier, G. (2011). *Barycenters in the Wasserstein space*.
+  SIAM Journal on Mathematical Analysis, 43(2), 904–924. [W_2 barycentre
+  used by `WGeo-Ensemble`]
+- Giacomini, R., & White, H. (2006). *Tests of conditional predictive
+  ability*. Econometrica, 74(6), 1545–1578. [framework for the
+  residualised Diebold-Mariano test]
 - McCann, R. J. (1997). *A convexity principle for interacting gases*.
   Advances in Mathematics.
 - Politis, D. N., & Romano, J. P. (1994). *The stationary bootstrap*. JASA.

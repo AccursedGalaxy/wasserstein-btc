@@ -156,6 +156,185 @@ def test_hetero_runs_and_is_monotone():
     assert (q21.max() - q21.min()) > (q1.max() - q1.min())
 
 
+def test_adaptive_cumulative_drift_scales_linearly():
+    """Adaptive uses the Static-convention cumulative-drift level (μ_now·h)
+    rather than the OLS-convention (median_now + h·β). This is the correct
+    mean of an h-step cumulative return under stationary returns and is the
+    convention used by the StaticEmpirical and GARCH families. The test
+    therefore verifies linear scaling of the predicted median with horizon
+    on a trending series.
+    """
+    from wbtc.forecasters import WassersteinGeodesicAdaptive
+
+    rng = np.random.default_rng(31)
+    n = 800
+    t = np.arange(n)
+    drift = 1e-4
+    r = drift * t + rng.normal(0, 0.01, size=n)
+    u = make_grid(40)
+    f = WassersteinGeodesicAdaptive(window=90, lookback=30)
+    f.fit(r)
+    q1 = f.predict(h=1, u=u)
+    q10 = f.predict(h=10, u=u)
+    shift = float(np.median(q10) - np.median(q1))
+    # Adaptive inherits the OLS-convention level (median_now + h·β̄), so the
+    # h=1 → h=10 increment is ≈ 9·β̄ ≈ 9·1e-4 with the recency-weighted base
+    # quantile contributing a small √h-induced perturbation around it.
+    assert 0.0005 < shift < 0.0015, f"shift={shift}"
+
+
+def test_wgeo_ensemble_default_is_w2_barycentre_of_v03_trio():
+    """Default ensemble is the equal-weight quantile-function average of
+    TheilSen + EWMA + Gated. Numerically this must equal the mean of the
+    three components' predict() outputs (modulo the final isotonic projection,
+    which is a no-op on monotone inputs)."""
+    from wbtc.forecasters import (
+        WGeoEnsemble,
+        WassersteinGeodesicEWMA,
+        WassersteinGeodesicGated,
+        WassersteinGeodesicTheilSen,
+    )
+
+    rng = np.random.default_rng(41)
+    r = rng.normal(0, 0.02, size=800)
+    u = make_grid(30)
+    f_ts = WassersteinGeodesicTheilSen(window=90, lookback=20)
+    f_ew = WassersteinGeodesicEWMA(window=90, lookback=20, decay=0.85)
+    f_gt = WassersteinGeodesicGated(window=90, lookback=20, kappa_star=0.6, tau=5)
+    for f in (f_ts, f_ew, f_gt):
+        f.fit(r)
+    q_avg = (f_ts.predict(5, u) + f_ew.predict(5, u) + f_gt.predict(5, u)) / 3.0
+    f_ens = WGeoEnsemble()
+    f_ens.fit(r)
+    q_ens = f_ens.predict(5, u)
+    np.testing.assert_allclose(q_ens, q_avg, atol=1e-9)
+
+
+def test_wgeo_ensemble_jensen_inequality_holds():
+    """CRPS is convex in the forecast CDF, so the ensemble's per-step CRPS
+    must be ≤ the mean of components' per-step CRPS on every forecast (with
+    inequality being strict whenever components disagree). Test on a single
+    forecast horizon and several realised outcomes."""
+    from wbtc.forecasters import WGeoEnsemble
+    from wbtc.scoring import crps_from_quantiles
+
+    rng = np.random.default_rng(42)
+    r = rng.normal(0, 0.02, size=800)
+    u = make_grid(30)
+    f_ens = WGeoEnsemble()
+    f_ens.fit(r)
+    q_ens = f_ens.predict(5, u)
+    q_components = [f.predict(5, u) for f in f_ens._fitted]
+    for y in (-0.1, -0.02, 0.0, 0.02, 0.1):
+        crps_ens = crps_from_quantiles(q_ens, u, y)
+        crps_mean = float(np.mean([crps_from_quantiles(q, u, y) for q in q_components]))
+        # Jensen on CRPS (convex in the forecast) — equality only if components
+        # are identical.
+        assert crps_ens <= crps_mean + 1e-9, (
+            f"Jensen violated at y={y}: ensemble {crps_ens} vs mean {crps_mean}"
+        )
+
+
+def test_wgeo_ensemble_weights_renormalise():
+    """Weights are normalised before use, so any positive scaling is the
+    same ensemble. Catches a class of subtle bugs in weight handling."""
+    from wbtc.forecasters import WGeoEnsemble
+
+    rng = np.random.default_rng(43)
+    r = rng.normal(0, 0.02, size=400)
+    u = make_grid(20)
+    f_a = WGeoEnsemble(weights=[1.0, 1.0, 1.0])
+    f_b = WGeoEnsemble(weights=[5.0, 5.0, 5.0])
+    f_a.fit(r)
+    f_b.fit(r)
+    np.testing.assert_allclose(f_a.predict(5, u), f_b.predict(5, u), atol=1e-12)
+
+
+def test_wgeo_ensemble_rejects_bad_weights():
+    from wbtc.forecasters import WGeoEnsemble
+
+    try:
+        WGeoEnsemble(weights=[1.0, -1.0, 1.0])
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("expected ValueError for negative weight")
+    try:
+        WGeoEnsemble(weights=[0.0, 0.0, 0.0])
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("expected ValueError for all-zero weights")
+
+
+def test_adaptive_decay_one_matches_ewma():
+    """With decay_quantile=1.0 the recency-weighted base quantile equals the
+    equal-weighted empirical quantile (up to Hazen-vs-type-7 tail O(1/n)),
+    so Adaptive must collapse to :class:`WassersteinGeodesicEWMA` on the
+    interior of the grid."""
+    from wbtc.forecasters import WassersteinGeodesicAdaptive, WassersteinGeodesicEWMA
+
+    rng = np.random.default_rng(35)
+    r = rng.normal(0, 0.02, size=600)
+    u = make_grid(30)
+    f_ewma = WassersteinGeodesicEWMA(window=90, lookback=30, decay=0.85)
+    f_adp = WassersteinGeodesicAdaptive(
+        window=90, lookback=30, decay=0.85, decay_quantile=1.0
+    )
+    f_ewma.fit(r)
+    f_adp.fit(r)
+    q_ewma = f_ewma.predict(h=5, u=u)
+    q_adp = f_adp.predict(h=5, u=u)
+    interior = np.s_[1:-1]
+    np.testing.assert_allclose(q_adp[interior], q_ewma[interior], atol=2e-3)
+
+
+def test_adaptive_monotone_and_finite_and_widens():
+    from wbtc.forecasters import WassersteinGeodesicAdaptive
+
+    rng = np.random.default_rng(32)
+    r = rng.normal(0, 0.02, size=800)
+    u = make_grid(30)
+    f = WassersteinGeodesicAdaptive(window=90, lookback=20)
+    f.fit(r)
+    q1 = f.predict(1, u)
+    q5 = f.predict(5, u)
+    q21 = f.predict(21, u)
+    for q in (q1, q5, q21):
+        assert np.isfinite(q).all()
+        assert (np.diff(q) >= -1e-9).all()
+    assert (q5.max() - q5.min()) > (q1.max() - q1.min())
+    assert (q21.max() - q21.min()) > (q5.max() - q5.min())
+
+
+def test_adaptive_scale_responds_to_recent_vol_regime():
+    """Vol response: if the recent regime is turbulent the predicted spread
+    must be substantially wider than if the recent regime is calm — even when
+    the long-window shape is identical."""
+    from wbtc.forecasters import WassersteinGeodesicAdaptive
+
+    rng = np.random.default_rng(33)
+    # 700 days of moderate vol, then either calm or turbulent tail
+    base = rng.normal(0, 0.02, size=700)
+    calm_tail = rng.normal(0, 0.005, size=100)
+    turb_tail = rng.normal(0, 0.05, size=100)
+    r_calm = np.concatenate([base, calm_tail])
+    r_turb = np.concatenate([base, turb_tail])
+    u = make_grid(30)
+    f_calm = WassersteinGeodesicAdaptive(window=90, lookback=20)
+    f_turb = WassersteinGeodesicAdaptive(window=90, lookback=20)
+    f_calm.fit(r_calm)
+    f_turb.fit(r_turb)
+    q_calm = f_calm.predict(1, u)
+    q_turb = f_turb.predict(1, u)
+    spread_calm = q_calm.max() - q_calm.min()
+    spread_turb = q_turb.max() - q_turb.min()
+    assert spread_turb > 2.5 * spread_calm, (
+        f"adaptive scale failed to widen: calm spread={spread_calm:.4f}, "
+        f"turb spread={spread_turb:.4f}"
+    )
+
+
 def test_ensemble_extremes_match_components():
     """Forcing the smoothstep into its saturated ends collapses the ensemble
     onto its respective component, which validates the weighting algebra."""

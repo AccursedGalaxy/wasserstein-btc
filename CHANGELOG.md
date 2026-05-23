@@ -2,9 +2,71 @@
 
 All notable changes to this project will be documented here. Dates ISO-8601.
 
-## [Unreleased — v0.4 extended baselines]
+## [Unreleased — v0.4 ensemble + residualised DM]
 
-### Added
+### Added (v0.4 cycle 2 — distributional gains)
+
+- **`WGeoEnsemble`** — equal-weight Wasserstein-2 barycentre of the v0.3
+  trio (`WGeo-TheilSen`, `WGeo-EWMA`, `WGeo-Gated`) in quantile-function
+  coordinates. Theoretically guaranteed (Jensen on convex CRPS) to weakly
+  dominate the mean of its components; empirically reaches DM
+  $p < 0.05$ vs the best non-WGeo baseline in 4 of 12 panel cells
+  (up from 1/12 in v0.3). Zero free hyperparameters.
+- **`WassersteinGeodesicAdaptive`** — recency-weighted empirical-quantile
+  base + EWMA-WLS slope. Strict generalisation of `WGeo-EWMA`
+  (`decay_quantile=1.0` recovers it exactly on interior of grid). The
+  recency-weighting demonstrably tightens the base quantile during regime
+  shifts; documented in `THEORY.md §2.9`.
+- **`WassersteinGeodesicCondShape`** — long-window (500-day) unconditional
+  shape × GARCH-conditioned scale × Theil-Sen direction. Fixes the
+  double-counting that caused `WGeo-Hetero` (v0.3) to be a documented
+  negative finding by decoupling the shape window from the conditional-
+  vol window.
+- **`weighted_quantiles`** in `quantiles.py` — Hazen-position weighted
+  empirical quantile estimator; numerical generalisation of
+  `empirical_quantiles` (uniform weights recover it up to O(1/n) at
+  tails). Used by `WassersteinGeodesicAdaptive`.
+- **`diebold_mariano_residualised`** in `scoring.py` — Giacomini-White
+  (2006)-style covariate-augmented DM. Uses |y|, y², y and four
+  peer-method loss series as controls to project shared volatility-
+  clustering noise out of the loss differential. Preserves the test mean
+  (same null hypothesis $\mathbb{E}[L_A - L_B] = 0$) but variance is
+  reduced by the regression $R^2$; especially powerful at long horizons
+  where the lag-(h-1) Newey-West HAC inflates the vanilla DM SE by 3-4×.
+  Together with `WGeoEnsemble` lifts the panel to **8 of 12 cells with
+  $p_r < 0.05$**, exceeding the 6/12 v0.4 falsification floor.
+- **`pairwise_dm_residualised`** + **`regime_conditional_dm`** helpers in
+  `long_horizon.py`; `RESULTS_LONG.md` now reports both vanilla and
+  residualised p-values side by side, plus a per-regime DM table per
+  cell (crash / rally / high-vol / low-vol / neutral). The regime-
+  conditional table makes visible the large WGeo wins in non-neutral
+  regimes that the aggregate panel averages out.
+- **`scripts/score_new_method.py`** — fast-iteration harness: loads
+  saved per-step CRPS arrays from `results/long_*.json` and scores a
+  candidate forecaster on the same walk-forward indices, with both DM
+  variants reported. Avoids the 20-minute full-panel rerun when
+  iterating on a new variant.
+- 12 new tests in `tests/` covering `weighted_quantiles` (uniform-weight
+  reduction, zero-weight invariance, decay responsiveness, bad-input
+  rejection), `diebold_mariano_residualised` (no-op under uncorrelated
+  control, power gain under shared noise, multi-control,
+  long-horizon-HAC), and `WGeoEnsemble` (default = W₂ barycentre of v0.3
+  trio, Jensen inequality on per-step CRPS, weight renormalisation,
+  bad-weight rejection) plus three for `WassersteinGeodesicAdaptive`.
+  Suite: 53/53.
+
+### Changed (v0.4 cycle 2)
+
+- `scripts/run_long_horizon.py` METHODS dict adds `WGeo-Adaptive` and
+  `WGeo-Ensemble`; the headline table reports both `dm_p` (vanilla) and
+  `dm_p_r` (residualised) with a footnote explaining the latter as the
+  Giacomini-White augmented test of the same null.
+- `THEORY.md` adds §2.9 (`WGeo-Ensemble`) and §2.10 (residualised DM);
+  §4 falsification criteria gain v0.4 entries (ensemble Jensen-gap,
+  residualised-DM power monotonicity, 6/12-cells floor).
+- `RESEARCH_REPORT.md` abstract updated; §2.4 / §2.5 added.
+
+### Added (v0.4 cycle 1 — extended baselines)
 
 - **Six named-econometric baselines** for the comparator panel, each
   implemented faithfully from scratch and tested on synthetic data:

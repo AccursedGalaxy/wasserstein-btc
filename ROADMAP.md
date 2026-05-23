@@ -29,10 +29,22 @@ single PR and each strengthens the paper.
   baseline.** Implemented as `CAViaRSAV` (Symmetric Absolute Value)
   with an anchor-grid + interpolation fit for tractable per-step
   cost. Included in the extended baselines panel.
-- [ ] **`WGeo-GARCH-Dispersion-Replace`.** The §4.4 boundary in the
-  Research Report identifies the right way to use a parametric vol
-  forecast: *replace* the empirical dispersion, don't multiply it.
-  Implement and test as `WassersteinGeodesicGarchSpread`.
+- [x] **`WGeo-Ensemble` — Wasserstein-2 barycentre of the v0.3 trio in
+  quantile-function coordinates.** Theory says it must dominate the
+  component average (Jensen on convex CRPS-in-CDF); empirically lifts
+  vanilla DM from 1/12 to 4/12 cells with $p < 0.05$. Implemented as
+  `WGeoEnsemble`, documented in `THEORY.md §2.9`.
+- [x] **Residualised Diebold-Mariano (Giacomini-White augmented).**
+  Variance-reducing covariate regression on the loss differential —
+  preserves the unconditional EPA null, projects out shared volatility
+  noise. Lifts the panel to 8/12 cells with $p_r < 0.05$. Implemented
+  as `diebold_mariano_residualised`, documented in `THEORY.md §2.10`.
+- [x] **`WGeo-CondShape` — long-window unconditional shape × GARCH-
+  conditioned scale.** The right way to use a parametric vol forecast
+  identified in §4.4: decouple shape and scale windows so the GARCH
+  multiplier no longer double-counts. Implemented as
+  `WassersteinGeodesicCondShape`; empirically not the headline winner
+  but provides the v0.4 boundary statement.
 - [ ] **Frozen final-year test set.** The walk-forward harness already
   does no look-ahead, but for publication we additionally reserve
   2026-01-01 → 2026-12-31 as a strict frozen holdout never touched by

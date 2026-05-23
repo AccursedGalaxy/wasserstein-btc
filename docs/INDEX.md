@@ -12,15 +12,20 @@ tangent-space regression that produces forecasts, the curvature gate (h=1
 only), the Theil-Sen robust slope (h ≥ 5), and the v0.3 additions:
 recency-weighted slope (`WGeo-EWMA`, §2.6), GARCH-conditioned dispersion
 (`WGeo-Hetero`, §2.7), and the regime-aware mixture (`WGeo-GARCH-Ens`,
-§2.8). Contains the **explicit falsification criteria** (§4) that the
-backtests are written to test against. Current version: v0.3.
+§2.8). The v0.4 additions are the quantile-space Wasserstein-2 barycentre
+ensemble (`WGeo-Ensemble`, §2.9) and the variance-reduced residualised
+Diebold-Mariano test (§2.10, a Giacomini-White-style augmented test of the
+same unconditional EPA null). Contains the **explicit falsification
+criteria** (§4) that the backtests are written to test against. Current
+version: v0.4.
 
-## [RESEARCH_REPORT.md](RESEARCH_REPORT.md) — v0.3 paper-style writeup
+## [RESEARCH_REPORT.md](RESEARCH_REPORT.md) — paper-style writeup (v0.3 + v0.4)
 
-The research-paper-style report on the v0.3 extensions: motivation,
-mathematical formulation, experimental setup, headline numbers,
-falsification verdicts, regime decomposition, robustness checks, and
-limitations. Read this once the THEORY.md sections are familiar.
+The research-paper-style report on the v0.3 extensions and the v0.4
+additions (the W₂-barycentre ensemble and the residualised DM test):
+motivation, mathematical formulation, experimental setup, headline
+numbers, falsification verdicts, regime decomposition, robustness checks,
+and limitations. Read this once the THEORY.md sections are familiar.
 
 ## [RESULTS_LONG.md](RESULTS_LONG.md) — the headline evidence
 
@@ -59,7 +64,7 @@ larger and more honest `RESULTS_LONG.md` instead.
 - [`../ROADMAP.md`](../ROADMAP.md) — what's missing for the project to
   be production-competitive (HAR-RV / FIGARCH / multivariate /
   intraday). The v0.4 and v0.5 buckets are the prioritised work list.
-- [`../CHANGELOG.md`](../CHANGELOG.md) — v0.1 → v0.2 → v0.3 release
+- [`../CHANGELOG.md`](../CHANGELOG.md) — v0.1 → v0.2 → v0.3 → v0.4 release
   notes including the honest-negative-findings sections.
 - [`../CONTRIBUTING.md`](../CONTRIBUTING.md) — the conventions PRs must
   follow (walk-forward, strictly-proper scoring, no DL, no

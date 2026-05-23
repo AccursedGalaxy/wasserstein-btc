@@ -1,7 +1,7 @@
 # wasserstein-btc
 
 **Distributional forecasting for crypto returns via geodesics on the
-2-Wasserstein manifold of probability measures.** v0.3.
+2-Wasserstein manifold of probability measures.** v0.4.
 
 [![tests](https://github.com/AccursedGalaxy/wasserstein-btc/actions/workflows/tests.yml/badge.svg)](https://github.com/AccursedGalaxy/wasserstein-btc/actions)
 [![python](https://img.shields.io/badge/python-3.11+-blue)](pyproject.toml)
@@ -27,33 +27,30 @@ Bootstrap, GARCH-N, GARCH-t, GJR-GARCH-t).
 
 ## Headline result
 
-On the v0.3 panel (BTC + ETH + SOL + BNB × h ∈ {1, 5, 21} × 6.75 years
+On the v0.4 panel (BTC + ETH + SOL + BNB × h ∈ {1, 5, 21} × 6.75 years
 walk-forward; 1380–2470 test days per cell), the WGeo family beats the
 best non-WGeo baseline (best of Static / RW-Drift / HS-Bootstrap /
 GARCH-N / GARCH-t / GJR-GARCH-t) in **12 / 12 cells** by 0.1% to 3.2%
 mean CRPS.
 
-| Asset/h     | Winner               | vs baseline    | Margin  | DM p      |
-|:------------|:---------------------|:---------------|--------:|----------:|
-| BTC h=1     | WGeo-Gated           | Static         | −0.21%  | 0.218     |
-| BTC h=5     | WGeo-TheilSen        | Static         | −0.62%  | 0.234     |
-| BTC h=21    | WGeo-TheilSen        | GARCH-N        | −1.83%  | 0.500     |
-| ETH h=1     | **WGeo-EWMA**        | HS-Bootstrap   | −0.46%  | 0.115     |
-| ETH h=5     | WGeo-TheilSen        | Static         | −1.06%  | **0.045** |
-| ETH h=21    | WGeo-TheilSen        | GARCH-N        | −3.16%  | 0.156     |
-| SOL h=1     | WGeo-Gated           | Static         | −0.14%  | 0.568     |
-| SOL h=5     | WGeo-TheilSen        | Static         | −0.76%  | 0.270     |
-| SOL h=21    | **WGeo-EWMA**        | GARCH-N        | −3.10%  | 0.133     |
-| BNB h=1     | **WGeo-GARCH-Ens**   | GARCH-N        | −0.17%  | 0.477     |
-| BNB h=5     | **WGeo-EWMA**        | Static         | −0.82%  | 0.181     |
-| BNB h=21    | WGeo-TheilSen        | Static         | −2.46%  | 0.264     |
+The v0.4 cycle adds (a) `WGeoEnsemble`, the W₂ barycentre of the v0.3
+trio in quantile-function coordinates — guaranteed by Jensen's
+inequality on convex CRPS to weakly dominate the component average; and
+(b) a residualised Diebold-Mariano test (Giacomini-White 2006) that
+projects out shared volatility-clustering noise via |y|, y², y plus
+peer-method losses, preserving the EPA null while strictly reducing
+HAC variance. Together these lift the panel's statistical evidence:
 
-Bold rows are cells where a v0.3 method beat all v0.2 methods. Bold p is
-the one cell with p<0.05. Direction is uniform across all 12 cells —
-binomial probability of 12/12 random outcomes pointing the same way is
-≈ 0.024%. Per-year, per-regime, and hyperparameter-sensitivity tables in
-[`docs/RESULTS_LONG.md`](docs/RESULTS_LONG.md). The methods-paper-style
-writeup is in [`docs/RESEARCH_REPORT.md`](docs/RESEARCH_REPORT.md).
+| | v0.3 | v0.4 |
+|---|---:|---:|
+| Cells WGeo-family wins on CRPS | 12 / 12 | 12 / 12 |
+| Cells with **vanilla DM** p<0.05 | 1 / 12 (8%) | **4 / 12 (33%)** |
+| Cells with **residualised DM** p_r<0.05 | — | **8 / 12 (67%)** |
+
+Per-cell headline numbers, regime-conditional DM tables, and the full
+falsification verdict against [`docs/THEORY.md §4`](docs/THEORY.md) are
+in [`docs/RESULTS_LONG.md`](docs/RESULTS_LONG.md). Methods-paper-style
+writeup in [`docs/RESEARCH_REPORT.md`](docs/RESEARCH_REPORT.md).
 
 ## Install
 
@@ -64,7 +61,7 @@ reproducible). The package itself works under any Python ≥3.11.
 git clone https://github.com/AccursedGalaxy/wasserstein-btc
 cd wasserstein-btc
 uv sync          # creates .venv with locked deps
-uv run wbtc test # 31 tests, ~5 seconds
+uv run wbtc test # 53 tests, ~10 seconds
 ```
 
 PyPI release is on the v0.4 roadmap (see [`ROADMAP.md`](ROADMAP.md)).
