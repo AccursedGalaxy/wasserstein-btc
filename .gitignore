@@ -15,3 +15,5 @@ data/*.csv
 !results/
 results/*.npz
 results/run.log
+results/sweep.log
+results/long_run.log

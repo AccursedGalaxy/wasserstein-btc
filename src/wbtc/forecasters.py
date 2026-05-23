@@ -27,7 +27,10 @@ __all__ = [
     "RandomWalkDrift",
     "GarchNormal",
     "GarchStudentT",
+    "GJRGarchStudentT",
+    "HistoricalSimulationBootstrap",
     "WassersteinGeodesic",
+    "WassersteinGeodesicTheilSen",
     "WassersteinGeodesicGated",
 ]
 
@@ -119,6 +122,59 @@ class GarchStudentT:
         # arch parameterises so the innovations have unit variance
         q_pct = mu_1 * h + sigma_h * student_t.ppf(u, df=nu)
         return q_pct / 100.0
+
+
+@dataclass
+class GJRGarchStudentT:
+    """B5: GJR-GARCH(1,1,1) with Student-t innovations.
+
+    Adds an asymmetric leverage term: bad news (negative shocks) raise
+    next-step variance more than good news. Standard in crypto where down-
+    side spikes are the dominant risk.
+    """
+
+    _result = None
+
+    def fit(self, returns: np.ndarray) -> None:
+        r = np.asarray(returns, dtype=float) * 100.0
+        am = arch_model(r, mean="Constant", vol="GARCH", p=1, o=1, q=1, dist="t")
+        self._result = am.fit(disp="off", show_warning=False)
+
+    def predict(self, h: int, u: np.ndarray) -> np.ndarray:
+        assert self._result is not None
+        f = self._result.forecast(horizon=h, reindex=False)
+        mu_1 = float(self._result.params["mu"])
+        nu = float(self._result.params["nu"])
+        var_h = float(f.variance.values[-1, :].sum())
+        sigma_h = np.sqrt(var_h)
+        q_pct = mu_1 * h + sigma_h * student_t.ppf(u, df=nu)
+        return q_pct / 100.0
+
+
+@dataclass
+class HistoricalSimulationBootstrap:
+    """B6: industry-standard non-parametric distribution forecast.
+
+    Draw `n_paths` h-step paths by sampling daily returns with replacement
+    from the training window, sum each path, and take empirical quantiles
+    of the resulting h-step return distribution. Captures the empirical
+    shape (including fat tails) without parametric assumptions.
+    """
+
+    n_paths: int = 5000
+    rng_seed: int = 0
+
+    _returns: np.ndarray | None = None
+
+    def fit(self, returns: np.ndarray) -> None:
+        self._returns = np.asarray(returns, dtype=float)
+
+    def predict(self, h: int, u: np.ndarray) -> np.ndarray:
+        assert self._returns is not None
+        rng = np.random.default_rng(self.rng_seed)
+        idx = rng.integers(0, len(self._returns), size=(self.n_paths, h))
+        paths = self._returns[idx].sum(axis=1)
+        return np.quantile(paths, u, method="linear")
 
 
 # ----------------------- the proposed method ---------------------------
@@ -246,3 +302,25 @@ class WassersteinGeodesicGated(WassersteinGeodesic):
         w = max(0.0, min(1.0, kappa / self.kappa_star - 1.0))
         q_pred = (1.0 - w) * q_geo + w * q_static
         return isotonic_project(q_pred)
+
+
+@dataclass
+class WassersteinGeodesicTheilSen(WassersteinGeodesic):
+    """The proposed method, robust slope variant.
+
+    Replaces the per-quantile OLS slope with the Theil-Sen median-of-pairwise-
+    slopes estimator. Theil-Sen has a 29.3% breakdown point and is provably
+    robust to outliers in the response — exactly the failure mode that hurts
+    OLS during regime shifts. No explicit curvature gate needed.
+
+    See Theil (1950), Sen (1968), Rousseeuw & Leroy (1987 §3.1).
+    """
+
+    def _slope(self, Q: np.ndarray) -> np.ndarray:
+        L, K = Q.shape
+        s = np.arange(L, dtype=float)
+        # all pairwise i < j slopes per column, then median
+        i_idx, j_idx = np.triu_indices(L, k=1)
+        ds = s[j_idx] - s[i_idx]  # always positive
+        dq = Q[j_idx] - Q[i_idx]  # (pairs, K)
+        return np.median(dq / ds[:, None], axis=0)

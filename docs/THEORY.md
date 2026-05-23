@@ -1,11 +1,17 @@
 # Tangent-Space Wasserstein Geodesic Forecasting for Bitcoin Returns
 
-**Status:** working theory, version 0.1 (2026-05-23)
+**Status:** version 0.2 (2026-05-23) — revised after long-horizon evidence.
 **Author:** AccursedGalaxy (driven by Claude)
 **Goal:** A mathematically rigorous, falsifiable, and genuinely under-explored
 framing for short-horizon Bitcoin forecasting. We do not predict prices. We
 predict the **distribution** of future log-returns, and we score that forecast
 properly.
+
+> **v0.2 update:** the original *curvature-gate* variant (v0.1) was justified
+> by h=1 results. The 6.75-year multi-asset long-horizon backtest in
+> `RESULTS_LONG.md` shows the gate only earns its keep at h=1, and is matched
+> or beaten by a simpler **Theil-Sen robust slope** at h ≥ 5. The robust slope
+> is the recommended default for h ≥ 5 and is documented in §2.5 below.
 
 ---
 
@@ -116,6 +122,26 @@ returns combines (a) tangent-space time regression on the 1D W2 manifold
 with (b) an explicit cosine-curvature gate. The closest published method
 (Saluzzi & Soize 2025, "Koopman-Wasserstein", arXiv:2507.07570) is a
 spectral approach with no regime-aware fallback, applied to housing prices.
+
+### 2.5 Theil-Sen robust slope (v0.2, recommended for h ≥ 5)
+
+An alternative — and on long-horizon data, a strictly simpler — way to
+handle regime perturbations is to replace the OLS slope estimator of §2.2
+with the Theil-Sen median-of-pairwise-slopes estimator (Theil 1950, Sen
+1968):
+
+$$\hat\beta_k^{\mathrm{TS}} \;=\; \mathrm{median}_{\,i<j}\, \frac{F_{s_j}^{-1}(u_k) - F_{s_i}^{-1}(u_k)}{s_j - s_i}.$$
+
+Theil-Sen has a 29.3% asymptotic breakdown point — up to ~29% of the
+lookback can be moved arbitrarily without breaking the slope estimate
+(Rousseeuw & Leroy 1987, §3.1). This is the right tool for crypto, where
+the failure mode is *recent* outlier days (vol-cluster onset, exchange
+incidents, gap-down candles).
+
+Empirically (`RESULTS_LONG.md`), the Theil-Sen variant **ties or beats the
+curvature-gate variant at every horizon ≥ 5**, on both BTC and ETH, with
+*one* fewer hyperparameter (no κ* or τ). We therefore recommend it as the
+default whenever h ≥ 5 and keep the gate for h = 1.
 
 ### 2.4 Monotonicity enforcement
 
