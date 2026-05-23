@@ -81,6 +81,8 @@ def fmt_pct_diff(a: float, b: float) -> str:
 
 
 def main():
+    from wbtc.manifest import write_manifest
+
     md = [
         "# Long-Horizon Results — Multi-Year, Multi-Asset Validation",
         "",
@@ -214,6 +216,10 @@ def main():
     DOC.write_text("\n".join(md))
     print(f"\n[long-run] wrote {DOC}")
     print(json.dumps(headline_rows, indent=2, default=str))
+    manifest_path = write_manifest(
+        "run_long_horizon.py", extra={"headline": headline_rows}
+    )
+    print(f"[long-run] manifest -> {manifest_path}")
 
 
 if __name__ == "__main__":

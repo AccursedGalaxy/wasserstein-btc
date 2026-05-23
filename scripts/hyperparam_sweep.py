@@ -124,10 +124,10 @@ def main():
     )
 
     summary = {
-        "early_best": list(best_idx),
+        "early_best": [int(best_idx[0]), int(best_idx[1])],
         "early_crps_at_best": float(early_df.loc[best_idx, "crps_early"]),
         "late_crps_at_best": float(late_df.loc[best_idx, "crps_late"]),
-        "late_best": list(late_df["crps_late"].idxmin()),
+        "late_best": [int(x) for x in late_df["crps_late"].idxmin()],
         "late_crps_at_late_best": float(late_df["crps_late"].min()),
         "rank_corr": float(full["crps_early"].rank().corr(full["crps_late"].rank())),
     }
@@ -135,6 +135,12 @@ def main():
         json.dumps(summary, indent=2)
     )
     print("\n[sweep] summary:", json.dumps(summary, indent=2))
+    from wbtc.manifest import write_manifest
+
+    manifest_path = write_manifest(
+        "hyperparam_sweep.py", extra={"sweep_summary": summary}
+    )
+    print(f"[sweep] manifest -> {manifest_path}")
 
 
 if __name__ == "__main__":

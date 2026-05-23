@@ -1,0 +1,30 @@
+[
+  {
+    "timestamp": "2026-05-23T14:30:17.354721+00:00",
+    "entry_point": "smoke-test",
+    "argv": [
+      "-c"
+    ],
+    "git_sha": "4c11e9bab9290aeb8102d3765fda2c3659bd767d",
+    "git_dirty": true,
+    "python": "3.14.3",
+    "packages": {
+      "wbtc": "0.2.0",
+      "numpy": "2.4.6",
+      "scipy": "1.17.1",
+      "pandas": "3.0.3",
+      "arch": "8.0.0",
+      "scikit-learn": "1.8.0",
+      "matplotlib": "3.10.9",
+      "ccxt": "4.5.54"
+    },
+    "data_sha256": {
+      "btcusdt_1d.parquet": "c605ea3196e3f224ad109024ce27138e9272d20a28fd97a9323f2b31a4a3fe00",
+      "ethusdt_1d.parquet": "17550935a5cf66ed5aa92021a3902eb9188bc7d84eb7a2eee01bad40829a7214",
+      "solusdt_1d.parquet": "491c3c7774fa7aa2e6f69b168645187d61f564e7b92483095d4d6147cecf01e6"
+    },
+    "extra": {
+      "note": "first manifest entry"
+    }
+  }
+]

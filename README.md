@@ -49,15 +49,33 @@ project applies a different mechanism (tangent-space regression + robust
 slope/curvature gate) to crypto returns, with rigorous distributional
 scoring.
 
-## Reproducing
+## Quick start
 
 ```bash
-uv sync
-uv run python scripts/fetch_data.py BTC/USDT ETH/USDT   # cache OHLCV → data/
-uv run python scripts/run_long_horizon.py               # multi-year multi-asset
-uv run python scripts/hyperparam_sweep.py               # robustness check
-uv run pytest                                           # 17 unit + property tests
+uv sync                                       # one-time install
+uv run wbtc info                              # what data do I have?
+uv run wbtc fetch BTC/USDT ETH/USDT           # fetch / update from Binance
+uv run wbtc forecast BTC/USDT -H 5 --plot     # forecast & fan-chart PNG
+uv run wbtc forecast BTC/USDT -H 5 --json     # JSON for scripting
+uv run wbtc backtest --quick                  # fast single-symbol backtest
+uv run wbtc backtest-long                     # full multi-asset (~20 min)
+uv run wbtc sweep                             # hyperparameter robustness
+uv run wbtc test                              # run pytest
 ```
+
+### Programmatic API
+
+```python
+from wbtc import forecast, available_symbols
+
+available_symbols()                            # ['BTC/USDT', 'ETH/USDT', ...]
+fc = forecast("BTC/USDT", horizon=5)
+fc.median, fc.quantile(0.05), fc.quantile(0.95)
+fc.to_dict()                                   # JSON-safe summary
+```
+
+Agent-facing repo guide: [`CLAUDE.md`](CLAUDE.md). Documentation index:
+[`docs/INDEX.md`](docs/INDEX.md). Changelog: [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Honest limitations
 

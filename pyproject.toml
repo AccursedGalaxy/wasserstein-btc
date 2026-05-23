@@ -1,7 +1,7 @@
 [project]
 name = "wbtc"
-version = "0.1.0"
-description = "Tangent-space Wasserstein-geodesic distributional forecasting for Bitcoin returns"
+version = "0.2.0"
+description = "Tangent-space Wasserstein-geodesic distributional forecasting for crypto returns"
 requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.26",
@@ -15,6 +15,9 @@ dependencies = [
     "tqdm>=4.66",
     "tabulate>=0.10.0",
 ]
+
+[project.scripts]
+wbtc = "wbtc.cli:main"
 
 [build-system]
 requires = ["hatchling"]
