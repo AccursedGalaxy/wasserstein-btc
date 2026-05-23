@@ -290,6 +290,8 @@ baseline.
 
 ### Baselines (these must be beaten honestly)
 
+Headline panel (BTC + ETH + SOL + BNB, in `RESULTS_LONG.md`):
+
 - **B1 — Static-Empirical.** $\hat F_{t+h}^{-1} = \hat F_t^{-1}$. The "the
   next window looks like the last window" hypothesis. Trivial but
   surprisingly hard to beat over short horizons.
@@ -298,6 +300,33 @@ baseline.
 - **B3 — GARCH(1,1)-Gaussian.** Standard volatility model with Gaussian
   innovations; closed-form quantile forecast.
 - **B4 — GARCH(1,1)-Student-t.** Same but heavy-tailed innovations.
+- **B5 — GJR-GARCH(1,1,1)-Student-t.** Asymmetric leverage term for
+  down-side spikes.
+- **B6 — Historical-Simulation Bootstrap.** Industry-standard non-
+  parametric quantile forecast via i.i.d. bootstrap of past returns.
+
+Extended panel (BTC-only, in `RESULTS_EXTENDED.md`) — named methods
+from adjacent families requested in the v0.4 baseline-coverage item:
+
+- **C1 — HAR-RV** (Corsi 2009). Heterogeneous Autoregressive of
+  realised variance using daily / weekly / monthly aggregates of
+  `r²`; Student-t innovations.
+- **C2 — CAViaR-SAV** (Engle-Manganelli 2004). Symmetric Absolute
+  Value quantile autoregression: $q_t(\tau) = \beta_0 + \beta_1
+  q_{t-1}(\tau) + \beta_2 |r_{t-1}|$. Fit via pinball-loss
+  minimisation.
+- **C3 — 2-state Markov-Switching Normal** (Hamilton 1989; simplified
+  surrogate for MS-GARCH / Haas-Mittnik-Paolella 2004). Hamilton EM
+  filter; mixture-of-Gaussians h-step forecast.
+- **C4 — FIGARCH(1, d, 0)** (Baillie-Bollerslev-Mikkelsen 1996).
+  Long-memory variance via the truncated ARCH-∞ representation;
+  Gaussian QML on `(ω, β, d)`.
+- **C5 — SV-AR1** (Taylor 1982 / Harvey-Ruiz-Shephard 1994).
+  Discrete-time stochastic volatility with AR(1) log-variance, fit
+  by Kalman quasi-likelihood on `log r²`.
+- **C6 — Bivariate VAR(1) + GARCH(1,1)** on (BTC, ETH). Cross-asset
+  baseline; ETH information enters the BTC forecast through the VAR
+  cross-coefficients.
 
 All baselines are walk-forward, identical train/test split as the proposed
 method.
@@ -376,3 +405,29 @@ If we hit any of those, the results report says so plainly. No spinning.
 - Saluzzi, L. & Soize, C. (2025). *Functional Time Series Forecasting of
   Distributions: A Koopman-Wasserstein Approach*. arXiv:2507.07570.
 - Villani, C. (2009). *Optimal Transport: Old and New*. Springer.
+
+### Extended baselines (v0.4 panel)
+
+- Baillie, R. T., Bollerslev, T., & Mikkelsen, H. O. (1996).
+  *Fractionally integrated generalized autoregressive conditional
+  heteroskedasticity*. Journal of Econometrics, 74(1), 3–30. [FIGARCH]
+- Corsi, F. (2009). *A simple approximate long-memory model of
+  realized volatility*. Journal of Financial Econometrics, 7(2),
+  174–196. [HAR-RV]
+- Engle, R. F., & Manganelli, S. (2004). *CAViaR: Conditional
+  Autoregressive Value at Risk by Regression Quantiles*. Journal of
+  Business & Economic Statistics, 22(4), 367–381. [CAViaR-SAV]
+- Haas, M., Mittnik, S., & Paolella, M. S. (2004). *A new approach to
+  Markov-switching GARCH models*. Journal of Financial Econometrics,
+  2(4), 493–530. [MS-GARCH; we use a simplified Hamilton 1989
+  surrogate]
+- Hamilton, J. D. (1989). *A new approach to the economic analysis of
+  nonstationary time series and the business cycle*. Econometrica,
+  57(2), 357–384. [2-state Markov-switching Normal]
+- Harvey, A. C., Ruiz, E., & Shephard, N. (1994). *Multivariate
+  stochastic variance models*. Review of Economic Studies, 61,
+  247–264. [Kalman-QML SV fit]
+- Taylor, S. J. (1982). *Financial returns modelled by the product of
+  two stochastic processes — a study of daily sugar prices*. In
+  *Time Series Analysis: Theory and Practice 1*. [discrete-time SV
+  formulation]

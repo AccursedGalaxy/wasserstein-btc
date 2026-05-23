@@ -18,14 +18,17 @@ funds.
 These are pre-publication priorities. Each is small enough to be a
 single PR and each strengthens the paper.
 
-- [ ] **Stronger baselines.** Add HAR-RV (Corsi 2009), FIGARCH (Baillie,
-  Bollerslev, Mikkelsen 1996), and a Markov-switching GARCH variant to
-  the comparator panel. The current panel does not include the
-  state-of-the-art realized-volatility model. *Without this, every
-  claim about beating "real" benchmarks is unsupported.*
-- [ ] **CAViaR (Engle-Manganelli 2004) as a quantile-regression
-  baseline.** Distributional-forecast literature treats CAViaR as the
-  natural comparator for quantile methods; we should report against it.
+- [x] **Stronger baselines.** HAR-RV (Corsi 2009), FIGARCH(1,d,0)
+  (Baillie-Bollerslev-Mikkelsen 1996), and a 2-state Markov-switching
+  Normal (Hamilton 1989) — *plus* AR(1) Stochastic Volatility (Taylor
+  1982 / Harvey-Ruiz-Shephard 1994) and a bivariate VAR+GARCH
+  (BTC+ETH) — added to the comparator panel. See
+  [`docs/RESULTS_EXTENDED.md`](docs/RESULTS_EXTENDED.md). Run via
+  `uv run wbtc extended-baselines`.
+- [x] **CAViaR (Engle-Manganelli 2004) as a quantile-regression
+  baseline.** Implemented as `CAViaRSAV` (Symmetric Absolute Value)
+  with an anchor-grid + interpolation fit for tractable per-step
+  cost. Included in the extended baselines panel.
 - [ ] **`WGeo-GARCH-Dispersion-Replace`.** The §4.4 boundary in the
   Research Report identifies the right way to use a parametric vol
   forecast: *replace* the empirical dispersion, don't multiply it.

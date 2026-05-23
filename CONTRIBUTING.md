@@ -61,11 +61,18 @@ underlying idea is.
    monotone output, finite predictions, and one sanity case (recovers a
    known drift, equals a parent class under a specific parameter value,
    etc.).
-4. Add the method to `METHODS` in `scripts/run_long_horizon.py`.
-5. Re-run `uv run wbtc backtest-long`. Update the TL;DR + v0.3 verdict
-   sections of `docs/RESULTS_LONG.md` with the new headline.
+4. Add the method to `METHODS` in `scripts/run_long_horizon.py` (if it's
+   a WGeo variant or a textbook baseline) — *or* to the `build_methods`
+   dict in `scripts/run_extended_baselines.py` if it's a named econometric
+   baseline from an adjacent family (HAR-RV-class, CAViaR-class,
+   regime-switching, long-memory, stochastic-vol, multivariate).
+5. Re-run the matching backtest (`wbtc backtest-long` or
+   `wbtc extended-baselines`). Update the TL;DR + verdict sections of the
+   matching results doc with the new headline.
 6. Add a `§2.x` section to `docs/THEORY.md` describing the math and any
-   new falsification criterion to `§4`.
+   new falsification criterion to `§4`. If the method belongs in the
+   extended panel, cite it in `docs/THEORY.md §3` and
+   `docs/RESEARCH_REPORT.md §6.1`.
 7. Add a `[0.x.0]` entry to `CHANGELOG.md` including the honest
    negative findings (if any).
 

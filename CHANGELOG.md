@@ -2,6 +2,48 @@
 
 All notable changes to this project will be documented here. Dates ISO-8601.
 
+## [Unreleased — v0.4 extended baselines]
+
+### Added
+
+- **Six named-econometric baselines** for the comparator panel, each
+  implemented faithfully from scratch and tested on synthetic data:
+  - `HARRV` — Heterogeneous Autoregressive of Realised Variance (Corsi
+    2009) on daily-r² as RV proxy, daily/weekly/monthly aggregates,
+    NNLS-constrained coefficients, Student-t innovations.
+  - `CAViaRSAV` — Symmetric Absolute Value CAViaR (Engle-Manganelli
+    2004) with an anchor-grid fit + interpolation for tractable
+    per-step cost.
+  - `MarkovSwitching2` — 2-state Markov-switching Normal (Hamilton
+    1989, simplified) fit by full Hamilton EM; mixture-of-Gaussians
+    h-step quantile inversion.
+  - `FIGARCH` — FIGARCH(1, d, 0) (Baillie-Bollerslev-Mikkelsen 1996)
+    via truncated ARCH-∞ representation, Gaussian QML, Student-t
+    innovations.
+  - `StochasticVolatilityAR1` — discrete-time SV with AR(1) log-
+    variance (Taylor 1982 / Harvey-Ruiz-Shephard 1994) fit by Kalman
+    quasi-likelihood on `log r²`.
+  - `BivariateVARGarch` — bivariate VAR(1) on (BTC, ETH) for the mean
+    + univariate GARCH(1,1) on BTC residuals. The exogenous ETH series
+    is supplied at construction and aligned to walk-forward windows by
+    tail-suffix match.
+- **`scripts/run_extended_baselines.py`** + **`wbtc extended-baselines`**
+  CLI command — runs the six new baselines plus `WGeo-GARCH-Ens` and
+  `GARCH-t` (anchors) on BTC at h ∈ {1, 5, 21} with the same
+  walk-forward harness, writes `docs/RESULTS_EXTENDED.md`.
+- 6 new tests in `tests/test_forecasters.py` covering each forecaster
+  (monotone quantiles, horizon-widening, regime recovery for MS,
+  cross-coefficient learning for BVAR-GARCH). Suite: 37/37.
+
+### Changed
+
+- `default_forecaster(horizon)` is unchanged — the v0.4 baselines exist
+  for comparison, not for replacement of the WGeo defaults.
+- README "Honest limitations" updated to reference the new
+  `RESULTS_EXTENDED.md` instead of stating the named-method gap.
+- `docs/INDEX.md` and `ROADMAP.md` updated to reflect that the v0.4 #1
+  baseline-coverage item is now landed.
+
 ## [0.3.0] — 2026-05-23
 
 ### Added

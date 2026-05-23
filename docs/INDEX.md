@@ -32,6 +32,18 @@ tests, the hyperparameter robustness sweep, and a sober verdict against
 the THEORY §4 falsification criteria. **This is the document to cite for
 numbers.**
 
+## [RESULTS_EXTENDED.md](RESULTS_EXTENDED.md) — named-econometric comparator panel
+
+The v0.4 extended-baselines report. Compares `WGeo-GARCH-Ens` (the v0.3
+ensemble) against named methods from adjacent econometric families on
+BTC at h ∈ {1, 5, 21}: HAR-RV (Corsi 2009), CAViaR-SAV (Engle-Manganelli
+2004), 2-state Markov-switching Normal (Hamilton 1989), FIGARCH(1,d,0)
+(Baillie-Bollerslev-Mikkelsen 1996), AR(1) Stochastic Volatility
+(Taylor 1982 / Harvey-Ruiz-Shephard 1994 via Kalman QML), and a
+bivariate VAR+GARCH using BTC + ETH jointly. Restricted to BTC so the
+heavier per-step fits (FIGARCH MLE, CAViaR per-quantile QR) complete in
+tractable time. Same walk-forward / CRPS protocol as `RESULTS_LONG.md`.
+
 ## [RESULTS.md](RESULTS.md) — superseded but kept
 
 The original v0.1 365-day-holdout backtest. Shows -11.7% CRPS vs GARCH-N at

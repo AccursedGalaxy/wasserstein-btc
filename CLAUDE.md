@@ -40,17 +40,19 @@ src/wbtc/
   long_horizon.py    multi-year walk-forward + per-year + per-regime breakdowns
   cli.py             `wbtc` CLI; dispatches to library / scripts/
 scripts/
-  fetch_data.py        downloads OHLCV from Binance via ccxt -> data/*.parquet
-  run_backtest.py      365-day-holdout report (legacy, produces RESULTS_AUTO.md)
-  run_long_horizon.py  full multi-year multi-asset (the one we trust)
-  hyperparam_sweep.py  4x4 grid on early epoch, verified on late epoch
-  coverage_check.py    Kupiec LR test of forecast-quantile calibration
+  fetch_data.py             downloads OHLCV from Binance via ccxt -> data/*.parquet
+  run_backtest.py           365-day-holdout report (legacy, produces RESULTS_AUTO.md)
+  run_long_horizon.py       full multi-year multi-asset (the one we trust)
+  run_extended_baselines.py v0.4 extended econometric panel (HAR-RV/CAViaR/MS/FIGARCH/SV/BVAR) on BTC
+  hyperparam_sweep.py       4x4 grid on early epoch, verified on late epoch
+  coverage_check.py         Kupiec LR test of forecast-quantile calibration
 docs/
-  THEORY.md          math (§1-5 + falsification §4). READ THIS. v0.3.
-  RESEARCH_REPORT.md paper-style writeup of the v0.3 contributions.
-  RESULTS.md         the v0.1 365-day report. Superseded but kept.
-  RESULTS_LONG.md    v0.3 long-horizon report. The current source of truth.
-  INDEX.md           one-paragraph overview of every doc + repo-root files.
+  THEORY.md            math (§1-5 + falsification §4). READ THIS. v0.3.
+  RESEARCH_REPORT.md   paper-style writeup of the v0.3 contributions.
+  RESULTS.md           the v0.1 365-day report. Superseded but kept.
+  RESULTS_LONG.md      v0.3 long-horizon report. The current source of truth.
+  RESULTS_EXTENDED.md  v0.4 named-econometric baseline panel (BTC-only).
+  INDEX.md             one-paragraph overview of every doc + repo-root files.
 ROADMAP.md           v0.4 + v0.5 priorities — the prioritised work list.
 CONTRIBUTING.md      conventions PRs must follow.
 CHANGELOG.md         v0.1 → v0.2 → v0.3 release notes.

@@ -227,26 +227,53 @@ The headline claim of this paper is narrow on purpose: we beat the
 The following are the things we did *not* show, in priority order — they
 are also the contents of [`ROADMAP.md`](../ROADMAP.md).
 
-### 6.1 Comparators not included
+### 6.1 Comparators not included (updated — partially addressed in v0.4)
 
-We compared against Static, Random-Walk-Drift, Historical-Simulation
-Bootstrap, GARCH-N, GARCH-t, and GJR-GARCH-t. The following commonly
-cited models are *absent* from our baseline set:
+The v0.3 headline panel compared against Static, Random-Walk-Drift,
+Historical-Simulation Bootstrap, GARCH-N, GARCH-t, and GJR-GARCH-t. The
+v0.4 extended panel (see [`RESULTS_EXTENDED.md`](RESULTS_EXTENDED.md))
+adds the following named methods on BTC at h ∈ {1, 5, 21}:
 
-- **Realised-volatility models.** HAR-RV (Corsi 2009) is the de facto
-  standard in the realised-vol literature; not having it in our panel
-  is the largest single open question. FIGARCH (Baillie, Bollerslev,
-  Mikkelsen 1996) for long-memory; MS-GARCH (Haas, Mittnik, Paolella
-  2004) for the regime-switching alternative.
-- **Quantile-regression baselines.** CAViaR (Engle & Manganelli 2004)
-  is the natural comparator for any quantile-based forecasting method.
-- **Stochastic volatility models.** Heston (1993), SABR.
-- **Anything multivariate.** Real risk systems forecast joint
-  distributions, not univariate marginals. We forecast each asset
-  independently.
+- **HAR-RV** (Corsi 2009) — realised-variance regression on daily /
+  weekly / monthly aggregates of `r²` with NNLS-constrained
+  coefficients and Student-t innovations (`forecasters.py:HARRV`).
+- **CAViaR-SAV** (Engle & Manganelli 2004) — quantile autoregression
+  fit by pinball-loss minimisation on an anchor grid of seven τ levels,
+  interpolated to the evaluation grid
+  (`forecasters.py:CAViaRSAV`).
+- **2-state Markov-Switching Normal** (Hamilton 1989, simplified
+  surrogate for MS-GARCH / Haas-Mittnik-Paolella 2004) — full Hamilton
+  EM filter, h-step state-probability propagation, mixture-of-Gaussian
+  quantile inversion (`forecasters.py:MarkovSwitching2`).
+- **FIGARCH(1, d, 0)** (Baillie-Bollerslev-Mikkelsen 1996) — long-
+  memory volatility via the truncated ARCH-∞ representation; Gaussian
+  QML on `(ω, β, d)`; Student-t innovations
+  (`forecasters.py:FIGARCH`).
+- **AR(1) Stochastic Volatility** (Taylor 1982 / Harvey-Ruiz-Shephard
+  1994) — discrete-time SV with AR(1) log-variance, fit by Kalman
+  quasi-likelihood on `log r²` with bias-corrected measurement noise
+  (`forecasters.py:StochasticVolatilityAR1`).
+- **Bivariate VAR(1) + GARCH** on (BTC, ETH) — multivariate-mean
+  baseline; cross-asset information enters the BTC forecast through
+  the VAR cross-coefficients (`forecasters.py:BivariateVARGarch`).
 
-Until those are added (see ROADMAP.md v0.4), any claim that the model
-would compete against a *production* risk system is unsupported.
+What is still absent:
+
+- **Continuous-time stochastic-volatility models with closed-form
+  characteristic functions.** Heston (1993) and SABR are option-pricing
+  models; their natural distributional-forecast specialisation on
+  daily-only data is the discrete-time SV-AR1 above, which we *did*
+  include. A more faithful Heston via particle filters or MCMC is left
+  as future work.
+- **Full DCC-GARCH / BEKK multivariate.** Our `BivariateVARGarch` uses
+  cross-asset information in the *mean* but not the variance. A full
+  DCC(1,1) would also adapt the variance to cross-asset dynamics; for
+  the BTC marginal this is a small effect (the marginal collapses to
+  univariate GARCH(1,1)) but worth verifying explicitly.
+- **Intraday RV inputs to HAR-RV.** We use daily `r²` as the
+  RV proxy. A production HAR-RV uses 5-minute realised variance, which
+  has lower estimation noise. Adding intraday-resolution inputs is a
+  v0.5 priority.
 
 ### 6.2 Resolution and feature set
 

@@ -203,6 +203,19 @@ def cmd_backtest_long(args: argparse.Namespace) -> int:
     return subprocess.call([sys.executable, str(script)])
 
 
+def cmd_extended_baselines(args: argparse.Namespace) -> int:
+    """Extended econometric baselines (HAR-RV, CAViaR, MS, FIGARCH, SV, BVAR)."""
+    script = ROOT / "scripts" / "run_extended_baselines.py"
+    cmd = [sys.executable, str(script)]
+    if args.parallel != 1:
+        cmd += ["--parallel", str(args.parallel)]
+    if args.stride != 1:
+        cmd += ["--stride", str(args.stride)]
+    if args.out is not None:
+        cmd += ["--out", str(args.out)]
+    return subprocess.call(cmd)
+
+
 def cmd_sweep(args: argparse.Namespace) -> int:
     script = ROOT / "scripts" / "hyperparam_sweep.py"
     return subprocess.call([sys.executable, str(script)])
@@ -268,6 +281,29 @@ def build_parser() -> argparse.ArgumentParser:
         "backtest-long", help="Run the full long-horizon multi-asset backtest."
     )
     p_btl.set_defaults(fn=cmd_backtest_long)
+
+    p_ext = sub.add_parser(
+        "extended-baselines",
+        help="Run the extended econometric-baseline comparison (HAR-RV, CAViaR, MS, FIGARCH, SV, BVAR).",
+    )
+    p_ext.add_argument(
+        "--parallel",
+        type=int,
+        default=1,
+        help="Worker processes for the method loop (1=sequential, -1=all cores).",
+    )
+    p_ext.add_argument(
+        "--stride",
+        type=int,
+        default=1,
+        help="Refit every K steps (1=every step, 5=weekly-refit risk-system style).",
+    )
+    p_ext.add_argument(
+        "--out",
+        default=None,
+        help="Override output markdown path (default: docs/RESULTS_EXTENDED.md).",
+    )
+    p_ext.set_defaults(fn=cmd_extended_baselines)
 
     p_sw = sub.add_parser("sweep", help="Hyperparameter robustness sweep.")
     p_sw.set_defaults(fn=cmd_sweep)

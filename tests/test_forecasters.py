@@ -212,3 +212,115 @@ def test_ensemble_is_monotone_and_finite():
     q = f.predict(h=5, u=u)
     assert np.isfinite(q).all()
     assert (np.diff(q) >= -1e-9).all()
+
+
+# --------------------- v0.4 extended baselines ------------------------------
+
+
+def test_harrv_monotone_and_widens_with_horizon():
+    from wbtc.forecasters import HARRV
+
+    r = _synth_returns(n=500)
+    u = make_grid(20)
+    f = HARRV()
+    f.fit(r)
+    q1 = f.predict(1, u)
+    q5 = f.predict(5, u)
+    assert np.isfinite(q1).all() and np.isfinite(q5).all()
+    assert (np.diff(q1) >= -1e-9).all()
+    assert (np.diff(q5) >= -1e-9).all()
+    assert (q5.max() - q5.min()) > (q1.max() - q1.min())
+
+
+def test_caviar_monotone_and_finite():
+    from wbtc.forecasters import CAViaRSAV
+
+    r = _synth_returns(n=300)
+    u = make_grid(15)
+    f = CAViaRSAV(n_starts=1)
+    f.fit(r)
+    q = f.predict(1, u)
+    assert np.isfinite(q).all()
+    assert (np.diff(q) >= -1e-9).all()
+
+
+def test_ms_two_state_recovers_known_vol_split():
+    """A returns series with a clear high-vol second half should land state 1
+    (high-vol) with high filtered probability at the final timestep."""
+    from wbtc.forecasters import MarkovSwitching2
+
+    rng = np.random.default_rng(42)
+    r = np.concatenate([rng.normal(0, 0.005, size=300), rng.normal(0, 0.04, size=300)])
+    u = make_grid(20)
+    f = MarkovSwitching2()
+    f.fit(r)
+    q5 = f.predict(5, u)
+    assert np.isfinite(q5).all()
+    assert (np.diff(q5) >= -1e-9).all()
+    assert f._filtered is not None  # type: ignore[attr-defined]
+    # high-vol state filtered prob at the end should dominate
+    assert f._filtered[1] > 0.7  # type: ignore[index]
+
+
+def test_figarch_monotone_and_widens_with_horizon():
+    from wbtc.forecasters import FIGARCH
+
+    rng = np.random.default_rng(3)
+    r = rng.normal(0, 0.02, size=500)
+    u = make_grid(20)
+    f = FIGARCH()
+    f.fit(r)
+    q1 = f.predict(1, u)
+    q5 = f.predict(5, u)
+    assert np.isfinite(q1).all() and np.isfinite(q5).all()
+    assert (np.diff(q1) >= -1e-9).all()
+    assert (np.diff(q5) >= -1e-9).all()
+    assert (q5.max() - q5.min()) > (q1.max() - q1.min())
+
+
+def test_sv_ar1_monotone_and_widens_with_horizon():
+    from wbtc.forecasters import StochasticVolatilityAR1
+
+    rng = np.random.default_rng(5)
+    r = rng.normal(0, 0.02, size=500)
+    u = make_grid(20)
+    f = StochasticVolatilityAR1()
+    f.fit(r)
+    q1 = f.predict(1, u)
+    q5 = f.predict(5, u)
+    assert np.isfinite(q1).all() and np.isfinite(q5).all()
+    assert (np.diff(q1) >= -1e-9).all()
+    assert (np.diff(q5) >= -1e-9).all()
+    assert (q5.max() - q5.min()) > (q1.max() - q1.min())
+
+
+def test_bivariate_var_garch_uses_exog_for_mean():
+    """If ETH = -2 * BTC contemporaneous and BTC is AR(1), the VAR fit must
+    pick up a non-trivial cross-coefficient — i.e. the multivariate model
+    is genuinely using the second series."""
+    from wbtc.forecasters import BivariateVARGarch
+
+    rng = np.random.default_rng(11)
+    n = 600
+    btc = np.zeros(n)
+    for t in range(1, n):
+        btc[t] = 0.2 * btc[t - 1] + rng.normal(0, 0.02)
+    # ETH leads BTC slightly: ETH_t informs BTC_{t+1} via a cross term
+    eth = np.zeros(n)
+    eth[0] = rng.normal(0, 0.02)
+    for t in range(1, n):
+        eth[t] = 0.5 * btc[t - 1] + rng.normal(0, 0.02)
+    # now make BTC's mean depend on lagged ETH too, so the VAR should learn it
+    btc2 = btc.copy()
+    for t in range(1, n):
+        btc2[t] += 0.3 * eth[t - 1]
+    u = make_grid(20)
+    f = BivariateVARGarch(full_target=btc2, full_exog=eth)
+    f.fit(btc2)
+    q = f.predict(5, u)
+    assert np.isfinite(q).all()
+    assert (np.diff(q) >= -1e-9).all()
+    # cross coefficient (BTC equation, ETH lag) should be non-trivial
+    assert f._coef is not None  # type: ignore[attr-defined]
+    cross = float(f._coef[0, 2])  # type: ignore[index]
+    assert abs(cross) > 0.05, f"expected non-trivial cross-coef, got {cross:.4f}"

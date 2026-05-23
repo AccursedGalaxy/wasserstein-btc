@@ -29,6 +29,52 @@ class LongRunResult:
     realised: np.ndarray
 
 
+def _run_one_method(
+    name: str,
+    fac: Callable[[], object],
+    returns: np.ndarray,
+    burn_in: int,
+    horizon: int,
+    u: np.ndarray,
+    stride: int,
+    show_progress: bool,
+) -> tuple[str, pd.DataFrame]:
+    """Walk-forward CRPS series for a single method.
+
+    With ``stride > 1`` the forecaster is refit every ``stride`` walk-forward
+    steps and reused for the intervening predictions. The intervening
+    predictions are therefore conditioned on data up to the most recent
+    refit, not the present step — a standard "weekly-refit"
+    approximation used by production risk systems. Default ``stride=1``
+    preserves the methodologically conservative refit-every-step
+    behaviour required by the headline panel.
+    """
+    rows: list[dict] = []
+    steps = range(burn_in, len(returns) - horizon)
+    iterator = tqdm(steps, desc=name, leave=False) if show_progress else steps
+    f: object | None = None
+    for i, t in enumerate(iterator):
+        if (i % stride == 0) or (f is None):
+            window = returns[:t] if t < burn_in + 1 else returns[t - burn_in : t]
+            f = fac()
+            try:
+                f.fit(window)  # type: ignore[attr-defined]
+            except Exception:
+                rows.append({"t": t, "crps": np.nan, "y": np.nan})
+                f = None
+                continue
+        try:
+            q = f.predict(horizon, u)  # type: ignore[attr-defined]
+        except Exception:
+            rows.append({"t": t, "crps": np.nan, "y": np.nan})
+            continue
+        y = h_step_log_return(returns, t, horizon)
+        if y is None:
+            continue
+        rows.append({"t": t, "crps": crps_from_quantiles(q, u, y), "y": y})
+    return name, pd.DataFrame(rows)
+
+
 def run_long_horizon(
     returns: np.ndarray,
     timestamps: pd.Series,  # one per return
@@ -36,25 +82,28 @@ def run_long_horizon(
     burn_in: int,
     horizon: int,
     K: int = 30,
+    n_jobs: int = 1,
+    stride: int = 1,
 ) -> LongRunResult:
     u = make_grid(K)
     per_step: dict[str, pd.DataFrame] = {}
-    for name, fac in method_factories.items():
-        rows = []
-        for t in tqdm(range(burn_in, len(returns) - horizon), desc=name, leave=False):
-            window = returns[:t] if t < burn_in + 1 else returns[t - burn_in : t]
-            f = fac()
-            try:
-                f.fit(window)  # type: ignore[attr-defined]
-                q = f.predict(horizon, u)  # type: ignore[attr-defined]
-            except Exception:
-                rows.append({"t": t, "crps": np.nan, "y": np.nan})
-                continue
-            y = h_step_log_return(returns, t, horizon)
-            if y is None:
-                continue
-            rows.append({"t": t, "crps": crps_from_quantiles(q, u, y), "y": y})
-        per_step[name] = pd.DataFrame(rows)
+    if n_jobs == 1:
+        for name, fac in method_factories.items():
+            _, df = _run_one_method(
+                name, fac, returns, burn_in, horizon, u, stride, show_progress=True
+            )
+            per_step[name] = df
+    else:
+        from joblib import Parallel, delayed
+
+        results = Parallel(n_jobs=n_jobs, backend="loky")(
+            delayed(_run_one_method)(
+                name, fac, returns, burn_in, horizon, u, stride, False
+            )
+            for name, fac in method_factories.items()
+        )
+        for name, df in results:  # type: ignore[misc]
+            per_step[name] = df
 
     # align
     common = None

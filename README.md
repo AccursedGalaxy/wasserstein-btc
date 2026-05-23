@@ -78,6 +78,7 @@ uv run wbtc forecast BTC/USDT -H 5 --plot     # forecast & fan-chart PNG
 uv run wbtc forecast BTC/USDT -H 5 --json     # JSON for scripting
 uv run wbtc backtest --quick                  # fast single-symbol backtest
 uv run wbtc backtest-long                     # full multi-asset (~30 min)
+uv run wbtc extended-baselines                # HAR-RV/CAViaR/MS/FIGARCH/SV/BVAR vs WGeo on BTC (~2h)
 uv run wbtc sweep                             # hyperparameter robustness
 ```
 
@@ -138,11 +139,17 @@ CHANGELOG.md          v0.1 → v0.2 → v0.3 history
 
 ## Honest limitations
 
-- We have benchmarked against **textbook baselines**. We have *not*
-  benchmarked against HAR-RV (Corsi 2009), FIGARCH, MS-GARCH, CAViaR,
-  or stochastic-volatility models. Any claim the method would beat a
-  *production* risk system is unsupported until those land.
-  See [`ROADMAP.md`](ROADMAP.md) v0.4 #1.
+- We have benchmarked against **textbook baselines** as headline (Static
+  / RW / HS / GARCH-N / GARCH-t / GJR-GARCH-t across 4 assets × 3
+  horizons in [`docs/RESULTS_LONG.md`](docs/RESULTS_LONG.md)) and against
+  a broader **named-econometric panel** on BTC in
+  [`docs/RESULTS_EXTENDED.md`](docs/RESULTS_EXTENDED.md): HAR-RV (Corsi
+  2009), CAViaR-SAV (Engle-Manganelli 2004), 2-state Markov-switching
+  Normal (Hamilton 1989), FIGARCH(1,d,0) (Baillie-Bollerslev-Mikkelsen
+  1996), AR(1) Stochastic Volatility (Taylor 1982 / Harvey-Ruiz-Shephard
+  1994 via Kalman QML), and a bivariate VAR+GARCH using BTC + ETH
+  jointly. Any *production*-risk-system claim is still unsupported —
+  this rounds out the academic panel.
 - **Daily-only.** Intraday volatility dynamics are different.
 - **Univariate only.** The 1D-W₂ isometry doesn't extend cleanly to
   higher dimensions; multivariate is a v0.5 research item.
