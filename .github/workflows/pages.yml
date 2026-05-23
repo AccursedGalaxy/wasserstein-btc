@@ -35,9 +35,15 @@ jobs:
         run: uv sync --frozen
 
       # Fetch the daily OHLCV the viewer needs for prices/returns charts.
-      # These are gitignored (regenerable from Binance via ccxt) so CI
-      # must fetch them at build time.
-      - name: Fetch market data
+      # Binance blocks GitHub-hosted runner IPs (Azure) with HTTP 451
+      # ("restricted location"), so this step is expected to fail on
+      # ubuntu-latest. We allow it to fail — build_data.py degrades
+      # gracefully (price/return charts render empty; all CRPS / DM /
+      # extended-panel / sweep sections still work).
+      # To populate the price overlays, run a self-hosted runner outside
+      # the US or commit pre-fetched parquets.
+      - name: Fetch market data (allowed-to-fail; Binance 451 on Azure)
+        continue-on-error: true
         run: |
           uv run wbtc fetch BTC/USDT ETH/USDT SOL/USDT BNB/USDT XRP/USDT
 
