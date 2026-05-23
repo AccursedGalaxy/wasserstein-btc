@@ -274,17 +274,20 @@ def build_headline(symbol: str, h: int) -> dict | None:
     best_w = min(wgeo, key=lambda m: means[m])
     best_b = min(baseline, key=lambda m: means[m])
 
-    # realised returns needed for residualised DM (|y|, y² controls)
-    returns = _log_returns_from_parquet(symbol)
-    if returns is None or len(returns) <= max(t_idx) + h:
-        return None
-    y = _realised_h_step(returns, t_idx, h)
-
     # vanilla DM with the same lag-(h-1) HAC the long-horizon panel uses
     dm_stat, dm_p = _wbtc_dm(losses[best_w], losses[best_b], h=h)
-    # residualised DM with peer losses (≤4) + |y| + y² as controls
+
+    # Residualised DM controls. Peer-method losses are the dominant signal
+    # and always available. The |y|, y² controls require the daily-return
+    # parquet, which is gitignored — on CI runners (Binance 451 on Azure)
+    # the parquets are absent and we fall back to peer-only residualisation.
+    # The local dashboard, where parquets exist, gets the full v0.4 controls.
     peer_ctrls = [losses[k] for k in losses if k != best_w and k != best_b][:4]
-    ctrls = peer_ctrls + [np.abs(y), y * y]
+    ctrls = list(peer_ctrls)
+    returns = _log_returns_from_parquet(symbol)
+    if returns is not None and len(returns) > max(t_idx) + h:
+        y = _realised_h_step(returns, t_idx, h)
+        ctrls.extend([np.abs(y), y * y])
     dm_stat_r, dm_p_r = _wbtc_dm_residualised(
         losses[best_w], losses[best_b], ctrls, h=h
     )
