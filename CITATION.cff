@@ -7,38 +7,51 @@ authors:
     family-names: Bohrer
     alias: AccursedGalaxy
     email: robinbohrer7@gmail.com
-version: "0.3.0"
+version: "0.4.0"
 date-released: "2026-05-23"
 license: MIT
 repository-code: "https://github.com/AccursedGalaxy/wasserstein-btc"
-url: "https://github.com/AccursedGalaxy/wasserstein-btc"
+url: "https://accursedgalaxy.github.io/wasserstein-btc/"
 abstract: >-
   A research codebase that forecasts the conditional distribution of crypto
   log-returns by treating the market as a trajectory on the 2-Wasserstein
   manifold of probability measures and extrapolating along geodesics in
-  quantile-function coordinates. Includes the regime-curvature gate, the
-  Theil-Sen robust slope, a recency-weighted slope (EWMA), a
-  GARCH-conditioned dispersion variant, and a regime-aware ensemble with
-  GARCH. Validated on 6.75 years of out-of-sample data for BTC, ETH, SOL
-  and BNB at horizons h ∈ {1, 5, 21} days under strictly proper scoring
-  (CRPS) with Diebold-Mariano significance.
+  quantile-function coordinates. The v0.4 release adds (a) the
+  Wasserstein-2 barycentre ensemble of the v0.3 trio in quantile-function
+  coordinates (WGeoEnsemble), guaranteed by Jensen's inequality on convex
+  CRPS to weakly dominate the component mean, and (b) a residualised
+  Diebold-Mariano test (Giacomini-White 2006) that projects out shared
+  volatility-clustering noise via |y|, y^2, y and peer-method losses to
+  reduce HAC variance while preserving the EPA null. Validated on 6.75
+  years of out-of-sample data for BTC, ETH, SOL and BNB at horizons
+  h in {1, 5, 21} days under strictly proper scoring (CRPS): the WGeo
+  family wins 12 / 12 (asset x horizon) cells against the best of Static,
+  RW-Drift, HS-Bootstrap, GARCH-N, GARCH-t, GJR-GARCH-t; 8 / 12 cells
+  reach residualised-DM p < 0.05. Also benchmarked against a named
+  econometric panel on BTC (HAR-RV, CAViaR-SAV, 2-state Markov-switching
+  Normal, FIGARCH, AR(1) Stochastic Volatility, bivariate VAR+GARCH).
 keywords:
   - distributional forecasting
   - optimal transport
   - Wasserstein distance
+  - Wasserstein barycentre
   - cryptocurrency
   - bitcoin
   - GARCH
+  - HAR-RV
+  - CAViaR
   - CRPS
+  - Diebold-Mariano test
   - quantile regression
   - geodesic extrapolation
+  - walk-forward backtesting
 preferred-citation:
   type: software
-  title: "wasserstein-btc (v0.3.0)"
+  title: "wasserstein-btc (v0.4.0)"
   authors:
     - given-names: Robin
       family-names: Bohrer
       alias: AccursedGalaxy
   year: 2026
-  version: "0.3.0"
+  version: "0.4.0"
   url: "https://github.com/AccursedGalaxy/wasserstein-btc"

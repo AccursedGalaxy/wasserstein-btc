@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://accursedgalaxy.github.io/wasserstein-btc/sitemap.xml

@@ -11,11 +11,19 @@ keywords = [
     "distributional-forecasting",
     "optimal-transport",
     "wasserstein",
+    "wasserstein-barycenter",
     "cryptocurrency",
     "bitcoin",
     "garch",
+    "har-rv",
+    "caviar",
     "crps",
+    "diebold-mariano",
     "quantile-regression",
+    "walk-forward-backtesting",
+    "econometrics",
+    "time-series",
+    "risk-management",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -47,10 +55,13 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/AccursedGalaxy/wasserstein-btc"
+Homepage = "https://accursedgalaxy.github.io/wasserstein-btc/"
+"Live dashboard" = "https://accursedgalaxy.github.io/wasserstein-btc/"
 Repository = "https://github.com/AccursedGalaxy/wasserstein-btc"
 Issues = "https://github.com/AccursedGalaxy/wasserstein-btc/issues"
 Documentation = "https://github.com/AccursedGalaxy/wasserstein-btc/blob/master/docs/INDEX.md"
+"Research report" = "https://github.com/AccursedGalaxy/wasserstein-btc/blob/master/docs/RESEARCH_REPORT.md"
+"Results (long-horizon)" = "https://github.com/AccursedGalaxy/wasserstein-btc/blob/master/docs/RESULTS_LONG.md"
 Changelog = "https://github.com/AccursedGalaxy/wasserstein-btc/blob/master/CHANGELOG.md"
 
 [project.scripts]

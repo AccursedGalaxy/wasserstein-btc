@@ -3,8 +3,93 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>wbtc · Wasserstein Geodesic Forecasts of Crypto Returns</title>
-  <meta name="description" content="A research dashboard for distributional forecasting of crypto log-returns via 2-Wasserstein geodesics." />
+
+  <!-- Primary -->
+  <title>wasserstein-btc · Distributional crypto-return forecasting on the 2-Wasserstein manifold</title>
+  <meta name="description" content="Walk-forward, strictly-proper-scored distributional forecasts of BTC, ETH, SOL and BNB log-returns. The WGeo family beats the best classical baseline in 12/12 (asset × horizon) cells over 6.75 years. Interactive research dashboard for the wasserstein-btc (wbtc) library." />
+  <meta name="keywords" content="distributional forecasting, optimal transport, Wasserstein distance, quantile regression, CRPS, GARCH, Bitcoin, cryptocurrency, time series, econometrics, risk management, walk-forward backtesting" />
+  <meta name="author" content="Robin Bohrer (AccursedGalaxy)" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <meta name="theme-color" content="#0b0d12" />
+  <link rel="canonical" href="https://accursedgalaxy.github.io/wasserstein-btc/" />
+
+  <!-- Favicon (inline SVG, matches brand mark) -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+
+  <!-- Open Graph / Facebook / LinkedIn -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="wasserstein-btc" />
+  <meta property="og:title" content="wasserstein-btc · Distributional crypto-return forecasting on the 2-Wasserstein manifold" />
+  <meta property="og:description" content="The WGeo family of forecasters beats the best classical baseline (Static / RW-Drift / HS-Bootstrap / GARCH-N/t / GJR-GARCH-t) in 12/12 cells over 6.75 years of walk-forward CRPS. Interactive research dashboard." />
+  <meta property="og:url" content="https://accursedgalaxy.github.io/wasserstein-btc/" />
+  <meta property="og:image" content="https://accursedgalaxy.github.io/wasserstein-btc/og-image.png" />
+  <meta property="og:image:alt" content="WGeo-Ensemble vs GARCH-N vs Static on ETH/USDT h=21d — cumulative-mean CRPS over 6.75 years, WGeo curve below both baselines." />
+  <meta property="og:image:width" content="1280" />
+  <meta property="og:image:height" content="640" />
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="wasserstein-btc — distributional crypto forecasts on the 2-Wasserstein manifold" />
+  <meta name="twitter:description" content="WGeo family wins 12/12 asset×horizon cells over 6.75 years walk-forward CRPS vs GARCH and classical baselines." />
+  <meta name="twitter:image" content="https://accursedgalaxy.github.io/wasserstein-btc/og-image.png" />
+  <meta name="twitter:image:alt" content="Cumulative-mean CRPS curve showing WGeo-Ensemble below GARCH-N and Static over 6.75 years on ETH/USDT h=21d." />
+
+  <!-- JSON-LD: SoftwareSourceCode -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    "name": "wasserstein-btc",
+    "alternateName": "wbtc",
+    "description": "Tangent-space Wasserstein-geodesic distributional forecasting for crypto log-returns. Strictly-proper-scored (CRPS) walk-forward evaluation against an explicit panel of classical and named econometric baselines.",
+    "url": "https://accursedgalaxy.github.io/wasserstein-btc/",
+    "codeRepository": "https://github.com/AccursedGalaxy/wasserstein-btc",
+    "programmingLanguage": "Python",
+    "runtimePlatform": "Python 3.11+",
+    "softwareVersion": "0.4.0",
+    "license": "https://opensource.org/licenses/MIT",
+    "author": {
+      "@type": "Person",
+      "name": "Robin Bohrer",
+      "alternateName": "AccursedGalaxy",
+      "url": "https://github.com/AccursedGalaxy"
+    },
+    "keywords": "distributional forecasting, optimal transport, Wasserstein distance, quantile regression, CRPS, GARCH, Bitcoin, cryptocurrency, econometrics, time series",
+    "applicationCategory": "ScientificApplication",
+    "operatingSystem": "OS Independent",
+    "isAccessibleForFree": true
+  }
+  </script>
+
+  <!-- JSON-LD: ScholarlyArticle (research-report citation) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ScholarlyArticle",
+    "headline": "Tangent-space Wasserstein-geodesic distributional forecasting for crypto returns",
+    "author": {
+      "@type": "Person",
+      "name": "Robin Bohrer",
+      "url": "https://github.com/AccursedGalaxy"
+    },
+    "datePublished": "2026-05-23",
+    "publisher": {
+      "@type": "Organization",
+      "name": "wasserstein-btc"
+    },
+    "url": "https://github.com/AccursedGalaxy/wasserstein-btc/blob/master/docs/RESEARCH_REPORT.md",
+    "license": "https://opensource.org/licenses/MIT",
+    "isAccessibleForFree": true,
+    "about": [
+      "Optimal transport",
+      "Distributional forecasting",
+      "Cryptocurrency time series",
+      "Wasserstein geodesics",
+      "GARCH"
+    ]
+  }
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet" />

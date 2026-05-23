@@ -1,16 +1,29 @@
+<div align="center">
+
 # wasserstein-btc
 
-**Distributional forecasting for crypto returns via geodesics on the
-2-Wasserstein manifold of probability measures.** v0.4.
+### Distributional forecasting for crypto returns via geodesics on the 2-Wasserstein manifold of probability measures
 
-[![tests](https://github.com/AccursedGalaxy/wasserstein-btc/actions/workflows/tests.yml/badge.svg)](https://github.com/AccursedGalaxy/wasserstein-btc/actions)
-[![python](https://img.shields.io/badge/python-3.11+-blue)](pyproject.toml)
-[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![status](https://img.shields.io/badge/status-research-orange)](docs/RESEARCH_REPORT.md)
+**A small, falsifiable, interpretable distributional forecaster — ~4 hyperparameters, no learned weights, no neural net.**
 
-![WGeo-Ensemble vs GARCH-N vs Static on ETH/USDT h=21d, cumulative-mean CRPS over 6.75 years](assets/social_preview.png)
+[![tests](https://github.com/AccursedGalaxy/wasserstein-btc/actions/workflows/tests.yml/badge.svg)](https://github.com/AccursedGalaxy/wasserstein-btc/actions/workflows/tests.yml)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Live dashboard](https://img.shields.io/badge/live%20dashboard-online-7c83f2)](https://accursedgalaxy.github.io/wasserstein-btc/)
+[![Research report](https://img.shields.io/badge/research-report-orange)](docs/RESEARCH_REPORT.md)
+[![Cite](https://img.shields.io/badge/cite-CITATION.cff-purple)](CITATION.cff)
 
-This library forecasts the *whole conditional distribution* of future
+[**Live dashboard**](https://accursedgalaxy.github.io/wasserstein-btc/) ·
+[**Theory**](docs/THEORY.md) ·
+[**Research report**](docs/RESEARCH_REPORT.md) ·
+[**Results**](docs/RESULTS_LONG.md) ·
+[**Roadmap**](ROADMAP.md)
+
+![WGeo-Ensemble vs GARCH-N vs Static on ETH/USDT h=21d — cumulative-mean CRPS over 6.75 years of walk-forward out-of-sample, showing the WGeo-Ensemble curve below both baselines](assets/social_preview.png)
+
+</div>
+
+`wasserstein-btc` forecasts the *whole conditional distribution* of future
 log-returns — not the mean and not the variance — for liquid crypto
 pairs at horizons of 1, 5 and 21 days. The market is modelled as a
 trajectory on the 2-Wasserstein manifold of probability measures, the
@@ -26,6 +39,17 @@ Bootstrap, GARCH-N, GARCH-t, GJR-GARCH-t).
 > models (see [`docs/RESEARCH_REPORT.md §6`](docs/RESEARCH_REPORT.md)
 > for what is *not* claimed, and [`ROADMAP.md`](ROADMAP.md) for the
 > v0.4 priorities that would close that gap).
+
+## Contents
+
+- [Headline result](#headline-result) · what the panel shows
+- [Install](#install) · `uv sync` or `pip install wbtc`
+- [Quick start — CLI](#quick-start--cli) · one-line forecasts and backtests
+- [Quick start — Python](#quick-start--python) · the `forecast()` API
+- [What's novel](#whats-novel) · the four contributions
+- [Documents](#documents) · where to read the theory and the numbers
+- [Honest limitations](#honest-limitations) · what is *not* claimed
+- [Citation](#citation) · how to cite
 
 ## Headline result
 
@@ -66,7 +90,9 @@ uv sync          # creates .venv with locked deps
 uv run wbtc test # 53 tests, ~10 seconds
 ```
 
-PyPI release is on the v0.4 roadmap (see [`ROADMAP.md`](ROADMAP.md)).
+A PyPI release (`pip install wbtc`) is wired up via
+[`.github/workflows/publish-pypi.yml`](.github/workflows/publish-pypi.yml)
+and ships on the next signed tag — see [`ROADMAP.md`](ROADMAP.md).
 
 ## Quick start — CLI
 
