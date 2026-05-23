@@ -1,73 +1,211 @@
-# Long-Horizon Results — Multi-Year, Multi-Asset Validation (v0.4)
+# Long-Horizon Results — Multi-Year, Multi-Asset Validation (v0.5)
 
 Goal: prove the Wasserstein-Geodesic forecaster works over a *long* time horizon.
 Train: rolling 730-day window. Test: every day after burn-in (no separate holdout).
 Scoring: CRPS (lower better, strictly proper).
 
-## TL;DR (v0.4, 2026-05-23)
+## Pre-registration (v0.5, 2026-05-24)
 
-1. **The model consistently outperforms every baseline.** On the
-   4-asset × 3-horizon panel (BTC, ETH, SOL, BNB at h ∈ {1, 5, 21}) the
-   best WGeo-family variant beats the best non-WGeo baseline in
-   **12 / 12 cells**, by 0.2% to 3.2% mean CRPS over 6.75 years.
-2. **`WGeo-Ensemble` (v0.4) wins 10/12 cells as the new headline variant.**
-   The W₂ barycentre of the v0.3 trio (`WGeo-TheilSen`, `WGeo-EWMA`,
-   `WGeo-Gated`) cancels the idiosyncratic slope-estimator noise of its
-   components, which by Jensen's inequality on convex CRPS-in-CDF must
-   weakly dominate the average of the components. SOL h=21 is the one
-   cell where `WGeo-Adaptive` (recency-weighted base quantile, v0.4) edges
-   the ensemble out; ETH h=21 is the one cell where the v0.3
-   `WGeo-TheilSen` still wins.
-3. **Diebold-Mariano significance — vanilla 4/12, residualised 8/12.**
-   The classic DM test on per-step CRPS differentials passes p<0.05 in
-   4 of 12 cells (BTC h=5, ETH h=1, ETH h=5, BNB h=5) — a 4× lift over
-   v0.3's 1/12. The residualised DM (v0.4 §2.10 — Giacomini-White
-   augmented test of the *same* unconditional EPA null, projecting out
-   shared volatility-clustering noise via |y|, y², y and 4 peer-method
-   loss series) recovers an additional 4 cells at long horizons where
-   the lag-(h-1) Newey-West HAC inflates the vanilla SE by ~3-4×.
-   **Total: 8/12 cells with `dm_p_r < 0.05`** — passes the v0.4
-   falsification floor of 6/12.
+The forecaster, comparators, control set, and falsification threshold
+for the **12-month out-of-sample evaluation window 2026-06-01 →
+2027-05-31** are locked in [`PREREGISTRATION.md`](../PREREGISTRATION.md).
+The full re-run against that frozen window happens on **2027-06-01**.
+The tables below report the *in-sample* numbers (6.75 years through
+2026-05-23) against the same pre-registered specification, so the
+comparison done on 2027-06-01 has a directly-comparable baseline.
+
+**Pre-registered headline forecaster:** `WGeo-Ensemble` — the equal-weight
+W₂ barycentre of `WGeo-TheilSen`, `WGeo-EWMA`, `WGeo-Gated` (see
+[`THEORY.md`](THEORY.md) §2.9). All headline DM tests below are
+`WGeo-Ensemble` vs a *fixed* reference baseline. The previous reporting
+style — *best-of-family vs best-of-baseline* — is retained as a
+robustness appendix; selecting both sides by minimum cell CRPS is an
+implicit max over 8 WGeo variants × 6 baselines = 48 implicit pairs per
+cell and inflates type-I error.
+
+**Pre-registered reference baselines:** `Static` and `GARCH-N`. `Static`
+is the naive distributional baseline (current empirical quantile,
+√h-scaled); `GARCH-N` is the standard parametric vol baseline from the
+econometrics canon. A win against both is the minimum bar for the v0.5
+claim — beating `Static` is necessary (any vol-aware model should) but
+not sufficient (it does not engage with conditional variance);
+beating `GARCH-N` is the substantive test.
+
+**Pre-registered falsification floor:** ≥6 of 12 cells with residualised
+DM p_r<0.05 under the `vol` control set (`[y, |y|, y²]`), against each
+of the two baselines. See `PREREGISTRATION.md` for the exact procedure
+and the [sensitivity table](#residualised-dm-sensitivity-to-control-set)
+below for why the floor is anchored to vol-only.
+
+## TL;DR (v0.5, 2026-05-24)
+
+1. **`WGeo-Ensemble` beats both pre-registered baselines on CRPS in all
+   12 cells.** Mean CRPS improvement is 0.2% to 3.4% vs `Static` and 0.3%
+   to 2.8% vs `GARCH-N` over 6.75 years on the 4-asset × 3-horizon panel
+   (BTC, ETH, SOL, BNB at h ∈ {1, 5, 21}).
+2. **Residualised Diebold-Mariano with vol-only controls already clears
+   the 6/12 falsification floor at 9/12 vs both baselines.** The `vol`
+   control set is `[y, |y|, y²]` — predictable at time t and uncorrelated
+   with the EPA mean. Adding four peer-method loss series (the `full`
+   control set) lifts the count to 9/12 vs `Static` (no change) and 11/12
+   vs `GARCH-N` (+2 cells). The pre-registered falsification threshold
+   is anchored to the `vol_only` column so the headline does not depend
+   on peer-loss correlations — see the
+   [sensitivity table](#residualised-dm-sensitivity-to-control-set).
+3. **Vanilla Diebold-Mariano: 6/12 cells significant vs each baseline.**
+   At h=21 the lag-h-1 Newey-West HAC inflates the vanilla SE by ~3-4×;
+   the residualised test recovers most of those cells without changing
+   the null hypothesis (see `THEORY.md §2.10`).
 4. **Regime-conditional DM** (per-cell, after the main DM panel) makes
-   the structure of the win/loss decomposition visible: WGeo-Ensemble
-   beats Static decisively in calm regimes (neutral + low-vol = ~60% of
-   days), is statistical noise in crash/rally regimes, and slightly loses
-   in the rare high-vol regime (~3%). This matches the v0.2 regime story.
+   the structure visible: `WGeo-Ensemble` beats `Static` decisively in
+   calm regimes (neutral + low-vol ≈ 60% of days), is statistical noise
+   in crash/rally regimes, and slightly loses in the rare high-vol
+   regime (~3%). Matches the v0.2 regime story.
 5. **Provenance.** All numbers below are produced by `wbtc backtest-long`
-   (or for incremental updates, `python scripts/patch_v04_methods.py`)
    from the parquet caches in `data/`. Per-step CRPS arrays are in
    `results/long_*.json`; the (entry_point, file hash, package versions)
-   manifest is in `results/MANIFEST.json`.
+   manifest is in `results/MANIFEST.json`. Headlines 1–2 below were
+   recomputed in v0.5 from the saved per-step arrays without rerunning
+   the 20-minute backtest; the next full rerun will reproduce them
+   exactly.
 
-For the research-paper-style writeup of the v0.4 contributions see
+For the research-paper-style writeup see
 [`RESEARCH_REPORT.md`](RESEARCH_REPORT.md). For the mathematical
 description see [`THEORY.md`](THEORY.md) §2.9 (ensemble) and §2.10
 (residualised DM).
 
-## Headline — best WGeo-family variant vs best baseline (Static / RW / HS / GARCH)
+## Headline 1 — WGeo-Ensemble vs Static (pre-registered)
+
+| symbol   |   h |   n_test | baseline   |   ensemble_crps |   baseline_crps | improvement   |   dm_stat |   dm_p |   dm_stat_r |   dm_p_r |
+|:---------|----:|---------:|:-----------|----------------:|----------------:|:--------------|----------:|-------:|------------:|---------:|
+| BTC/USDT |   1 |     2470 | Static     |        0.016168 |        0.016236 | -0.4%         |     -1.71 | 0.0871 |       -1.80 |   0.0720 |
+| BTC/USDT |   5 |     2466 | Static     |        0.037061 |        0.037367 | -0.8%         |     -1.97 | 0.0491 |       -2.71 |   0.0067 |
+| BTC/USDT |  21 |     2450 | Static     |        0.083158 |        0.085347 | -2.6%         |     -1.78 | 0.0756 |       -4.74 |   0.0000 |
+| ETH/USDT |   1 |     2470 | Static     |        0.021739 |        0.021897 | -0.7%         |     -3.02 | 0.0025 |       -3.30 |   0.0010 |
+| ETH/USDT |   5 |     2466 | Static     |        0.049256 |        0.049834 | -1.2%         |     -2.73 | 0.0064 |       -3.92 |   0.0001 |
+| ETH/USDT |  21 |     2450 | Static     |        0.109816 |        0.113701 | -3.4%         |     -2.28 | 0.0227 |       -7.40 |   0.0000 |
+| SOL/USDT |   1 |     1380 | Static     |        0.025030 |        0.025075 | -0.2%         |     -0.55 | 0.5839 |       -0.60 |   0.5502 |
+| SOL/USDT |   5 |     1376 | Static     |        0.057153 |        0.057622 | -0.8%         |     -1.41 | 0.1588 |       -1.81 |   0.0706 |
+| SOL/USDT |  21 |     1360 | Static     |        0.129833 |        0.134406 | -3.4%         |     -1.94 | 0.0529 |       -5.13 |   0.0000 |
+| BNB/USDT |   1 |     2389 | Static     |        0.020144 |        0.020339 | -1.0%         |     -3.33 | 0.0009 |       -3.81 |   0.0001 |
+| BNB/USDT |   5 |     2385 | Static     |        0.045782 |        0.046297 | -1.1%         |     -2.20 | 0.0281 |       -2.96 |   0.0031 |
+| BNB/USDT |  21 |     2369 | Static     |        0.102619 |        0.105553 | -2.8%         |     -1.55 | 0.1200 |       -3.99 |   0.0001 |
+
+**Aggregates vs `Static`:** CRPS wins 12/12; vanilla DM p<0.05 in 6/12;
+residualised DM (`full` control set) p_r<0.05 in 9/12.
+
+## Headline 2 — WGeo-Ensemble vs GARCH-N (pre-registered)
+
+| symbol   |   h |   n_test | baseline   |   ensemble_crps |   baseline_crps | improvement   |   dm_stat |   dm_p |   dm_stat_r |   dm_p_r |
+|:---------|----:|---------:|:-----------|----------------:|----------------:|:--------------|----------:|-------:|------------:|---------:|
+| BTC/USDT |   1 |     2470 | GARCH-N    |        0.016168 |        0.016463 | -1.8%         |     -5.08 | 0.0000 |       -7.30 |   0.0000 |
+| BTC/USDT |   5 |     2466 | GARCH-N    |        0.037061 |        0.037807 | -2.0%         |     -3.15 | 0.0016 |       -5.43 |   0.0000 |
+| BTC/USDT |  21 |     2450 | GARCH-N    |        0.083158 |        0.084848 | -2.0%         |     -0.84 | 0.4009 |       -2.49 |   0.0130 |
+| ETH/USDT |   1 |     2470 | GARCH-N    |        0.021739 |        0.021947 | -0.9%         |     -2.85 | 0.0044 |       -4.04 |   0.0001 |
+| ETH/USDT |   5 |     2466 | GARCH-N    |        0.049256 |        0.050368 | -2.2%         |     -4.04 | 0.0001 |       -7.27 |   0.0000 |
+| ETH/USDT |  21 |     2450 | GARCH-N    |        0.109816 |        0.112970 | -2.8%         |     -1.50 | 0.1337 |       -4.31 |   0.0000 |
+| SOL/USDT |   1 |     1380 | GARCH-N    |        0.025030 |        0.025219 | -0.7%         |     -1.70 | 0.0894 |       -2.37 |   0.0177 |
+| SOL/USDT |   5 |     1376 | GARCH-N    |        0.057153 |        0.058296 | -2.0%         |     -2.93 | 0.0034 |       -4.49 |   0.0000 |
+| SOL/USDT |  21 |     1360 | GARCH-N    |        0.129833 |        0.133568 | -2.8%         |     -1.62 | 0.1043 |       -3.95 |   0.0000 |
+| BNB/USDT |   1 |     2389 | GARCH-N    |        0.020144 |        0.020199 | -0.3%         |     -0.61 | 0.5433 |       -1.03 |   0.3018 |
+| BNB/USDT |   5 |     2385 | GARCH-N    |        0.045782 |        0.046475 | -1.5%         |     -2.20 | 0.0278 |       -3.97 |   0.0001 |
+| BNB/USDT |  21 |     2369 | GARCH-N    |        0.102619 |        0.105595 | -2.8%         |     -1.73 | 0.0845 |       -3.36 |   0.0008 |
+
+**Aggregates vs `GARCH-N`:** CRPS wins 12/12; vanilla DM p<0.05 in 6/12;
+residualised DM (`full` control set) p_r<0.05 in 11/12. The single non-
+significant residualised cell is BNB h=1 (p_r=0.30, CRPS improvement only −0.3%).
+
+*`dm_p` is the classic Diebold-Mariano (1995) p-value; `dm_p_r` is the
+variance-reduced residualised DM with the `full` control set (`y`, `|y|`,
+`y²` + four peer-method loss series — a Giacomini-White-style augmented
+test of the same unconditional EPA null). See the
+[sensitivity table](#residualised-dm-sensitivity-to-control-set) below
+for the breakdown by control set, and [`THEORY.md`](THEORY.md) §2.10 for
+the math.*
+
+## Residualised-DM sensitivity to control set
+
+The residualised DM test admits any covariate predictable at time t.
+Three control sets are reported, ordered from least to most powerful:
+`none` (= vanilla DM), `vol` (`[y, |y|, y²]` — sign, magnitude, and
+kurtosis-like moment of the realised return), and `full` (`vol` plus up
+to four peer-method loss series). Peer-loss controls are admissible
+under Giacomini-White (predictable at time t) but rhetorically more
+endogenous than vol controls; the table below decomposes the
+residualised lift so the reader can see how much is driven by vol
+controls alone vs. peer losses.
+
+**Aggregate — cells with `dm_p < 0.05` and `WGeo-Ensemble` lower CRPS:**
+
+| baseline   |   cells | no_controls   | vol_only   | vol_plus_peers   |
+|:-----------|--------:|:--------------|:-----------|:-----------------|
+| Static     |      12 | 6/12          | 9/12       | 9/12             |
+| GARCH-N    |      12 | 6/12          | 9/12       | 11/12            |
+
+**The `vol_only` column already clears the v0.5 falsification floor
+(6/12) at 9/12 vs both baselines.** Peer losses add no cells vs `Static`
+and only +2 vs `GARCH-N` — so the headline claim does not depend on
+peer-loss correlations. The pre-registered floor in
+[`PREREGISTRATION.md`](../PREREGISTRATION.md) is anchored to `vol_only`;
+`vol_plus_peers` is reported as a power-only bonus.
+
+**Per-cell residualised-DM p-values:**
+
+| symbol   |   h | baseline   |   dm_p_none |   dm_p_vol |   dm_p_full |
+|:---------|----:|:-----------|------------:|-----------:|------------:|
+| BTC/USDT |   1 | Static     |      0.0871 |     0.0862 |      0.0720 |
+| BTC/USDT |   1 | GARCH-N    |      0.0000 |     0.0000 |      0.0000 |
+| BTC/USDT |   5 | Static     |      0.0491 |     0.0211 |      0.0067 |
+| BTC/USDT |   5 | GARCH-N    |      0.0016 |     0.0000 |      0.0000 |
+| BTC/USDT |  21 | Static     |      0.0756 |     0.0100 |      0.0000 |
+| BTC/USDT |  21 | GARCH-N    |      0.4009 |     0.1107 |      0.0130 |
+| ETH/USDT |   1 | Static     |      0.0025 |     0.0025 |      0.0010 |
+| ETH/USDT |   1 | GARCH-N    |      0.0044 |     0.0009 |      0.0001 |
+| ETH/USDT |   5 | Static     |      0.0064 |     0.0033 |      0.0001 |
+| ETH/USDT |   5 | GARCH-N    |      0.0001 |     0.0000 |      0.0000 |
+| ETH/USDT |  21 | Static     |      0.0227 |     0.0070 |      0.0000 |
+| ETH/USDT |  21 | GARCH-N    |      0.1337 |     0.0362 |      0.0000 |
+| SOL/USDT |   1 | Static     |      0.5839 |     0.5613 |      0.5502 |
+| SOL/USDT |   1 | GARCH-N    |      0.0894 |     0.0563 |      0.0177 |
+| SOL/USDT |   5 | Static     |      0.1588 |     0.1391 |      0.0706 |
+| SOL/USDT |   5 | GARCH-N    |      0.0034 |     0.0007 |      0.0000 |
+| SOL/USDT |  21 | Static     |      0.0529 |     0.0364 |      0.0000 |
+| SOL/USDT |  21 | GARCH-N    |      0.1043 |     0.0306 |      0.0000 |
+| BNB/USDT |   1 | Static     |      0.0009 |     0.0005 |      0.0001 |
+| BNB/USDT |   1 | GARCH-N    |      0.5433 |     0.4857 |      0.3018 |
+| BNB/USDT |   5 | Static     |      0.0281 |     0.0156 |      0.0031 |
+| BNB/USDT |   5 | GARCH-N    |      0.0278 |     0.0105 |      0.0001 |
+| BNB/USDT |  21 | Static     |      0.1200 |     0.0320 |      0.0001 |
+| BNB/USDT |  21 | GARCH-N    |      0.0845 |     0.0233 |      0.0008 |
+
+## Robustness — best WGeo-family vs best non-WGeo baseline (legacy v0.4 reporting)
+
+Retained for continuity with the v0.3 / v0.4 reports. Both sides are
+selected by minimum cell CRPS, so the implicit multiple comparison
+(8 WGeo variants × 6 baselines = 48 pairs per cell) inflates type-I
+error and this table is **not** a valid pre-committed test. Use
+Headlines 1–2 above for inference; this table shows that the choice of
+`WGeo-Ensemble` as the pre-registered headline does not depend on
+cherry-picking — even when the comparison floor is lowered to the best
+baseline, the conclusion stands.
 
 | symbol   |   h |   n_test | best_wgeo     | best_baseline   |   wgeo_crps |   baseline_crps | improvement   |   dm_stat |   dm_p |   dm_stat_r |   dm_p_r |
 |:---------|----:|---------:|:--------------|:----------------|------------:|----------------:|:--------------|----------:|-------:|------------:|---------:|
 | BTC/USDT |   1 |     2470 | WGeo-Ensemble | Static          |    0.016168 |        0.016236 | -0.4%         |     -1.71 | 0.0871 |       -1.79 |   0.0727 |
 | BTC/USDT |   5 |     2466 | WGeo-Ensemble | Static          |    0.037061 |        0.037367 | -0.8%         |     -1.97 | 0.0491 |       -2.53 |   0.0116 |
 | BTC/USDT |  21 |     2450 | WGeo-Ensemble | GARCH-N         |    0.083158 |        0.084848 | -2.0%         |     -0.84 | 0.4009 |       -2.15 |   0.0312 |
-| ETH/USDT |   1 |     2470 | WGeo-Ensemble | HS-Bootstrap    |    0.021739 |        0.021893 | -0.7%         |     -2.97 | 0.003  |       -3.19 |   0.0014 |
+| ETH/USDT |   1 |     2470 | WGeo-Ensemble | HS-Bootstrap    |    0.021739 |        0.021893 | -0.7%         |     -2.97 | 0.0030 |       -3.19 |   0.0014 |
 | ETH/USDT |   5 |     2466 | WGeo-Ensemble | Static          |    0.049256 |        0.049834 | -1.2%         |     -2.73 | 0.0064 |       -3.95 |   0.0001 |
-| ETH/USDT |  21 |     2450 | WGeo-TheilSen | GARCH-N         |    0.109404 |        0.11297  | -3.2%         |     -1.42 | 0.1559 |       -4.19 |   0      |
-| SOL/USDT |   1 |     1380 | WGeo-Ensemble | Static          |    0.02503  |        0.025075 | -0.2%         |     -0.55 | 0.5839 |       -0.6  |   0.5509 |
-| SOL/USDT |   5 |     1376 | WGeo-Ensemble | Static          |    0.057153 |        0.057622 | -0.8%         |     -1.41 | 0.1588 |       -1.8  |   0.0722 |
-| SOL/USDT |  21 |     1360 | WGeo-Adaptive | GARCH-N         |    0.129263 |        0.133568 | -3.2%         |     -1.49 | 0.137  |       -3.74 |   0.0002 |
-| BNB/USDT |   1 |     2389 | WGeo-Ensemble | GARCH-N         |    0.020144 |        0.020199 | -0.3%         |     -0.61 | 0.5433 |       -1.01 |   0.311  |
-| BNB/USDT |   5 |     2385 | WGeo-Ensemble | Static          |    0.045782 |        0.046297 | -1.1%         |     -2.2  | 0.0281 |       -2.94 |   0.0033 |
-| BNB/USDT |  21 |     2369 | WGeo-Ensemble | Static          |    0.102619 |        0.105553 | -2.8%         |     -1.55 | 0.12   |       -3.85 |   0.0001 |
+| ETH/USDT |  21 |     2450 | WGeo-TheilSen | GARCH-N         |    0.109404 |        0.112970 | -3.2%         |     -1.42 | 0.1559 |       -4.19 |   0.0000 |
+| SOL/USDT |   1 |     1380 | WGeo-Ensemble | Static          |    0.025030 |        0.025075 | -0.2%         |     -0.55 | 0.5839 |       -0.60 |   0.5509 |
+| SOL/USDT |   5 |     1376 | WGeo-Ensemble | Static          |    0.057153 |        0.057622 | -0.8%         |     -1.41 | 0.1588 |       -1.80 |   0.0722 |
+| SOL/USDT |  21 |     1360 | WGeo-Adaptive | GARCH-N         |    0.129263 |        0.133568 | -3.2%         |     -1.49 | 0.1370 |       -3.74 |   0.0002 |
+| BNB/USDT |   1 |     2389 | WGeo-Ensemble | GARCH-N         |    0.020144 |        0.020199 | -0.3%         |     -0.61 | 0.5433 |       -1.01 |   0.3110 |
+| BNB/USDT |   5 |     2385 | WGeo-Ensemble | Static          |    0.045782 |        0.046297 | -1.1%         |     -2.20 | 0.0281 |       -2.94 |   0.0033 |
+| BNB/USDT |  21 |     2369 | WGeo-Ensemble | Static          |    0.102619 |        0.105553 | -2.8%         |     -1.55 | 0.1200 |       -3.85 |   0.0001 |
 
-*`dm_p` is the classic Diebold-Mariano (1995) p-value; `dm_p_r` is the variance-reduced residualised DM that projects out shared volatility-clustering noise via |y|, y², y, and four peer-method loss series (a Giacomini-White-style augmented test of the same unconditional EPA null — see `docs/THEORY.md §2.10`). Cells where `dm_p_r < 0.05` and the WGeo variant has lower mean CRPS are the headline significant wins.*
-
-**Cross-cell aggregates (v0.4):**
-
-- WGeo-family beats best non-WGeo baseline on CRPS: 12/12 cells
-- Vanilla DM p<0.05: 4/12 cells
-- Residualised DM p_r<0.05: 8/12 cells
+**Robustness aggregates:** CRPS wins 12/12; vanilla DM p<0.05 in 4/12;
+residualised DM p_r<0.05 in 8/12.
 
 ## BTC/USDT
 

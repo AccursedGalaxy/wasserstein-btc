@@ -32,8 +32,11 @@ __all__ = [
     "by_regime",
     "pairwise_dm",
     "pairwise_dm_residualised",
+    "build_dm_controls",
+    "headline_dm_sensitivity",
     "regime_conditional_dm",
     "overall_summary",
+    "garch_fallback_rate",
 ]
 
 
@@ -189,10 +192,54 @@ def pairwise_dm(
     return dm_stat, dm_p
 
 
+def build_dm_controls(
+    result: LongRunResult,
+    method_a: str,
+    method_b: str,
+    *,
+    control_set: str,
+) -> list[np.ndarray]:
+    """Construct the residualised-DM control list for one of three named sets.
+
+    ``control_set`` picks between three pre-registered Giacomini-White augmented
+    control sets, ordered from least to most powerful. Reported alongside the
+    headline residualised DM as a sensitivity column in v0.5 — the
+    pre-registered falsification threshold is anchored to ``"vol"`` so the bar
+    does not depend on peer-loss correlations.
+
+    - ``"none"``  → empty list (residualised DM with no controls is vanilla DM).
+    - ``"vol"``   → ``[y, |y|, y²]`` — direction, magnitude, kurtosis-like
+                   moments of the realised return. Three covariates, all
+                   predictable at time t and uncorrelated with the EPA mean.
+    - ``"full"``  → ``"vol"`` ∪ four peer-method loss series (excluding the
+                   two methods under test). The peer losses are admissible
+                   under GW (predictable at time t) but rhetorically more
+                   endogenous than vol controls — separate column so the
+                   reader can see their incremental contribution.
+    """
+    if control_set == "none":
+        return []
+    y = np.asarray(result.realised, dtype=float)
+    vol = [y, np.abs(y), y * y]
+    if control_set == "vol":
+        return vol
+    if control_set == "full":
+        names = list(result.aligned_losses.keys())
+        peers = [
+            result.aligned_losses[k] for k in names if k != method_a and k != method_b
+        ][:4]
+        return vol + peers
+    raise ValueError(
+        f"control_set must be 'none' | 'vol' | 'full', got {control_set!r}"
+    )
+
+
 def pairwise_dm_residualised(
     result: LongRunResult,
     horizon: int,
     controls: list[np.ndarray] | None = None,
+    *,
+    control_set: str | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Pairwise residualised DM table.
 
@@ -203,13 +250,19 @@ def pairwise_dm_residualised(
 
     Controls
     --------
-    If ``controls`` is None, uses two sets of natural common-noise covariates:
-    (a) ``|y|`` and ``y²`` (realised return moments — every method's loss
-    co-moves with the day's absolute return size), and (b) per-method losses
-    other than the pair under test (panel covariates capturing common
-    forecast-error structure across methods). The combination dominates
-    cell-vol-noise variance reduction without affecting the test mean.
+    Specify the controls in exactly one of three ways:
+    - ``controls=<list>`` for an explicit covariate list (legacy interface);
+    - ``control_set="none" | "vol" | "full"`` for one of the three pre-
+      registered control sets (see :func:`build_dm_controls` for details);
+    - leave both as None → defaults to ``control_set="full"`` (vol + peer
+      losses), matching the v0.4 / v0.5 headline residualised DM.
     """
+    if controls is not None and control_set is not None:
+        raise ValueError("pass either controls= or control_set=, not both")
+    if controls is None and control_set is None:
+        control_set = "full"
+    cs: str = control_set or ""  # narrows the type for the inner loop
+
     names = list(result.aligned_losses.keys())
     dm_stat = pd.DataFrame(index=names, columns=names, dtype=float)
     dm_p = pd.DataFrame(index=names, columns=names, dtype=float)
@@ -219,24 +272,65 @@ def pairwise_dm_residualised(
                 dm_stat.loc[a, b] = 0.0
                 dm_p.loc[a, b] = 1.0
                 continue
-            if controls is None:
-                # peer-method losses (excl. the two under test) + realised moments
-                peer_ctrls = [
-                    result.aligned_losses[k] for k in names if k != a and k != b
-                ][:4]
-                y = np.asarray(result.realised, dtype=float)
-                ctrls = peer_ctrls + [np.abs(y), y * y]
-            else:
+            if controls is not None:
                 ctrls = controls
-            stat, p = diebold_mariano_residualised(
-                result.aligned_losses[a],
-                result.aligned_losses[b],
-                ctrls,
-                h=horizon,
-            )
+            else:
+                ctrls = build_dm_controls(result, a, b, control_set=cs)
+            if not ctrls:
+                # no controls = vanilla DM
+                stat, p = diebold_mariano(
+                    result.aligned_losses[a],
+                    result.aligned_losses[b],
+                    h=horizon,
+                )
+            else:
+                stat, p = diebold_mariano_residualised(
+                    result.aligned_losses[a],
+                    result.aligned_losses[b],
+                    ctrls,
+                    h=horizon,
+                )
             dm_stat.loc[a, b] = stat
             dm_p.loc[a, b] = p
     return dm_stat, dm_p
+
+
+def headline_dm_sensitivity(
+    result: LongRunResult,
+    horizon: int,
+    head: str,
+    baselines: list[str],
+) -> pd.DataFrame:
+    """Per-cell DM p-values under the three pre-registered control sets.
+
+    For each baseline in ``baselines`` returns one row with the vanilla DM
+    statistic and the residualised DM under ``control_set ∈ {"none", "vol",
+    "full"}`` (with "none" being identical to vanilla — kept as a column for
+    visual alignment). The reader can scan across the row to see how much of
+    the residualised-DM lift is driven by vol controls vs. peer losses.
+    """
+    rows = []
+    for ref in baselines:
+        row = {"baseline": ref}
+        for cs in ("none", "vol", "full"):
+            ctrls = build_dm_controls(result, head, ref, control_set=cs)
+            if not ctrls:
+                stat, p = diebold_mariano(
+                    result.aligned_losses[head],
+                    result.aligned_losses[ref],
+                    h=horizon,
+                )
+            else:
+                stat, p = diebold_mariano_residualised(
+                    result.aligned_losses[head],
+                    result.aligned_losses[ref],
+                    ctrls,
+                    h=horizon,
+                )
+            row[f"dm_stat_{cs}"] = stat
+            row[f"dm_p_{cs}"] = p
+        rows.append(row)
+    return pd.DataFrame(rows).set_index("baseline")
 
 
 def regime_conditional_dm(
@@ -284,6 +378,7 @@ def regime_conditional_dm(
 
 def overall_summary(result: LongRunResult, horizon: int) -> pd.DataFrame:
     rows = []
+    fb_rates = garch_fallback_rate(result)
     for name, losses in result.aligned_losses.items():
         mean, lo, hi = stationary_bootstrap_ci(losses, block_mean=max(2.0, horizon))
         rows.append(
@@ -293,6 +388,29 @@ def overall_summary(result: LongRunResult, horizon: int) -> pd.DataFrame:
                 "mean_crps": mean,
                 "ci_lo": lo,
                 "ci_hi": hi,
+                "garch_fallback": fb_rates.get(name, float("nan")),
             }
         )
     return pd.DataFrame(rows).set_index("method")
+
+
+def garch_fallback_rate(result: LongRunResult) -> dict[str, float]:
+    """Per-method fraction of walk-forward steps that fell back from GARCH.
+
+    Only methods whose ``_walk_forward_one`` rows carry a ``garch_fallback``
+    column (i.e. forecasters that opted into GARCH-conditioned dispersion)
+    appear in the output. For others the key is absent. ``WGeo-Hetero`` is
+    the headline consumer of this rate — the falsification floor in
+    docs/THEORY.md §4 is conditional on the rate being small (otherwise we
+    would be measuring the unconditional sqrt(h) scaling, not the GARCH
+    contribution).
+    """
+    rates: dict[str, float] = {}
+    for name, df in result.per_step.items():
+        if "garch_fallback" not in df.columns:
+            continue
+        col = df["garch_fallback"].dropna()
+        if len(col) == 0:
+            continue
+        rates[name] = float(col.astype(bool).mean())
+    return rates

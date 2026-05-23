@@ -158,6 +158,182 @@ def test_hetero_runs_and_is_monotone():
     assert (q21.max() - q21.min()) > (q1.max() - q1.min())
 
 
+def _normal_crps(mu: np.ndarray, sigma: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Closed-form CRPS of a Normal forecast (Gneiting-Raftery 2007, eq 5).
+
+    For ``F = N(mu, sigma²)`` evaluated at realised ``y``:
+
+        CRPS(F, y) = sigma * [ z·(2·Φ(z) - 1) + 2·φ(z) - 1/√π ]
+
+    where ``z = (y - mu)/sigma``, ``Φ`` is the standard-normal CDF and
+    ``φ`` the standard-normal PDF. Vectorised over ``(mu, sigma, y)`` of
+    the same shape. Used as the oracle in the synthetic regression tests
+    below: any forecaster whose conditional distribution matches the
+    DGP should approach this CRPS as the training window grows.
+    """
+    from scipy.stats import norm as _norm
+
+    z = (y - mu) / sigma
+    return sigma * (
+        z * (2.0 * _norm.cdf(z) - 1.0) + 2.0 * _norm.pdf(z) - 1.0 / np.sqrt(np.pi)
+    )
+
+
+def test_wgeo_converges_to_oracle_crps_on_iid_normal():
+    """Theoretical-soundness check: on an i.i.d. Normal DGP, plain WGeo's
+    forecast distribution converges to the marginal Normal, so its mean
+    CRPS at h=1 should approach the closed-form Normal CRPS oracle as the
+    window grows.
+
+    AR(1) is NOT a valid DGP for this test — WGeo's empirical quantile of
+    a backward-looking window is centered at the past, so its predicted
+    median lags the AR(1) conditional mean by ~window/2 steps and the
+    CRPS gap to oracle does not vanish. i.i.d. makes marginal =
+    conditional and removes that bias.
+    """
+    from wbtc.backtest import _walk_forward_one
+    from wbtc.forecasters import WassersteinGeodesic
+
+    rng = np.random.default_rng(0)
+    mu_true, sigma_true = 5e-4, 0.02
+    r = rng.normal(mu_true, sigma_true, size=4000)
+    u = make_grid(60)
+
+    # Large window so the empirical quantile converges to the true Normal
+    # quantile; the slope estimate β should go to zero.
+    res = _walk_forward_one(
+        r,
+        lambda: WassersteinGeodesic(window=1000, lookback=50),
+        train_window=1200,
+        horizon=1,
+        u=u,
+    )
+    wgeo_mean_crps = float(res["crps"].mean())
+
+    y = res["y"].to_numpy()
+    oracle_crps = float(
+        _normal_crps(
+            np.full_like(y, mu_true),
+            np.full_like(y, sigma_true),
+            y,
+        ).mean()
+    )
+
+    # WGeo should be within 4% of the Normal oracle on this DGP. The remaining
+    # gap is the empirical-quantile sampling error at window=1000 plus the
+    # CRPS quadrature on a 60-point grid.
+    gap = (wgeo_mean_crps - oracle_crps) / oracle_crps
+    assert 0.0 <= gap < 0.04, (
+        f"WGeo CRPS={wgeo_mean_crps:.5f} oracle={oracle_crps:.5f} "
+        f"gap={gap:.1%} — expected within 4% on i.i.d. Normal"
+    )
+
+    # Sanity: same calculation at the small production window should have a
+    # materially larger gap (convergence-in-window behaviour, not a fluke).
+    res_small = _walk_forward_one(
+        r,
+        lambda: WassersteinGeodesic(window=90, lookback=20),
+        train_window=1200,
+        horizon=1,
+        u=u,
+    )
+    wgeo_small_crps = float(res_small["crps"].mean())
+    gap_small = (wgeo_small_crps - oracle_crps) / oracle_crps
+    assert gap_small > gap, (
+        f"window=90 gap {gap_small:.1%} should exceed window=1000 gap {gap:.1%}"
+    )
+
+
+def test_wgeo_hetero_tracks_oracle_on_garch_dgp_and_beats_plain_wgeo():
+    """Theoretical-soundness check for the GARCH-conditioned variant: on an
+    iid-mean + GARCH(1,1)-vol DGP, the h=1 conditional distribution is
+    ``N(0, σ_t²)`` with σ_t² following the GARCH recursion. The oracle
+    CRPS at each step uses the true σ_t. WGeo-Hetero should approach the
+    oracle and beat plain WGeo (whose forecast variance is the long-run
+    unconditional vol, independent of t).
+    """
+    from wbtc.backtest import _walk_forward_one
+    from wbtc.forecasters import WassersteinGeodesic, WassersteinGeodesicHetero
+
+    rng = np.random.default_rng(42)
+    n = 4000
+    omega, alpha, beta = 1e-6, 0.10, 0.85  # persistent GARCH(1,1)
+    sigma2 = np.empty(n)
+    r = np.empty(n)
+    sigma2[0] = omega / (1.0 - alpha - beta)  # unconditional variance
+    r[0] = rng.normal(0.0, np.sqrt(sigma2[0]))
+    for t in range(1, n):
+        sigma2[t] = omega + alpha * r[t - 1] ** 2 + beta * sigma2[t - 1]
+        r[t] = rng.normal(0.0, np.sqrt(sigma2[t]))
+
+    u = make_grid(60)
+    # Hetero with a large window so the GARCH fit on the synthetic GARCH data
+    # converges to truth.
+    res_h = _walk_forward_one(
+        r,
+        lambda: WassersteinGeodesicHetero(window=500, lookback=30),
+        train_window=1000,
+        horizon=1,
+        u=u,
+    )
+    res_w = _walk_forward_one(
+        r,
+        lambda: WassersteinGeodesic(window=500, lookback=30),
+        train_window=1000,
+        horizon=1,
+        u=u,
+    )
+    hetero_crps = float(res_h["crps"].mean())
+    wgeo_crps = float(res_w["crps"].mean())
+
+    # Oracle CRPS at each step uses the true σ_{t+1} (= sigma2 indexed at the
+    # realised-return position in _walk_forward_one's per-step row).
+    t_idx = res_h["t"].to_numpy()
+    sigma_true = np.sqrt(sigma2[t_idx + 1])  # σ at t+1 governs the h=1 return
+    y = res_h["y"].to_numpy()
+    oracle_crps = float(_normal_crps(np.zeros_like(y), sigma_true, y).mean())
+
+    # Hetero must beat plain WGeo — the GARCH scaling is the entire raison
+    # d'être of the variant on this DGP.
+    assert hetero_crps < wgeo_crps, (
+        f"WGeo-Hetero CRPS {hetero_crps:.5f} should be < plain WGeo {wgeo_crps:.5f}"
+    )
+
+    # Hetero should be within 10% of the conditional-Normal oracle. The gap
+    # absorbs (i) finite-sample noise in the GARCH parameter fit, (ii) the
+    # WGeo √h·s_h scaling vs the exact Normal quantile, and (iii) quadrature.
+    hetero_gap = (hetero_crps - oracle_crps) / oracle_crps
+    assert 0.0 <= hetero_gap < 0.10, (
+        f"Hetero CRPS={hetero_crps:.5f} oracle={oracle_crps:.5f} "
+        f"gap={hetero_gap:.1%} — expected within 10% on iid+GARCH"
+    )
+
+
+def test_hetero_records_garch_fallback_flag():
+    """Each predict() on a GARCH-conditioned WGeo variant sets ``_garch_fallback``
+    to True (fit raised / variances degenerate) or False (clean fit). The
+    long-horizon harness aggregates this flag across walk-forward steps so
+    the falsification criterion in docs/THEORY.md §4 can be reported
+    conditional on the GARCH conditioning actually contributing.
+    """
+    from wbtc.forecasters import WassersteinGeodesic, WassersteinGeodesicHetero
+
+    r = _synth_returns(n=800)
+    u = make_grid(20)
+
+    # Hetero uses garch="full" by default → flag is True/False, not None.
+    f_h = WassersteinGeodesicHetero(window=90, lookback=20)
+    f_h.fit(r)
+    f_h.predict(h=5, u=u)
+    assert f_h._garch_fallback in (True, False)
+
+    # Plain WGeo (garch=None) → flag is reset to None on predict.
+    f_w = WassersteinGeodesic(window=90, lookback=20)
+    f_w.fit(r)
+    f_w.predict(h=5, u=u)
+    assert f_w._garch_fallback is None
+
+
 def test_adaptive_cumulative_drift_scales_linearly():
     """Adaptive uses the Static-convention cumulative-drift level (μ_now·h)
     rather than the OLS-convention (median_now + h·β). This is the correct
