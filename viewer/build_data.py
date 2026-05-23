@@ -224,6 +224,28 @@ def build_extended(h: int) -> dict | None:
     }
 
 
+_RETURNS_CACHE_PATH = Path(__file__).resolve().parent / "cache" / "returns.json"
+_RETURNS_CACHE: dict[str, np.ndarray] | None = None
+
+
+def _load_returns_cache() -> dict[str, np.ndarray]:
+    """Lazy-load the committed daily-return cache (~160 KB).
+
+    Used when the parquet files are unavailable (CI runners hit Binance's
+    HTTP 451 on Azure IPs). Refresh with
+    ``uv run python viewer/cache/build_returns_cache.py`` whenever the
+    backtest data is updated.
+    """
+    global _RETURNS_CACHE
+    if _RETURNS_CACHE is None:
+        if not _RETURNS_CACHE_PATH.exists():
+            _RETURNS_CACHE = {}
+        else:
+            raw = json.loads(_RETURNS_CACHE_PATH.read_text())
+            _RETURNS_CACHE = {k: np.asarray(v, dtype=float) for k, v in raw.items()}
+    return _RETURNS_CACHE
+
+
 def _log_returns_from_parquet(symbol: str) -> np.ndarray | None:
     """Return the same log-return series used by the backtest harness.
 
@@ -231,14 +253,17 @@ def _log_returns_from_parquet(symbol: str) -> np.ndarray | None:
     the first NaN. The returned array's indices match what was passed to
     ``run_long_horizon`` as ``returns`` — so ``t_idx`` values from
     ``long_*.json`` index into it directly.
+
+    Falls back to ``viewer/cache/returns.json`` (committed) when the
+    parquet is unavailable.
     """
     pq = DATA / f"{_slug(symbol)}_1d.parquet"
-    if not pq.exists():
-        return None
-    df = pd.read_parquet(pq).sort_values("ts").reset_index(drop=True)
-    log_close = np.log(df["close"].astype(float).to_numpy())
-    r = np.diff(log_close)
-    return r
+    if pq.exists():
+        df = pd.read_parquet(pq).sort_values("ts").reset_index(drop=True)
+        log_close = np.log(df["close"].astype(float).to_numpy())
+        return np.diff(log_close)
+    cache = _load_returns_cache()
+    return cache.get(symbol)
 
 
 def _realised_h_step(returns: np.ndarray, t_idx: list[int], h: int) -> np.ndarray:
