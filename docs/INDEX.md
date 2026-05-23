@@ -8,18 +8,28 @@ order shown for a coherent first pass.
 The mathematical core. Defines the 1D Wasserstein-2 manifold of probability
 measures, the quantile-function isometry that makes geodesics straight, the
 tangent-space regression that produces forecasts, the curvature gate (h=1
-only) and the Theil-Sen robust slope (h ≥ 5). Contains the **explicit
-falsification criteria** (§4) that the backtests are written to test against.
-Current version: v0.2.
+only), the Theil-Sen robust slope (h ≥ 5), and the v0.3 additions:
+recency-weighted slope (`WGeo-EWMA`, §2.6), GARCH-conditioned dispersion
+(`WGeo-Hetero`, §2.7), and the regime-aware mixture (`WGeo-GARCH-Ens`,
+§2.8). Contains the **explicit falsification criteria** (§4) that the
+backtests are written to test against. Current version: v0.3.
+
+## [RESEARCH_REPORT.md](RESEARCH_REPORT.md) — v0.3 paper-style writeup
+
+The research-paper-style report on the v0.3 extensions: motivation,
+mathematical formulation, experimental setup, headline numbers,
+falsification verdicts, regime decomposition, robustness checks, and
+limitations. Read this once the THEORY.md sections are familiar.
 
 ## [RESULTS_LONG.md](RESULTS_LONG.md) — the headline evidence
 
-The 6.75-year, multi-asset (BTC + ETH), multi-regime out-of-sample
-validation. 2470 walk-forward steps spanning 2019-08 to 2026-05. Includes
-the TL;DR, headline table, per-year tables, per-regime breakdowns,
-Diebold-Mariano significance tests, the hyperparameter robustness sweep,
-and a sober verdict against the THEORY §4 falsification criteria. **This is
-the document to cite.**
+The 6.75-year, multi-asset (BTC + ETH + SOL + BNB), multi-regime
+out-of-sample validation. ~2400 walk-forward steps per (asset, h)
+spanning 2019-08 to 2026-05. Includes the TL;DR, headline table,
+per-year tables, per-regime breakdowns, Diebold-Mariano significance
+tests, the hyperparameter robustness sweep, and a sober verdict against
+the THEORY §4 falsification criteria. **This is the document to cite for
+numbers.**
 
 ## [RESULTS.md](RESULTS.md) — superseded but kept
 

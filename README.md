@@ -1,14 +1,22 @@
 # wasserstein-btc
 
 Tangent-space **Wasserstein-geodesic distributional forecasting** for
-crypto log-returns, with a novel **regime-curvature gate** (for h=1) and a
-**Theil-Sen robust-slope** variant (recommended default for h ≥ 5).
+crypto log-returns. v0.3 adds a **GARCH-conditioned dispersion scaling**
+(`WGeo-Hetero`), a **regime-aware mixture with GARCH** (`WGeo-GARCH-Ens`),
+and a **recency-weighted slope** (`WGeo-EWMA`), on top of the v0.2
+regime-curvature gate (h=1) and Theil-Sen robust slope (h ≥ 5).
 
 This repository forecasts the *whole conditional distribution* of future
 returns, not a single number. The market is treated as a trajectory on the
 2-Wasserstein manifold of probability measures; we estimate the local
-tangent velocity by per-quantile robust regression against time and
-propagate it forward.
+tangent velocity by per-quantile robust regression against time, condition
+the spread on a parametric volatility forecast, and route adaptively
+between geodesic and GARCH predictions by realised-vol percentile.
+
+Math: [`docs/THEORY.md`](docs/THEORY.md) — §2.6–2.8 are the new v0.3
+sections, §4 lists falsification criteria. v0.3 paper-style writeup:
+[`docs/RESEARCH_REPORT.md`](docs/RESEARCH_REPORT.md). Headline numbers:
+[`docs/RESULTS_LONG.md`](docs/RESULTS_LONG.md).
 
 ## Headline result — 6.75-year out-of-sample, multi-asset
 

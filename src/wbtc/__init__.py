@@ -43,13 +43,16 @@ from .forecasters import (
     RandomWalkDrift,
     StaticEmpirical,
     WassersteinGeodesic,
+    WassersteinGeodesicEWMA,
     WassersteinGeodesicGated,
+    WassersteinGeodesicHetero,
     WassersteinGeodesicTheilSen,
+    WGeoGarchEnsemble,
 )
 from .quantiles import make_grid
 from .scoring import crps_from_quantiles, diebold_mariano
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     # data
@@ -69,6 +72,9 @@ __all__ = [
     "WassersteinGeodesic",
     "WassersteinGeodesicGated",
     "WassersteinGeodesicTheilSen",
+    "WassersteinGeodesicEWMA",
+    "WassersteinGeodesicHetero",
+    "WGeoGarchEnsemble",
     # high-level API
     "ForecastResult",
     "default_forecaster",
@@ -145,12 +151,18 @@ class ForecastResult:
 def default_forecaster(horizon: int):
     """Return the recommended forecaster instance for a given horizon.
 
-    Justification: per `docs/RESULTS_LONG.md`, the curvature-gate variant wins
-    at h=1 and the Theil-Sen robust-slope variant wins at h >= 5.
+    Justification: per `docs/RESULTS_LONG.md` (v0.2) the curvature-gate
+    variant wins at h=1 and the Theil-Sen robust-slope variant wins at h >= 5.
+    v0.3 (`docs/RESEARCH_REPORT.md`) updates the recommendation: the
+    regime-aware ensemble `WGeoGarchEnsemble` dominates at h>=5 on the
+    long-horizon panel, and `WassersteinGeodesicHetero` improves the h=21
+    spread calibration.
     """
     if horizon <= 1:
         return WassersteinGeodesicGated(window=90, lookback=20, kappa_star=0.6, tau=5)
-    return WassersteinGeodesicTheilSen(window=90, lookback=20)
+    if horizon >= 21:
+        return WassersteinGeodesicHetero(window=90, lookback=20)
+    return WGeoGarchEnsemble(window=90, lookback=20)
 
 
 def forecast(

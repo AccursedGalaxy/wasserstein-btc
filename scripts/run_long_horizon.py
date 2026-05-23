@@ -26,8 +26,11 @@ from wbtc.forecasters import (
     RandomWalkDrift,
     StaticEmpirical,
     WassersteinGeodesic,
+    WassersteinGeodesicEWMA,
     WassersteinGeodesicGated,
+    WassersteinGeodesicHetero,
     WassersteinGeodesicTheilSen,
+    WGeoGarchEnsemble,
 )
 from wbtc.long_horizon import (
     by_regime,
@@ -63,9 +66,19 @@ METHODS = {
     "WGeo-TheilSen": lambda: WassersteinGeodesicTheilSen(
         window=WGEO_WINDOW, lookback=WGEO_LOOKBACK
     ),
+    # --- v0.3 additions ---
+    "WGeo-EWMA": lambda: WassersteinGeodesicEWMA(
+        window=WGEO_WINDOW, lookback=WGEO_LOOKBACK, decay=0.85
+    ),
+    "WGeo-Hetero": lambda: WassersteinGeodesicHetero(
+        window=WGEO_WINDOW, lookback=WGEO_LOOKBACK
+    ),
+    "WGeo-GARCH-Ens": lambda: WGeoGarchEnsemble(
+        window=WGEO_WINDOW, lookback=WGEO_LOOKBACK
+    ),
 }
 
-SYMBOLS = ["BTC/USDT", "ETH/USDT"]
+SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"]
 HORIZONS = [1, 5, 21]
 BURN_IN = 730
 
@@ -122,16 +135,31 @@ def main():
             reg = by_regime(res, regime_tags)
             dm_stat, dm_p = pairwise_dm(res, horizon=h)
 
-            # headline row: WGeo (best of three variants) vs best of GARCH family
-            wgeo_variants = ["WGeo", "WGeo-Gated", "WGeo-TheilSen"]
+            # headline row: best WGeo-family (incl. v0.3) vs best baseline
+            #               (Static / RW-Drift / HS-Bootstrap / GARCH family).
+            wgeo_variants = [
+                "WGeo",
+                "WGeo-Gated",
+                "WGeo-TheilSen",
+                "WGeo-EWMA",
+                "WGeo-Hetero",
+                "WGeo-GARCH-Ens",
+            ]
+            baseline_variants = [
+                "Static",
+                "RW-Drift",
+                "HS-Bootstrap",
+                "GARCH-N",
+                "GARCH-t",
+                "GJR-GARCH-t",
+            ]
             wgeo_best_name = summary.loc[wgeo_variants, "mean_crps"].idxmin()
-            garch_variants = ["GARCH-N", "GARCH-t", "GJR-GARCH-t"]
-            garch_best_name = summary.loc[garch_variants, "mean_crps"].idxmin()
+            baseline_best_name = summary.loc[baseline_variants, "mean_crps"].idxmin()
             wbest = float(summary.loc[wgeo_best_name, "mean_crps"])
-            gbest = float(summary.loc[garch_best_name, "mean_crps"])
+            bbest = float(summary.loc[baseline_best_name, "mean_crps"])
             stat, p = (
-                float(dm_stat.loc[wgeo_best_name, garch_best_name]),
-                float(dm_p.loc[wgeo_best_name, garch_best_name]),
+                float(dm_stat.loc[wgeo_best_name, baseline_best_name]),
+                float(dm_p.loc[wgeo_best_name, baseline_best_name]),
             )
             headline_rows.append(
                 {
@@ -139,10 +167,10 @@ def main():
                     "h": h,
                     "n_test": int(summary["n"].iloc[0]),
                     "best_wgeo": wgeo_best_name,
-                    "best_garch": garch_best_name,
+                    "best_baseline": baseline_best_name,
                     "wgeo_crps": wbest,
-                    "garch_crps": gbest,
-                    "improvement": fmt_pct_diff(wbest, gbest),
+                    "baseline_crps": bbest,
+                    "improvement": fmt_pct_diff(wbest, bbest),
                     "dm_stat": stat,
                     "dm_p": p,
                 }
@@ -169,11 +197,11 @@ def main():
                     lambda x: f"{x:.5f}" if isinstance(x, float) else x
                 ).to_markdown(),
                 "",
-                "**Diebold-Mariano p-values vs WGeo-TheilSen** (lower = WGeo-TheilSen significantly better):",
+                "**Diebold-Mariano p-values vs WGeo-GARCH-Ens** (lower = WGeo-GARCH-Ens significantly better):",
                 "",
-                dm_p["WGeo-TheilSen"]
+                dm_p["WGeo-GARCH-Ens"]
                 .round(4)
-                .to_frame(name="p_vs_WGeo-TheilSen")
+                .to_frame(name="p_vs_WGeo-GARCH-Ens")
                 .to_markdown(),
                 "",
             ]
@@ -201,12 +229,12 @@ def main():
         "Train: rolling 730-day window. Test: every day after burn-in (no separate holdout).",
         "Scoring: CRPS (lower better, strictly proper).",
         "",
-        "## Headline — best WGeo variant vs best GARCH variant",
+        "## Headline — best WGeo-family variant vs best baseline (Static / RW / HS / GARCH)",
         "",
         pd.DataFrame(headline_rows)
         .assign(
             wgeo_crps=lambda d: d["wgeo_crps"].map(lambda x: f"{x:.6f}"),
-            garch_crps=lambda d: d["garch_crps"].map(lambda x: f"{x:.6f}"),
+            baseline_crps=lambda d: d["baseline_crps"].map(lambda x: f"{x:.6f}"),
             dm_stat=lambda d: d["dm_stat"].map(lambda x: f"{x:+.2f}"),
             dm_p=lambda d: d["dm_p"].map(lambda x: f"{x:.4f}"),
         )

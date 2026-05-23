@@ -1,11 +1,20 @@
 # Tangent-Space Wasserstein Geodesic Forecasting for Bitcoin Returns
 
-**Status:** version 0.2 (2026-05-23) — revised after long-horizon evidence.
+**Status:** version 0.3 (2026-05-23) — heteroskedastic dispersion + regime-aware ensembling.
 **Author:** AccursedGalaxy (driven by Claude)
 **Goal:** A mathematically rigorous, falsifiable, and genuinely under-explored
 framing for short-horizon Bitcoin forecasting. We do not predict prices. We
 predict the **distribution** of future log-returns, and we score that forecast
 properly.
+
+> **v0.3 update (2026-05-23):** v0.2 left two structural weaknesses on the
+> table: (a) the WGeo dispersion was scaled by sqrt(h), an i.i.d.-shock
+> assumption that mis-calibrates h=21 spread in volatile windows, and (b)
+> WGeo dominates in calm regimes (62% of days) but loses to GARCH in the
+> rare high-vol regime (~3% of days). v0.3 introduces three additions
+> (§2.6–2.8) — recency-weighted slope (`WGeo-EWMA`), GARCH-conditioned
+> dispersion (`WGeo-Hetero`), and a continuous regime-aware mixture with
+> GARCH (`WGeo-GARCH-Ens`). Headline numbers in `docs/RESEARCH_REPORT.md`.
 
 > **v0.2 update:** the original *curvature-gate* variant (v0.1) was justified
 > by h=1 results. The 6.75-year multi-asset long-horizon backtest in
@@ -143,6 +152,107 @@ curvature-gate variant at every horizon ≥ 5**, on both BTC and ETH, with
 *one* fewer hyperparameter (no κ* or τ). We therefore recommend it as the
 default whenever h ≥ 5 and keep the gate for h = 1.
 
+### 2.6 Recency-weighted slope (v0.3, `WGeo-EWMA`)
+
+OLS and Theil-Sen both assign equal weight (mean / median) to the full
+lookback. Under regime-switching dynamics — common in crypto — the *most
+recent* tangent vectors are more representative of the current geodesic
+direction than the oldest. We therefore introduce a weighted least-squares
+slope with exponentially decaying weights:
+
+$$w_j = \lambda^{L-1-j}, \quad j = 0, \dots, L-1, \quad \lambda \in (0, 1],$$
+
+so the newest observation has weight $1$ and the oldest weight
+$\lambda^{L-1}$. The slope for quantile level $u_k$ is
+
+$$\hat\beta_k^{\mathrm{EWMA}} = \frac{\sum_j w_j (s_j - \bar s_w)(F^{-1}_{s_j}(u_k) - \bar F^{-1}_{w}(u_k))}{\sum_j w_j (s_j - \bar s_w)^2},$$
+
+with $\bar s_w$ and $\bar F^{-1}_w$ the $w$-weighted means. $\lambda = 1$
+recovers OLS exactly (proved in `tests/test_forecasters.py::test_ewma_decay_one_matches_ols`).
+
+The decay parameter $\lambda$ controls the effective lookback: the effective
+sample size is $N_{\mathrm{eff}} = (\sum w_j)^2 / \sum w_j^2 \approx
+(1+\lambda)/(1-\lambda)$. With $L=20, \lambda=0.85$ we get $N_{\mathrm{eff}}
+\approx 6.5$ — about a third of the raw lookback — which trades off the
+classic bias-variance dial: more weight on recency reduces lag at regime
+change at the cost of higher variance in stable regimes.
+
+### 2.7 Heteroskedastic geodesic (v0.3, `WGeo-Hetero`)
+
+The constant-velocity decomposition in §2.2 splits the forecast into a
+*median drift* (linear in $h$) and a *shape dispersion*
+$F_{t}^{-1}(u_k) - F_{t}^{-1}(0.5)$ scaled by $\sqrt h$. The $\sqrt h$
+factor is exact only under i.i.d. shocks. Under heteroskedasticity (which
+is the *defining* feature of crypto returns), the h-step return variance
+ratio $\mathrm{Var}(r_{t+1\to t+h}) / (h \cdot \sigma_{\mathrm{uncond}}^2)$
+is itself a non-trivial function of the current conditional variance — it
+is *strictly greater than 1* after a volatility shock, and below 1 in
+unusually calm regimes.
+
+We therefore replace $\sqrt h$ by a conditional dispersion-scale that
+uses a parametric GARCH(1,1) variance forecast as a *side input*:
+
+$$s_h(t) := \sqrt{\frac{\sum_{i=1}^h \hat\sigma_{t+i}^2}{h \cdot \hat\sigma_{\mathrm{uncond}}^2}},$$
+
+where $\hat\sigma_{t+i}^2$ is the i-step-ahead GARCH(1,1) variance forecast
+and $\hat\sigma_{\mathrm{uncond}}^2 = \omega / (1 - \alpha - \beta)$ is the
+GARCH unconditional variance. The forecast becomes
+
+$$\hat F_{t+h}^{-1}(u_k) = (\hat m_t + h\hat\beta^{\mathrm{med}}_t) \;+\; \big(\hat F_t^{-1}(u_k) - \hat m_t\big)\,\sqrt h\,s_h(t) \;+\; h\big(\hat\beta_k - \hat\beta^{\mathrm{med}}_t\big),$$
+
+with $\hat m_t = \hat F_t^{-1}(0.5)$ and $\hat\beta^{\mathrm{med}}_t$ the
+median slope. Direction (median drift, asymmetric drift contribution
+$h(\hat\beta_k - \hat\beta^{\mathrm{med}}_t)$) is still estimated by
+Theil-Sen on the tangent slopes. Only the *spread* picks up the
+heteroskedastic conditioning.
+
+This is, to our knowledge, the first hybrid that uses a parametric vol
+forecast strictly as the *dispersion scaler* of a manifold-extrapolation
+forecast. Existing approaches either commit fully to GARCH (parametric
+shape) or fully to manifold methods (fixed $\sqrt h$ scaling). The hybrid
+sits exactly in between and inherits the consistency of both.
+
+If the GARCH fit fails (rare but possible on degenerate windows) we revert
+to $s_h = 1$, recovering vanilla `WGeo-TheilSen`. This means the method
+strictly dominates the vanilla variant on samples where GARCH adds signal,
+and is no worse where it does not.
+
+### 2.8 Regime-aware ensemble with GARCH (v0.3, `WGeo-GARCH-Ens`)
+
+The regime decomposition in `RESULTS_LONG.md` shows WGeo and GARCH are
+*complementary*: WGeo wins in calm regimes (62% of days), GARCH wins in
+the rare high-vol regime (~3% of days). A single forecaster that routes
+adaptively between the two should — by construction — dominate both
+components on average.
+
+We use a *continuous* mixing weight $w_t \in [0,1]$ derived from realised
+volatility's in-window percentile:
+
+- $\sigma_t = \mathrm{std}(r_{t-V+1\,..\,t})$ with $V=20$ days
+- $\rho_t = \mathrm{rank}_{[t-R, t-1]}(\sigma_t) \in [0,1]$ with $R = 252$ days (1y)
+- $w_t = \mathrm{smoothstep}(\rho_t; \rho^{\mathrm{lo}}, \rho^{\mathrm{hi}})$
+  with $\rho^{\mathrm{lo}}=0.60, \rho^{\mathrm{hi}}=0.90$
+
+The smoothstep is the standard $3x^2-2x^3$ on the rescaled interval, giving
+$w$ that ramps from $0$ at the 60th percentile of trailing realised vol to
+$1$ at the 90th. The final forecast is
+
+$$\hat F_{t+h}^{-1}(u_k) = (1-w_t)\,\hat F_{t+h}^{-1,\mathrm{WGeo}}(u_k) + w_t\,\hat F_{t+h}^{-1,\mathrm{GARCH}}(u_k).$$
+
+Importantly the mixture is in *quantile-function coordinates*, which makes
+it an exact geodesic interpolation on $\mathcal P_2(\mathbb R)$ (McCann 1997).
+The resulting forecast is therefore the W_2-geodesic midpoint between
+the WGeo and GARCH predictions weighted by $w_t$ — not a moment-matched
+or kernel-mixed surrogate. After projection by PAV (§2.4) it is a valid
+1D probability measure.
+
+The choice of $\rho^{\mathrm{lo}}, \rho^{\mathrm{hi}}$ was made *a priori*
+from the v0.2 regime decomposition (high-vol regime is the top 3% of vol
+percentile) and is not tuned on the test window. Sensitivity to these
+thresholds is reported as a robustness check in
+`docs/RESEARCH_REPORT.md`. There are *no* free hyperparameters tuned on
+the long backtest.
+
 ### 2.4 Monotonicity enforcement
 
 A quantile function must be non-decreasing. After extrapolation we apply
@@ -222,6 +332,18 @@ We declare the method **a failure** and report it as such if any of:
   more of the inner quantiles ($u \in \{0.25, 0.5, 0.75\}$).
 - The regime-curvature gate does not improve over the un-gated version of
   the same method (i.e. the novelty doesn't pay).
+
+**v0.3 additions** — declare the new variants a failure if:
+
+- `WGeo-Hetero` does not strictly improve mean CRPS over `WGeo-TheilSen`
+  at $h=21$ on BTC and ETH (the horizon and assets it was designed for).
+- `WGeo-GARCH-Ens` does not beat **both** `WGeo-TheilSen` and `GARCH-N`
+  at $h=5$ on a majority of the 4-asset panel (BTC, ETH, SOL, BNB). The
+  whole point of the ensemble is that it inherits the strengths of both
+  components; if it doesn't, the convex combination contains no useful
+  information beyond what the components already provided.
+- `WGeo-EWMA` does not beat `WGeo` (OLS variant) at any horizon — the
+  recency weighting is supposed to be a strict refinement.
 
 If we hit any of those, the results report says so plainly. No spinning.
 

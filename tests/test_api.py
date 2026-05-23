@@ -38,8 +38,12 @@ def test_available_symbols_returns_list():
 def test_default_forecaster_branches_on_horizon():
     f1 = default_forecaster(1)
     f5 = default_forecaster(5)
+    f21 = default_forecaster(21)
+    # v0.3 policy: gated @ h=1, regime-aware ensemble @ short-mid horizons,
+    # heteroskedastic variant @ long horizons. See RESEARCH_REPORT.md.
     assert type(f1).__name__ == "WassersteinGeodesicGated"
-    assert type(f5).__name__ == "WassersteinGeodesicTheilSen"
+    assert type(f5).__name__ == "WGeoGarchEnsemble"
+    assert type(f21).__name__ == "WassersteinGeodesicHetero"
 
 
 def test_forecast_endtoend_smoke_when_data_exists(tmp_path):

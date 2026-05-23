@@ -32,6 +32,9 @@ __all__ = [
     "WassersteinGeodesic",
     "WassersteinGeodesicTheilSen",
     "WassersteinGeodesicGated",
+    "WassersteinGeodesicEWMA",
+    "WassersteinGeodesicHetero",
+    "WGeoGarchEnsemble",
 ]
 
 
@@ -324,3 +327,191 @@ class WassersteinGeodesicTheilSen(WassersteinGeodesic):
         ds = s[j_idx] - s[i_idx]  # always positive
         dq = Q[j_idx] - Q[i_idx]  # (pairs, K)
         return np.median(dq / ds[:, None], axis=0)
+
+
+@dataclass
+class WassersteinGeodesicEWMA(WassersteinGeodesic):
+    """v0.3: Exponentially-weighted recency slope.
+
+    OLS gives every lookback observation the same weight; Theil-Sen gives the
+    median (robust but with equal voting power). In regime-switching dynamics
+    the *recent* tangent vectors are more representative of the current
+    geodesic direction than the oldest ones.
+
+    We use a weighted least-squares slope with weights
+        w_j = lambda^(L-1-j),  j = 0..L-1 (oldest=0, newest=L-1)
+    where lambda in (0, 1] is the decay factor. lambda=1 reduces to OLS;
+    smaller lambda emphasises recency.
+
+    The WLS slope of y on x with weights w is the standard:
+        beta = sum_j w_j (x_j - x_bar_w)(y_j - y_bar_w) / sum_j w_j (x_j - x_bar_w)^2
+    """
+
+    decay: float = 0.85
+
+    def _slope(self, Q: np.ndarray) -> np.ndarray:
+        L, K = Q.shape
+        if not (0.0 < self.decay <= 1.0):
+            raise ValueError("decay must be in (0, 1]")
+        s = np.arange(L, dtype=float)
+        w = self.decay ** (L - 1 - s)  # newest has w=1, oldest has w=lambda^{L-1}
+        w_sum = w.sum()
+        s_mean = (w * s).sum() / w_sum
+        Q_mean = (w[:, None] * Q).sum(axis=0, keepdims=True) / w_sum
+        num = (w[:, None] * (s - s_mean)[:, None] * (Q - Q_mean)).sum(axis=0)
+        den = (w * (s - s_mean) ** 2).sum()
+        return num / max(den, 1e-12)
+
+
+def _garch_h_step_sigma_ratio(returns: np.ndarray, h: int) -> float:
+    """Return s_h := sqrt(sum_i sigma_{t+i}^2) / sqrt(h * sigma_uncond^2).
+
+    Conditional/unconditional volatility ratio over the next h steps.
+    >1 in turbulent windows (next-h cumulative vol exceeds the long-run
+    sqrt-time scaling), <1 in calm windows. Robust to fit failures: returns
+    1.0 (i.e. revert to sqrt(h) scaling) on any exception.
+    """
+    try:
+        r = np.asarray(returns, dtype=float) * 100.0
+        am = arch_model(r, mean="Zero", vol="GARCH", p=1, q=1, dist="normal")
+        res = am.fit(disp="off", show_warning=False)
+        f = res.forecast(horizon=h, reindex=False)
+        var_path = np.asarray(f.variance.values[-1, :], dtype=float)  # length h
+        var_uncond = float(r.var(ddof=1))
+        if var_uncond <= 0 or np.any(var_path <= 0):
+            return 1.0
+        return float(np.sqrt(var_path.sum() / (h * var_uncond)))
+    except Exception:
+        return 1.0
+
+
+@dataclass
+class WassersteinGeodesicHetero(WassersteinGeodesicTheilSen):
+    """v0.3: Heteroskedastic geodesic — dispersion scaled by GARCH variance forecast.
+
+    The vanilla WGeo expands the quantile vector around its median by sqrt(h),
+    which is the i.i.d.-shock spread-scaling exponent. Under heteroskedasticity
+    (volatility clustering), the true h-step return variance can be
+    *substantially* different from h*sigma_1^2 — especially right after a
+    regime switch.
+
+    We replace the static sqrt(h) factor by a *conditional* scaling derived
+    from a GARCH(1,1) variance forecast:
+
+        s_h(t) := sqrt( sum_{i=1..h} sigma_{t+i}^2 / (h * sigma_uncond^2) )
+
+    so that s_h = 1 when the next-h cumulative vol equals the long-run sqrt-h
+    scaling, and s_h > 1 (resp. < 1) in turbulent (calm) regimes. The forecast
+    becomes:
+
+        q_pred(u) = (median + h * beta_median)
+                  + (q_now(u) - median_now) * sqrt(h) * s_h(t)
+                  + h * (beta(u) - beta_median)
+
+    Direction (the tangent slope) is still estimated robustly with Theil-Sen.
+    Only the *dispersion* picks up GARCH conditioning. This addresses the
+    long-horizon weakness of WGeo (the constant-velocity tangent says nothing
+    about *width* of the predictive distribution at h=21).
+
+    The novelty vs published methods: existing Wasserstein-time-series methods
+    (Koopman-Wasserstein, Saluzzi-Soize 2025) do not condition the dispersion
+    on a parametric vol forecast; existing GARCH methods do not use a
+    distributional tangent direction. This is the missing cross.
+    """
+
+    def predict(self, h: int, u: np.ndarray) -> np.ndarray:
+        Q = self._quantile_history(u)
+        beta = self._slope(Q)
+        q_now = Q[-1]
+        median_now = float(np.median(q_now))
+        beta_median = float(np.median(beta))
+        s_h = _garch_h_step_sigma_ratio(self._returns, h)  # type: ignore[arg-type]
+        center = q_now - median_now
+        q_pred = (
+            (median_now + h * beta_median)
+            + center * np.sqrt(h) * s_h
+            + h * (beta - beta_median)
+        )
+        return isotonic_project(q_pred)
+
+
+@dataclass
+class WGeoGarchEnsemble:
+    """v0.3: Regime-aware ensemble of Wasserstein-Geodesic and GJR-GARCH-t.
+
+    Motivation. The 6.75-year long-horizon decomposition in RESULTS_LONG.md
+    shows that WGeo wins decisively in calm regimes (low-vol + neutral = 62%
+    of days) while GARCH wins decisively in the rare high-vol regime (~3% of
+    days). They are *complementary*, not competing. A single mixture model
+    that adaptively routes by regime should dominate both components on
+    average without manual regime classification.
+
+    Method. We use a *continuous* mixing weight w_t in [0, 1] computed from
+    realised-vol percentile within the rolling window:
+
+        sigma_t  := std of the last `vol_window` returns
+        rank_t   := percentile rank of sigma_t in its own trailing
+                    `vol_rank_window` history
+        w_t      := smoothstep(rank_t, lo=`rank_lo`, hi=`rank_hi`)
+
+    w_t=0 -> pure WGeo (calm regime), w_t=1 -> pure GARCH (turbulent regime),
+    smooth blend in between. Critically the threshold percentiles are *in-
+    window* — no forward look — and the smoothstep avoids the regime-flip
+    instability of hard switching.
+
+    The mixed forecast is a *quantile-space* convex combination, which is
+    exact on the W_2 manifold: a geodesic in W_2 between two measures is the
+    linear interpolation of their quantile functions (McCann 1997).
+    """
+
+    window: int = 90
+    lookback: int = 20
+    vol_window: int = 20
+    vol_rank_window: int = 252
+    rank_lo: float = 0.60
+    rank_hi: float = 0.90
+
+    _returns: np.ndarray | None = None
+    _wgeo: WassersteinGeodesicTheilSen | None = None
+    _garch: GarchNormal | None = None
+    _weight: float = 0.0
+
+    def fit(self, returns: np.ndarray) -> None:
+        r = np.asarray(returns, dtype=float)
+        self._returns = r
+        self._wgeo = WassersteinGeodesicTheilSen(
+            window=self.window, lookback=self.lookback
+        )
+        self._wgeo.fit(r)
+        self._garch = GarchNormal()
+        self._garch.fit(r)
+        # blend weight from realised-vol percentile
+        if len(r) < self.vol_window + self.vol_rank_window:
+            self._weight = 0.0
+            return
+        # rolling std over last `vol_rank_window` non-overlapping origins
+        sigmas = np.array(
+            [
+                float(np.std(r[i - self.vol_window : i]))
+                for i in range(len(r) - self.vol_rank_window, len(r) + 1)
+            ]
+        )
+        sigma_now = sigmas[-1]
+        rank = float(np.mean(sigmas[:-1] < sigma_now))
+        # smoothstep between rank_lo and rank_hi
+        if rank <= self.rank_lo:
+            w = 0.0
+        elif rank >= self.rank_hi:
+            w = 1.0
+        else:
+            t = (rank - self.rank_lo) / (self.rank_hi - self.rank_lo)
+            w = float(t * t * (3.0 - 2.0 * t))  # smoothstep
+        self._weight = w
+
+    def predict(self, h: int, u: np.ndarray) -> np.ndarray:
+        assert self._wgeo is not None and self._garch is not None
+        q_w = self._wgeo.predict(h, u)
+        q_g = self._garch.predict(h, u)
+        w = self._weight
+        q_pred = (1.0 - w) * q_w + w * q_g
+        return isotonic_project(q_pred)

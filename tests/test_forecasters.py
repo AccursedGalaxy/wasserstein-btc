@@ -105,3 +105,110 @@ def test_theil_sen_recovers_constant_drift():
     q10 = f.predict(h=10, u=u)
     shift = float(np.median(q10) - np.median(q1))
     assert 0.0005 < shift < 0.0015
+
+
+def test_ewma_recovers_constant_drift():
+    from wbtc.forecasters import WassersteinGeodesicEWMA
+
+    rng = np.random.default_rng(13)
+    n = 600
+    t = np.arange(n)
+    r = 1e-4 * t + rng.normal(0, 0.01, size=n)
+    u = make_grid(40)
+    f = WassersteinGeodesicEWMA(window=90, lookback=30, decay=0.85)
+    f.fit(r)
+    q1 = f.predict(h=1, u=u)
+    q10 = f.predict(h=10, u=u)
+    shift = float(np.median(q10) - np.median(q1))
+    # Drift is constant across the series, so weighted slope ~ 1e-4 regardless.
+    assert 0.0005 < shift < 0.0015
+
+
+def test_ewma_decay_one_matches_ols():
+    """decay=1 must equal the OLS WassersteinGeodesic slope, by construction."""
+    from wbtc.forecasters import WassersteinGeodesicEWMA
+
+    rng = np.random.default_rng(17)
+    r = rng.normal(0, 0.02, size=600)
+    u = make_grid(20)
+    f_ols = WassersteinGeodesic(window=90, lookback=30)
+    f_ewma = WassersteinGeodesicEWMA(window=90, lookback=30, decay=1.0)
+    f_ols.fit(r)
+    f_ewma.fit(r)
+    q_ols = f_ols.predict(h=5, u=u)
+    q_ewma = f_ewma.predict(h=5, u=u)
+    np.testing.assert_allclose(q_ols, q_ewma, rtol=1e-9, atol=1e-12)
+
+
+def test_hetero_runs_and_is_monotone():
+    from wbtc.forecasters import WassersteinGeodesicHetero
+
+    r = _synth_returns(n=800)
+    u = make_grid(30)
+    f = WassersteinGeodesicHetero(window=90, lookback=20)
+    f.fit(r)
+    q1 = f.predict(h=1, u=u)
+    q21 = f.predict(h=21, u=u)
+    assert np.isfinite(q1).all()
+    assert np.isfinite(q21).all()
+    assert (np.diff(q1) >= -1e-9).all()
+    assert (np.diff(q21) >= -1e-9).all()
+    assert (q21.max() - q21.min()) > (q1.max() - q1.min())
+
+
+def test_ensemble_extremes_match_components():
+    """Forcing the smoothstep into its saturated ends collapses the ensemble
+    onto its respective component, which validates the weighting algebra."""
+    from wbtc.forecasters import (
+        GarchNormal,
+        WassersteinGeodesicTheilSen,
+        WGeoGarchEnsemble,
+    )
+
+    rng = np.random.default_rng(23)
+    r = rng.normal(0, 0.02, size=800)
+    u = make_grid(20)
+
+    # Force w=1 (rank always above rank_hi). Ensemble must equal pure GARCH.
+    f_g = GarchNormal()
+    f_g.fit(r)
+    q_g = f_g.predict(h=5, u=u)
+    f_pure_garch = WGeoGarchEnsemble(
+        window=90,
+        lookback=20,
+        vol_window=20,
+        vol_rank_window=252,
+        rank_lo=-1.0,
+        rank_hi=-0.5,
+    )
+    f_pure_garch.fit(r)
+    q_e = f_pure_garch.predict(h=5, u=u)
+    np.testing.assert_allclose(q_e, q_g, rtol=1e-9, atol=1e-12)
+
+    # Force w=0 (rank always below rank_lo). Ensemble must equal pure WGeo.
+    f_w = WassersteinGeodesicTheilSen(window=90, lookback=20)
+    f_w.fit(r)
+    q_w = f_w.predict(h=5, u=u)
+    f_pure_wgeo = WGeoGarchEnsemble(
+        window=90,
+        lookback=20,
+        vol_window=20,
+        vol_rank_window=252,
+        rank_lo=1.5,
+        rank_hi=2.0,
+    )
+    f_pure_wgeo.fit(r)
+    q_e = f_pure_wgeo.predict(h=5, u=u)
+    np.testing.assert_allclose(q_e, q_w, rtol=1e-9, atol=1e-12)
+
+
+def test_ensemble_is_monotone_and_finite():
+    from wbtc.forecasters import WGeoGarchEnsemble
+
+    r = _synth_returns(n=800)
+    u = make_grid(20)
+    f = WGeoGarchEnsemble(window=90, lookback=20)
+    f.fit(r)
+    q = f.predict(h=5, u=u)
+    assert np.isfinite(q).all()
+    assert (np.diff(q) >= -1e-9).all()

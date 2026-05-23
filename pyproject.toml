@@ -1,6 +1,6 @@
 [project]
 name = "wbtc"
-version = "0.2.0"
+version = "0.3.0"
 description = "Tangent-space Wasserstein-geodesic distributional forecasting for crypto returns"
 requires-python = ">=3.11"
 dependencies = [

@@ -13,12 +13,17 @@ quantile-function coordinates.
 ## The most important thing to read first
 
 [`docs/THEORY.md`](docs/THEORY.md) — the math, baselines, and falsification
-criteria. Don't propose changes to forecasters without reading it; you will
-likely re-invent something already considered or break a stated assumption.
+criteria (v0.3). §2.6–2.8 are the new v0.3 method sections (EWMA, Hetero,
+GARCH ensemble). Don't propose changes to forecasters without reading it;
+you will likely re-invent something already considered or break a stated
+assumption.
+
+[`docs/RESEARCH_REPORT.md`](docs/RESEARCH_REPORT.md) — research-paper-style
+writeup of the v0.3 contributions: motivation, formulation, falsification.
 
 [`docs/RESULTS_LONG.md`](docs/RESULTS_LONG.md) — the 6.75-year multi-asset
-out-of-sample evidence. The "TL;DR" at the top is enough; the per-year and
-per-regime tables are reference material.
+out-of-sample evidence (BTC + ETH + SOL + BNB). The "TL;DR" at the top is
+enough; the per-year and per-regime tables are reference material.
 
 ## Codebase map
 

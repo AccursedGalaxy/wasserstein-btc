@@ -26,5 +26,180 @@
     "extra": {
       "note": "first manifest entry"
     }
+  },
+  {
+    "timestamp": "2026-05-23T15:22:54.449276+00:00",
+    "entry_point": "run_long_horizon.py",
+    "argv": [
+      "scripts/run_long_horizon.py"
+    ],
+    "git_sha": "e2c54132f298f189181572646b9746769e54aa14",
+    "git_dirty": true,
+    "python": "3.14.3",
+    "packages": {
+      "wbtc": "0.3.0",
+      "numpy": "2.4.6",
+      "scipy": "1.17.1",
+      "pandas": "3.0.3",
+      "arch": "8.0.0",
+      "scikit-learn": "1.8.0",
+      "matplotlib": "3.10.9",
+      "ccxt": "4.5.54"
+    },
+    "data_sha256": {
+      "bnbusdt_1d.parquet": "436704fcfeb93109da09f7841e3bbfb0574c2b4a36902c9048a3522dafd7a463",
+      "btcusdt_1d.parquet": "c605ea3196e3f224ad109024ce27138e9272d20a28fd97a9323f2b31a4a3fe00",
+      "ethusdt_1d.parquet": "17550935a5cf66ed5aa92021a3902eb9188bc7d84eb7a2eee01bad40829a7214",
+      "solusdt_1d.parquet": "491c3c7774fa7aa2e6f69b168645187d61f564e7b92483095d4d6147cecf01e6",
+      "xrpusdt_1d.parquet": "4e1d9c79df2b088c158cae2a452c65638eb84be4b18039f5085910a90f4e2d87"
+    },
+    "extra": {
+      "headline": [
+        {
+          "symbol": "BTC/USDT",
+          "h": 1,
+          "n_test": 2470,
+          "best_wgeo": "WGeo-Gated",
+          "best_baseline": "Static",
+          "wgeo_crps": 0.01620274461679772,
+          "baseline_crps": 0.016236380368858733,
+          "improvement": "-0.2%",
+          "dm_stat": -1.230551751734709,
+          "dm_p": 0.21849056002254597
+        },
+        {
+          "symbol": "BTC/USDT",
+          "h": 5,
+          "n_test": 2466,
+          "best_wgeo": "WGeo-TheilSen",
+          "best_baseline": "Static",
+          "wgeo_crps": 0.03713526056796956,
+          "baseline_crps": 0.03736705813586002,
+          "improvement": "-0.6%",
+          "dm_stat": -1.1891393903926666,
+          "dm_p": 0.23438482012999362
+        },
+        {
+          "symbol": "BTC/USDT",
+          "h": 21,
+          "n_test": 2450,
+          "best_wgeo": "WGeo-TheilSen",
+          "best_baseline": "GARCH-N",
+          "wgeo_crps": 0.08329582311895344,
+          "baseline_crps": 0.0848478207472205,
+          "improvement": "-1.8%",
+          "dm_stat": -0.6748247060998048,
+          "dm_p": 0.49978714177164063
+        },
+        {
+          "symbol": "ETH/USDT",
+          "h": 1,
+          "n_test": 2470,
+          "best_wgeo": "WGeo-EWMA",
+          "best_baseline": "HS-Bootstrap",
+          "wgeo_crps": 0.021792127211877815,
+          "baseline_crps": 0.021892844458268862,
+          "improvement": "-0.5%",
+          "dm_stat": -1.5769262102634831,
+          "dm_p": 0.11481250483569139
+        },
+        {
+          "symbol": "ETH/USDT",
+          "h": 5,
+          "n_test": 2466,
+          "best_wgeo": "WGeo-TheilSen",
+          "best_baseline": "Static",
+          "wgeo_crps": 0.04930410129890775,
+          "baseline_crps": 0.049834389013134334,
+          "improvement": "-1.1%",
+          "dm_stat": -2.0002303153701186,
+          "dm_p": 0.04547539972474768
+        },
+        {
+          "symbol": "ETH/USDT",
+          "h": 21,
+          "n_test": 2450,
+          "best_wgeo": "WGeo-TheilSen",
+          "best_baseline": "GARCH-N",
+          "wgeo_crps": 0.10940409441091094,
+          "baseline_crps": 0.11297021853453275,
+          "improvement": "-3.2%",
+          "dm_stat": -1.4189349725860199,
+          "dm_p": 0.15591797514819694
+        },
+        {
+          "symbol": "SOL/USDT",
+          "h": 1,
+          "n_test": 1380,
+          "best_wgeo": "WGeo-Gated",
+          "best_baseline": "Static",
+          "wgeo_crps": 0.025040400588148423,
+          "baseline_crps": 0.025075320865312105,
+          "improvement": "-0.1%",
+          "dm_stat": -0.5717228475091544,
+          "dm_p": 0.5675097532822191
+        },
+        {
+          "symbol": "SOL/USDT",
+          "h": 5,
+          "n_test": 1376,
+          "best_wgeo": "WGeo-TheilSen",
+          "best_baseline": "Static",
+          "wgeo_crps": 0.05718568683758173,
+          "baseline_crps": 0.05762157981269112,
+          "improvement": "-0.8%",
+          "dm_stat": -1.102055385570841,
+          "dm_p": 0.27043759369171094
+        },
+        {
+          "symbol": "SOL/USDT",
+          "h": 21,
+          "n_test": 1360,
+          "best_wgeo": "WGeo-EWMA",
+          "best_baseline": "GARCH-N",
+          "wgeo_crps": 0.12942834239321524,
+          "baseline_crps": 0.13356761962886748,
+          "improvement": "-3.1%",
+          "dm_stat": -1.5011960339726167,
+          "dm_p": 0.13330486546827336
+        },
+        {
+          "symbol": "BNB/USDT",
+          "h": 1,
+          "n_test": 2389,
+          "best_wgeo": "WGeo-GARCH-Ens",
+          "best_baseline": "GARCH-N",
+          "wgeo_crps": 0.020164779609359355,
+          "baseline_crps": 0.02019863578553228,
+          "improvement": "-0.2%",
+          "dm_stat": -0.7109765132960498,
+          "dm_p": 0.4770987901696049
+        },
+        {
+          "symbol": "BNB/USDT",
+          "h": 5,
+          "n_test": 2385,
+          "best_wgeo": "WGeo-EWMA",
+          "best_baseline": "Static",
+          "wgeo_crps": 0.045916137497182916,
+          "baseline_crps": 0.046296500066844444,
+          "improvement": "-0.8%",
+          "dm_stat": -1.33671127508917,
+          "dm_p": 0.18131690009785606
+        },
+        {
+          "symbol": "BNB/USDT",
+          "h": 21,
+          "n_test": 2369,
+          "best_wgeo": "WGeo-TheilSen",
+          "best_baseline": "Static",
+          "wgeo_crps": 0.10296119634856622,
+          "baseline_crps": 0.10555252244490887,
+          "improvement": "-2.5%",
+          "dm_stat": -1.1172994020684595,
+          "dm_p": 0.2638663310711773
+        }
+      ]
+    }
   }
 ]
