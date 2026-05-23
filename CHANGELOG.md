@@ -4,6 +4,57 @@ All notable changes to this project will be documented here. Dates ISO-8601.
 
 ## [Unreleased]
 
+### Added
+
+- **Pre-registration document (`PREREGISTRATION.md`).** Locks the v0.5
+  headline forecaster (`WGeo-Ensemble` with exact components and
+  hyperparameters), reference baselines (`Static`, `GARCH-N`), 12 cells
+  (4 assets × 3 horizons), residualised-DM control set (`vol = [y, |y|,
+  y²]`), and falsification floor (≥6 of 12 cells with p_r<0.05 against
+  each baseline) for the 2026-06-01 → 2027-05-31 out-of-sample
+  evaluation window. The 2027-06-01 re-run procedure is in the document.
+  Will be git-tagged `preregistration-v0.5` on merge.
+- **Pre-registered headline forecaster.** `WGeo-Ensemble` is now the single
+  pre-committed headline forecaster in `docs/RESULTS_LONG.md`, evaluated
+  against two fixed reference baselines: `Static` (the naive distributional
+  baseline) and `GARCH-N` (the econometric vol baseline). Headline aggregates:
+  12/12 CRPS wins vs each baseline; 9/12 residualised DM p_r<0.05 vs `Static`
+  (vol-only and full control sets); 9/12 vs `GARCH-N` (vol-only) / 11/12
+  (full). The previous "best-of-family vs best-of-baseline" framing is
+  demoted to a robustness appendix because the implicit max-over-comparators
+  inflates type-I error and is not a valid pre-committed test.
+- **Residualised-DM sensitivity table.** Three control-set buckets
+  reported in `docs/RESULTS_LONG.md`: `none` (= vanilla DM), `vol`
+  (`[y, |y|, y²]`), `full` (vol + four peer-method loss series). The
+  pre-registered falsification floor is anchored to `vol_only` so the
+  headline does not depend on peer-loss correlations. New public
+  helpers `wbtc.long_horizon.build_dm_controls` and
+  `headline_dm_sensitivity`. `pairwise_dm_residualised` gains a
+  `control_set: "none" | "vol" | "full"` keyword; the default `full`
+  set now includes `y` alongside `|y|` and `y²` (the v0.4 default was
+  `|y|, y²` plus peers; v0.5 adds `y` to match the docs and the
+  pre-registered spec).
+- **GARCH-fallback instrumentation.** `WassersteinGeodesic._dispersion_scale`
+  now sets `self._garch_fallback: bool | None` on every `predict()` call,
+  exposing whether the GARCH fit raised or produced degenerate variances
+  (in which case the forecaster fell back to plain √h scaling).
+  `_walk_forward_one` propagates the flag into per-step rows; a new
+  `wbtc.long_horizon.garch_fallback_rate()` aggregator computes the
+  per-method fraction. Surfaced in the long-horizon markdown report and
+  in the robustness headline table. The falsification criterion for
+  `WGeo-Hetero` is now reportable conditional on a small fallback rate —
+  without it, a high rate would mean the headline is measuring the
+  unconditional √h baseline rather than the GARCH contribution.
+- **Synthetic oracle-CRPS regression tests.** Two new tests in
+  `tests/test_forecasters.py` establish theoretical soundness at h=1:
+  (1) plain `WGeo` on i.i.d. Normal data converges within 4% of the
+  closed-form Normal CRPS oracle at window=1000, with a strictly
+  larger gap at window=90 (convergence-in-window behaviour);
+  (2) `WGeo-Hetero` on iid + GARCH(1,1) data tracks the time-varying
+  conditional-Normal oracle within 10% and beats plain `WGeo`.
+  Establishes that the forecasters do what theory says on data
+  generated from the assumed family.
+
 ## [0.4.1] — 2026-05-24
 
 Internal architecture cleanup landing four 2026-05-23 architecture-review

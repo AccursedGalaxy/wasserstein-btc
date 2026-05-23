@@ -241,13 +241,16 @@ class HistoricalSimulationBootstrap:
 # override the relevant defaults; the predict-formula lives in one place.
 
 
-def _garch_h_step_sigma_ratio(returns: np.ndarray, h: int) -> float:
-    """Return s_h := sqrt(sum_i sigma_{t+i}^2) / sqrt(h * sigma_uncond^2).
+def _garch_h_step_sigma_ratio(returns: np.ndarray, h: int) -> tuple[float, bool]:
+    """Return ``(s_h, fallback)`` for the conditional/unconditional vol ratio.
 
-    Conditional/unconditional volatility ratio over the next h steps.
-    >1 in turbulent windows (next-h cumulative vol exceeds the long-run
-    sqrt-time scaling), <1 in calm windows. Robust to fit failures: returns
-    1.0 (i.e. revert to sqrt(h) scaling) on any exception.
+    ``s_h := sqrt(sum_i sigma_{t+i}^2) / sqrt(h * sigma_uncond^2)`` over the
+    next h steps — >1 in turbulent windows, <1 in calm windows. ``fallback``
+    is True when GARCH fit raised or produced degenerate variances (in which
+    case s_h = 1.0, i.e. revert to plain sqrt(h) scaling) and False on a
+    successful fit. The caller can aggregate the flag across walk-forward
+    steps to report what fraction of windows the GARCH conditioning
+    actually contributed.
     """
     try:
         r = np.asarray(returns, dtype=float)
@@ -258,10 +261,10 @@ def _garch_h_step_sigma_ratio(returns: np.ndarray, h: int) -> float:
         # scale-invariant against var_path (also on the percent scale).
         var_uncond = float((r * 100.0).var(ddof=1))
         if var_uncond <= 0 or np.any(var_path <= 0):
-            return 1.0
-        return float(np.sqrt(var_path.sum() / (h * var_uncond)))
+            return 1.0, True
+        return float(np.sqrt(var_path.sum() / (h * var_uncond))), False
     except Exception:
-        return 1.0
+        return 1.0, True
 
 
 @dataclass
@@ -342,6 +345,10 @@ class WassersteinGeodesic:
     tau: int = 5
 
     _returns: np.ndarray | None = None
+    # Set inside _dispersion_scale on each predict() call. None when garch is
+    # disabled; True/False otherwise. Inspected by the walk-forward harness so
+    # the long-horizon report can show the GARCH-fallback rate per method.
+    _garch_fallback: bool | None = None
 
     def fit(self, returns: np.ndarray) -> None:
         if len(returns) < self.window + self.lookback:
@@ -412,18 +419,29 @@ class WassersteinGeodesic:
         )
 
     def _dispersion_scale(self, h: int) -> float:
-        """s_h: optional GARCH conditional/unconditional vol ratio at horizon h."""
+        """s_h: optional GARCH conditional/unconditional vol ratio at horizon h.
+
+        When ``self.garch`` is not None, records ``self._garch_fallback`` —
+        True if the GARCH fit raised or produced degenerate variances (and we
+        fell back to s_h=1), False on a successful fit. The walk-forward
+        harness reads this flag per step so we can report the fraction of
+        windows where the GARCH conditioning actually contributed (the v0.4
+        falsification criterion for WGeo-Hetero is conditional on a non-
+        trivial fallback rate — see docs/THEORY.md §4).
+        """
         if self.garch is None:
+            self._garch_fallback = None
             return 1.0
         assert self._returns is not None
         if self.garch == "full":
-            s_h = _garch_h_step_sigma_ratio(self._returns, h)
+            s_h, fallback = _garch_h_step_sigma_ratio(self._returns, h)
         elif self.garch == "short":
-            s_h = _garch_h_step_sigma_ratio(self._returns[-self.window :], h)
+            s_h, fallback = _garch_h_step_sigma_ratio(self._returns[-self.window :], h)
         else:
             raise ValueError(
                 f"garch must be None | 'full' | 'short', got {self.garch!r}"
             )
+        self._garch_fallback = bool(fallback)
         if self.garch_clip is not None:
             s_h = float(np.clip(s_h, self.garch_clip[0], self.garch_clip[1]))
         return float(s_h)

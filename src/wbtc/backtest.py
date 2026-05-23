@@ -102,7 +102,14 @@ def _walk_forward_one(
         y = h_step_log_return(returns, t, horizon)
         if y is None:
             continue
-        rows.append({"t": t, "crps": crps_from_quantiles(q, u, y), "y": y})
+        row = {"t": t, "crps": crps_from_quantiles(q, u, y), "y": y}
+        # Forecasters that use GARCH conditioning set _garch_fallback on each
+        # predict (None when GARCH is disabled). Surface the flag so the
+        # long-horizon harness can report the fallback rate per method.
+        fb = getattr(f, "_garch_fallback", None)
+        if fb is not None:
+            row["garch_fallback"] = bool(fb)
+        rows.append(row)
     return pd.DataFrame(rows)
 
 

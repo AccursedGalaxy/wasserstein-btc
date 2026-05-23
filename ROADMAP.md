@@ -45,11 +45,16 @@ single PR and each strengthens the paper.
   multiplier no longer double-counts. Implemented as
   `WassersteinGeodesicCondShape`; empirically not the headline winner
   but provides the v0.4 boundary statement.
-- [ ] **Frozen final-year test set.** The walk-forward harness already
-  does no look-ahead, but for publication we additionally reserve
-  2026-01-01 → 2026-12-31 as a strict frozen holdout never touched by
-  hyperparameter discussion. Re-run the v0.3 panel + new comparators on
-  that frozen set.
+- [x] **Pre-registered 12-month out-of-sample window (v0.5).** Reserved
+  the period 2026-06-01 → 2027-05-31 as a strict frozen holdout. The
+  headline forecaster (`WGeo-Ensemble`), reference baselines (`Static`
+  and `GARCH-N`), DM control set (`vol = [y, |y|, y²]`), and
+  falsification threshold (≥6 of 12 cells with p_r<0.05 against each
+  baseline) are locked in [`PREREGISTRATION.md`](PREREGISTRATION.md).
+  Re-run scheduled for 2027-06-01. Supersedes the earlier "frozen
+  final-year test set" item with a longer window (12 months vs 12
+  months) chosen so h=21 has ≈250 forecasts per cell (vs ~130 at six
+  months) — adequate DM power.
 - [ ] **XRP/USDT into the panel.** Currently cached but not in
   `METHODS`. Add to `SYMBOLS` in `scripts/run_long_horizon.py`. 5-asset
   panel is more convincing than 4 for cross-asset generalisation.
