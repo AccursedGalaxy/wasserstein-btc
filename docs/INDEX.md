@@ -1,7 +1,8 @@
 # Docs index
 
-A one-paragraph orientation to every document in `docs/`. Read these in the
-order shown for a coherent first pass.
+A one-paragraph orientation to every project document, including
+repo-root files like `ROADMAP.md` and `CONTRIBUTING.md`. Read these in
+the order shown for a coherent first pass.
 
 ## [THEORY.md](THEORY.md) — start here
 
@@ -38,17 +39,38 @@ h=21 on a single test year (2025-2026), DM p=0.006. Kept for the Christoffersen
 quantile-coverage table; the headline numbers should be read against the
 larger and more honest `RESULTS_LONG.md` instead.
 
+## Repo-root files
+
+- [`../README.md`](../README.md) — public-facing project description,
+  install, quick start, headline result. Read this first if you came
+  from GitHub.
+- [`../ROADMAP.md`](../ROADMAP.md) — what's missing for the project to
+  be production-competitive (HAR-RV / FIGARCH / multivariate /
+  intraday). The v0.4 and v0.5 buckets are the prioritised work list.
+- [`../CHANGELOG.md`](../CHANGELOG.md) — v0.1 → v0.2 → v0.3 release
+  notes including the honest-negative-findings sections.
+- [`../CONTRIBUTING.md`](../CONTRIBUTING.md) — the conventions PRs must
+  follow (walk-forward, strictly-proper scoring, no DL, no
+  sklearn-pipeline refactors).
+- [`../CITATION.cff`](../CITATION.cff) — structured citation metadata
+  for academic use.
+- [`../CLAUDE.md`](../CLAUDE.md) — agent-facing repo guide (codebase
+  map, common tasks, gotchas). Aimed at LLM agents working on the
+  codebase, but humans will find it useful too.
+
 ## How to cite
 
 When pointing to a number, prefer `RESULTS_LONG.md` (long-horizon evidence
 over the full multi-year span). When pointing to a *concept*, prefer
 `THEORY.md`. When pointing to coverage / calibration evidence, the table in
-`RESULTS.md` is still the canonical source.
+`RESULTS.md` is still the canonical source. For academic citation, see
+[`../CITATION.cff`](../CITATION.cff).
 
 ## How to extend
 
-Adding a new forecaster, asset, or evaluation regime: see [`../CLAUDE.md`](../CLAUDE.md)
-("Common tasks" section) and the protocol comments at the top of
-`src/wbtc/forecasters.py`. New evidence should be appended to
-`RESULTS_LONG.md` (don't rewrite — add a section), and the falsification
-table in the verdict section should be re-rendered.
+Adding a new forecaster, asset, or evaluation regime: see
+[`../CONTRIBUTING.md`](../CONTRIBUTING.md) ("Adding a new forecaster")
+and the protocol comments at the top of `src/wbtc/forecasters.py`. New
+evidence should be appended to `RESULTS_LONG.md` (don't rewrite — add a
+section), and the falsification table in the verdict section should be
+re-rendered.

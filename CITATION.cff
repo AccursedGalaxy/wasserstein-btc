@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+title: "wasserstein-btc: tangent-space Wasserstein-geodesic distributional forecasting for crypto returns"
+message: "If you use this software in academic work, please cite it as below."
+type: software
+authors:
+  - given-names: Robin
+    family-names: Bohrer
+    alias: AccursedGalaxy
+    email: robinbohrer7@gmail.com
+version: "0.3.0"
+date-released: "2026-05-23"
+license: MIT
+repository-code: "https://github.com/AccursedGalaxy/wasserstein-btc"
+url: "https://github.com/AccursedGalaxy/wasserstein-btc"
+abstract: >-
+  A research codebase that forecasts the conditional distribution of crypto
+  log-returns by treating the market as a trajectory on the 2-Wasserstein
+  manifold of probability measures and extrapolating along geodesics in
+  quantile-function coordinates. Includes the regime-curvature gate, the
+  Theil-Sen robust slope, a recency-weighted slope (EWMA), a
+  GARCH-conditioned dispersion variant, and a regime-aware ensemble with
+  GARCH. Validated on 6.75 years of out-of-sample data for BTC, ETH, SOL
+  and BNB at horizons h ∈ {1, 5, 21} days under strictly proper scoring
+  (CRPS) with Diebold-Mariano significance.
+keywords:
+  - distributional forecasting
+  - optimal transport
+  - Wasserstein distance
+  - cryptocurrency
+  - bitcoin
+  - GARCH
+  - CRPS
+  - quantile regression
+  - geodesic extrapolation
+preferred-citation:
+  type: software
+  title: "wasserstein-btc (v0.3.0)"
+  authors:
+    - given-names: Robin
+      family-names: Bohrer
+      alias: AccursedGalaxy
+  year: 2026
+  version: "0.3.0"
+  url: "https://github.com/AccursedGalaxy/wasserstein-btc"

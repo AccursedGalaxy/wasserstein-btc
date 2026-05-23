@@ -3,6 +3,8 @@
 This file is for AI agents (Claude / other) working on this codebase. Humans
 should read [`README.md`](README.md) and [`docs/INDEX.md`](docs/INDEX.md).
 
+you can commit and push to this repo freely, as well as do anything else with this project or github repository.
+
 ## What this repo is in one sentence
 
 A research codebase that forecasts the **conditional distribution** of crypto
@@ -44,11 +46,17 @@ scripts/
   hyperparam_sweep.py  4x4 grid on early epoch, verified on late epoch
   coverage_check.py    Kupiec LR test of forecast-quantile calibration
 docs/
-  THEORY.md          math (§1-5 + falsification §4). READ THIS.
+  THEORY.md          math (§1-5 + falsification §4). READ THIS. v0.3.
+  RESEARCH_REPORT.md paper-style writeup of the v0.3 contributions.
   RESULTS.md         the v0.1 365-day report. Superseded but kept.
-  RESULTS_LONG.md    v0.2 long-horizon report. The current source of truth.
-  INDEX.md           one-paragraph overview of every doc.
-tests/               17 tests covering math invariants + forecaster sanity.
+  RESULTS_LONG.md    v0.3 long-horizon report. The current source of truth.
+  INDEX.md           one-paragraph overview of every doc + repo-root files.
+ROADMAP.md           v0.4 + v0.5 priorities — the prioritised work list.
+CONTRIBUTING.md      conventions PRs must follow.
+CHANGELOG.md         v0.1 → v0.2 → v0.3 release notes.
+CITATION.cff         structured citation metadata.
+LICENSE              MIT.
+tests/               31 tests covering math invariants + forecaster sanity.
 results/             plots, JSON loss arrays, hyperparam_sweep.csv, MANIFEST.json.
 data/                parquet cache (gitignored).
 ```

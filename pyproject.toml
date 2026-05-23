@@ -2,6 +2,36 @@
 name = "wbtc"
 version = "0.3.0"
 description = "Tangent-space Wasserstein-geodesic distributional forecasting for crypto returns"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Robin Bohrer (AccursedGalaxy)", email = "robinbohrer7@gmail.com" },
+]
+keywords = [
+    "distributional-forecasting",
+    "optimal-transport",
+    "wasserstein",
+    "cryptocurrency",
+    "bitcoin",
+    "garch",
+    "crps",
+    "quantile-regression",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Typing :: Typed",
+]
 requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.26",
@@ -15,6 +45,13 @@ dependencies = [
     "tqdm>=4.66",
     "tabulate>=0.10.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/AccursedGalaxy/wasserstein-btc"
+Repository = "https://github.com/AccursedGalaxy/wasserstein-btc"
+Issues = "https://github.com/AccursedGalaxy/wasserstein-btc/issues"
+Documentation = "https://github.com/AccursedGalaxy/wasserstein-btc/blob/master/docs/INDEX.md"
+Changelog = "https://github.com/AccursedGalaxy/wasserstein-btc/blob/master/CHANGELOG.md"
 
 [project.scripts]
 wbtc = "wbtc.cli:main"

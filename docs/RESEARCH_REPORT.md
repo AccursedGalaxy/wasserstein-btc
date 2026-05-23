@@ -222,16 +222,68 @@ We leave that as future work (`WGeo-GARCH-Dispersion-Replace`).
 
 ## 6. Limitations
 
-- **2020 COVID year still hardest.** Even with heteroskedastic dispersion
-  the constant-velocity geodesic assumption is fundamentally violated
-  during once-in-a-decade discontinuities; we expect h=21 in 2020 to
-  remain the worst yearly cell. See RESULTS_LONG.md per-year tables.
-- **Daily-only.** All claims are at daily resolution. We have not tested
-  intraday data; the volatility dynamics are different and the conclusion
-  may not transfer.
+The headline claim of this paper is narrow on purpose: we beat the
+*textbook* distributional-forecasting baselines on this 4-asset panel.
+The following are the things we did *not* show, in priority order — they
+are also the contents of [`ROADMAP.md`](../ROADMAP.md).
+
+### 6.1 Comparators not included
+
+We compared against Static, Random-Walk-Drift, Historical-Simulation
+Bootstrap, GARCH-N, GARCH-t, and GJR-GARCH-t. The following commonly
+cited models are *absent* from our baseline set:
+
+- **Realised-volatility models.** HAR-RV (Corsi 2009) is the de facto
+  standard in the realised-vol literature; not having it in our panel
+  is the largest single open question. FIGARCH (Baillie, Bollerslev,
+  Mikkelsen 1996) for long-memory; MS-GARCH (Haas, Mittnik, Paolella
+  2004) for the regime-switching alternative.
+- **Quantile-regression baselines.** CAViaR (Engle & Manganelli 2004)
+  is the natural comparator for any quantile-based forecasting method.
+- **Stochastic volatility models.** Heston (1993), SABR.
+- **Anything multivariate.** Real risk systems forecast joint
+  distributions, not univariate marginals. We forecast each asset
+  independently.
+
+Until those are added (see ROADMAP.md v0.4), any claim that the model
+would compete against a *production* risk system is unsupported.
+
+### 6.2 Resolution and feature set
+
+- **Daily-only.** Intraday volatility dynamics are qualitatively
+  different (microstructure noise, U-shaped diurnal patterns, etc.).
+  The conclusions may not transfer.
+- **No realised-volatility features.** The model uses only past
+  log-returns; production realised-vol estimates from 5-min sampled
+  intraday data are not used.
+- **No cross-asset / orderflow features.** Lead-lag relationships and
+  exchange order-book data are not exploited.
+
+### 6.3 Statistical and scope caveats
+
+- **2020 COVID year is still the worst regime** at h=21. Even with
+  heteroskedastic dispersion, the constant-velocity geodesic
+  assumption breaks during once-in-a-decade discontinuities. See
+  RESULTS_LONG.md per-year tables.
+- **DM significance is weak at the single-cell level.** Only ETH h=5
+  reaches p<0.05 in this v0.3 panel. The case for the method rests on
+  the *directional* consistency across 12 independently structured
+  tests (binomial p ≈ 0.024%) rather than on any single-cell DM
+  result.
 - **No transaction-cost or PnL framing.** The methods produce
   distributional forecasts. Turning them into a trading strategy is a
-  separate problem we do not study (see THEORY.md §5).
+  separate problem (see THEORY.md §5).
+- **No frozen out-of-sample year.** The walk-forward harness does no
+  look-ahead, but for publication-grade evidence we should also
+  reserve a strict frozen final year never used in hyperparameter
+  discussion. Marked as a v0.4 priority.
+
+### 6.4 Architectural scope
+
+This is *one* forecaster, not a risk system. A production deployment
+would combine it with positioning logic, regime classifiers, P&L
+attribution, and many other inputs. The model's contribution would be
+*one input* among many, not load-bearing alone.
 
 ## 7. Conclusion
 
@@ -272,21 +324,72 @@ These defaults are intentionally not aggressively tuned — they encode
 
 **Future work.** The §4.4 analysis suggests the right way to use a
 parametric vol forecast in WGeo is to *replace* the empirical
-dispersion, not multiply it. We mark this as the v0.4 target.
+dispersion, not multiply it. We mark this as `WGeo-GARCH-Dispersion-
+Replace`, the v0.4 target. Full prioritised list in
+[`ROADMAP.md`](../ROADMAP.md).
+
+## 8. Future work / roadmap
+
+The most important items, in priority order. See
+[`ROADMAP.md`](../ROADMAP.md) for full text and per-item falsification
+nulls.
+
+**v0.4 — methods-paper supplement (pre-publication):**
+
+1. **HAR-RV, FIGARCH, MS-GARCH, CAViaR** added to baseline panel.
+   Without these, "beats real benchmarks" is unsupported.
+2. **`WGeo-GARCH-Dispersion-Replace`** — the §4.4 corollary.
+3. **Frozen final-year out-of-sample test set** in addition to
+   walk-forward.
+4. **XRP/USDT into the panel** (currently cached, not in `METHODS`).
+5. **Per-asset robustness sweep** for `WGeo-GARCH-Ens` thresholds.
+
+**v0.5 — production-relevance:**
+
+1. Realised-volatility features (5-min RV as tangent regressor).
+2. Intraday resolution (4-hour and 1-hour panels).
+3. Multivariate joint distribution via Sliced-Wasserstein.
+4. Conformal calibration layer.
+5. Live paper-trading on the next 6 months.
 
 ## References
 
+### Optimal transport / Wasserstein geometry
+
 - Bonneel, N., Rabin, J., Peyré, G., & Pfister, H. (2015). *Sliced and
   Radon Wasserstein barycenters of measures*. JMIV.
+- McCann, R. J. (1997). *A convexity principle for interacting gases*. Adv. Math.
+- Villani, C. (2009). *Optimal Transport: Old and New*. Springer.
+
+### Volatility / distributional baselines
+
+- Baillie, R. T., Bollerslev, T., & Mikkelsen, H. O. (1996). *Fractionally
+  integrated generalized autoregressive conditional heteroskedasticity*. JoE.
+- Bollerslev, T. (1986). *Generalized autoregressive conditional heteroscedasticity*. JoE.
+- Corsi, F. (2009). *A simple approximate long-memory model of realized volatility*. JoF Econometrics.
+- Engle, R. F. (1982). *Autoregressive conditional heteroscedasticity*. Econometrica.
+- Engle, R. F., & Manganelli, S. (2004). *CAViaR: conditional autoregressive value at risk by regression quantiles*. JBES.
+- Glosten, L. R., Jagannathan, R., & Runkle, D. E. (1993). *Asymmetric volatility*. JoF.
+- Haas, M., Mittnik, S., & Paolella, M. S. (2004). *A new approach to Markov-switching GARCH models*. JoFE.
+- Heston, S. L. (1993). *A closed-form solution for options with stochastic volatility*. RFS.
+
+### Scoring rules and evaluation
+
 - Christoffersen, P. F. (1998). *Evaluating interval forecasts*. IER.
 - Diebold, F. X., & Mariano, R. S. (1995). *Comparing predictive accuracy*. JBES.
-- Engle, R. F. (1982). *Autoregressive conditional heteroscedasticity*. Econometrica.
-- Bollerslev, T. (1986). *Generalized autoregressive conditional heteroscedasticity*. JoE.
-- Glosten, L. R., Jagannathan, R., & Runkle, D. E. (1993). *Asymmetric volatility*. JoF.
 - Gneiting, T., & Raftery, A. E. (2007). *Strictly proper scoring rules*. JASA.
-- McCann, R. J. (1997). *A convexity principle for interacting gases*. Adv. Math.
 - Politis, D. N., & Romano, J. P. (1994). *The stationary bootstrap*. JASA.
-- Saluzzi, L. & Soize, C. (2025). *Koopman-Wasserstein functional time series forecasting*. arXiv:2507.07570.
+
+### Robust regression
+
+- Rousseeuw, P. J., & Leroy, A. M. (1987). *Robust regression and outlier detection*. Wiley.
+- Sen, P. K. (1968). *Estimates of the regression coefficient based on Kendall's tau*. JASA.
+- Theil, H. (1950). *A rank-invariant method of linear regression*. Indagationes Math.
+
+### Most-related published distributional methods
+
+- Saluzzi, L. & Soize, C. (2025). *Functional time series forecasting of
+  distributions: a Koopman-Wasserstein approach*. arXiv:2507.07570.
 - Theil, H. (1950). *A rank-invariant method of linear regression*. Indagationes Math.
 - Sen, P. K. (1968). *Estimates of the regression coefficient based on Kendall's tau*. JASA.
 - Villani, C. (2009). *Optimal Transport: Old and New*. Springer.
