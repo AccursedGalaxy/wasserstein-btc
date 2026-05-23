@@ -1,0 +1,38 @@
+name: Feature request
+description: A new baseline, forecaster, asset, metric, or capability
+labels: [enhancement]
+body:
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to see?
+      placeholder: e.g. "Add a CAViaR (Engle-Manganelli 2004) baseline to the comparator panel."
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why does it matter?
+      description: Which falsification criterion in `docs/THEORY.md §4` would this strengthen, weaken, or add? Which audience does it serve?
+    validations:
+      required: true
+  - type: textarea
+    id: smallest-experiment
+    attributes:
+      label: Smallest experiment that would tell us if it pays off
+      description: One sentence. Should be runnable in <30 min on a laptop.
+      placeholder: e.g. "Add CAViaR to METHODS in run_long_horizon.py, re-run for BTC h=1, compare CRPS vs WGeo-Gated."
+    validations:
+      required: false
+  - type: dropdown
+    id: bucket
+    attributes:
+      label: Roadmap bucket
+      description: See `ROADMAP.md`
+      options:
+        - v0.4 (methods paper supplement)
+        - v0.5 (production relevance)
+        - v1.0 (ecosystem)
+        - not sure
+    validations:
+      required: false

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussion
+    url: https://github.com/AccursedGalaxy/wasserstein-btc/discussions
+    about: For open-ended questions, ideas, "show your forecasts" threads, and replication chats — open a Discussion, not an issue.
+  - name: Read the research report first
+    url: https://github.com/AccursedGalaxy/wasserstein-btc/blob/master/docs/RESEARCH_REPORT.md
+    about: Most "why does the model do X?" questions are answered in the research report or in docs/THEORY.md §1–4.

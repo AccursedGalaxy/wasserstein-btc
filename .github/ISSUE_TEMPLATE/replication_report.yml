@@ -1,0 +1,44 @@
+name: Replication report
+description: You re-ran the backtest (possibly with a different data source) and want to share what you found
+labels: [replication]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Independent replications are one of the most valuable contributions this project can receive.
+        Even partial replications (one asset, one horizon) are welcome.
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup
+      description: Data source (Binance / Kraken / Coinbase / other?), date range, assets, horizons, wbtc version.
+      placeholder: |
+        - Data: Kraken OHLCV daily, 2019-01-01 → 2026-05-23
+        - Assets: BTC/USD
+        - Horizons: 1, 5
+        - wbtc version: 0.3.0
+        - Hardware / runtime: e.g. M2 MacBook Air, 12 min wall clock
+    validations:
+      required: true
+  - type: textarea
+    id: results
+    attributes:
+      label: Headline CRPS table
+      description: Paste the comparison table (or attach the JSON from `results/long_*.json`).
+      render: markdown
+    validations:
+      required: true
+  - type: textarea
+    id: deltas
+    attributes:
+      label: Deltas vs published numbers
+      description: Any cell where you saw a meaningfully different result from `docs/RESULTS_LONG.md`? Possible causes?
+    validations:
+      required: false
+  - type: input
+    id: link
+    attributes:
+      label: Replication repo / notebook (optional)
+      description: Link to a fork, gist, or notebook with the full setup so others can re-run.
+    validations:
+      required: false

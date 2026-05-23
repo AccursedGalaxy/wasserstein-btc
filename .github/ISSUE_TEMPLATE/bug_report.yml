@@ -1,0 +1,44 @@
+name: Bug report
+description: Something is wrong with the code, the math, or the results
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you observe, and what did you expect?
+      placeholder: |
+        I ran `uv run wbtc forecast BTC/USDT -H 5` and got ...
+        I expected ...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: Command(s) or Python snippet that reproduces the issue. Include data version if relevant (`uv run wbtc info`).
+      render: bash
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: wbtc version
+      description: Output of `uv run wbtc --version`
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Python / OS
+      description: e.g. "Python 3.12 on macOS 14"
+    validations:
+      required: false
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Stack trace, JSON output, screenshot of the fan chart, etc.
+    validations:
+      required: false
