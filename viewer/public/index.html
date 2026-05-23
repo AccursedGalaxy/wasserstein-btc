@@ -100,7 +100,7 @@
         <header class="section-head">
           <span class="kicker">§ 2</span>
           <h2>Headline · best WGeo vs best baseline</h2>
-          <p class="sub">Walk-forward CRPS over a 6.75-year, multi-asset out-of-sample window. Negative <code>Δ</code> means the WGeo family wins. <code>p</code> is the two-sided Diebold-Mariano p-value.</p>
+          <p class="sub">Walk-forward CRPS over a 6.75-year, multi-asset out-of-sample window. Negative <code>Δ</code> means the WGeo family wins. <code>p</code> is the classic Diebold-Mariano (1995) two-sided p-value; <code>p<sub>r</sub></code> is the v0.4 residualised DM (Giacomini-White-style augmented test that projects out shared volatility-clustering noise via <code>|y|</code>, <code>y²</code>, and peer-method losses — see <code>THEORY.md §2.10</code>).</p>
         </header>
         <div class="table-wrap card">
           <table class="ledger" id="headline-table">
@@ -114,8 +114,10 @@
                 <th>Best baseline</th>
                 <th class="num">CRPS</th>
                 <th class="num">Δ</th>
-                <th class="num">DM stat</th>
+                <th class="num">DM</th>
                 <th class="num">p</th>
+                <th class="num">DM<sub>r</sub></th>
+                <th class="num">p<sub>r</sub></th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -191,6 +193,7 @@
               <div class="seg" id="ext-h-seg">
                 <button data-h="1" class="active">h = 1</button>
                 <button data-h="5">h = 5</button>
+                <button data-h="21">h = 21</button>
               </div>
             </div>
           </div>

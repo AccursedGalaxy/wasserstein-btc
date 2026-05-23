@@ -224,6 +224,90 @@ def build_extended(h: int) -> dict | None:
     }
 
 
+def _log_returns_from_parquet(symbol: str) -> np.ndarray | None:
+    """Return the same log-return series used by the backtest harness.
+
+    Mirrors ``wbtc.backtest.load_returns``: difference of log-close, drop
+    the first NaN. The returned array's indices match what was passed to
+    ``run_long_horizon`` as ``returns`` — so ``t_idx`` values from
+    ``long_*.json`` index into it directly.
+    """
+    pq = DATA / f"{_slug(symbol)}_1d.parquet"
+    if not pq.exists():
+        return None
+    df = pd.read_parquet(pq).sort_values("ts").reset_index(drop=True)
+    log_close = np.log(df["close"].astype(float).to_numpy())
+    r = np.diff(log_close)
+    return r
+
+
+def _realised_h_step(returns: np.ndarray, t_idx: list[int], h: int) -> np.ndarray:
+    """Realised h-step log return for each step in t_idx (mirrors h_step_log_return)."""
+    out = np.empty(len(t_idx), dtype=float)
+    for i, t in enumerate(t_idx):
+        out[i] = float(returns[t + 1 : t + h + 1].sum())
+    return out
+
+
+def build_headline(symbol: str, h: int) -> dict | None:
+    """Compute the v0.4 headline row for (symbol, h) from raw loss arrays.
+
+    Mirrors ``scripts/run_long_horizon.py``'s headline logic: best
+    WGeo-family variant (mean CRPS) vs best non-WGeo baseline, with the
+    classic Diebold-Mariano statistic *and* the residualised
+    Giacomini-White-style augmented variant (peer-method losses +
+    |y|, y² as controls). The MANIFEST.json headline can lag behind
+    when v0.4 methods are added incrementally — computing it from the
+    raw loss arrays keeps the viewer in lock-step with the backend.
+    """
+    slug = _slug(symbol)
+    raw = _safe_load_json(RESULTS / f"long_{slug}_h{h}.json")
+    if not raw or "t_idx" not in raw:
+        return None
+    t_idx = list(raw["t_idx"])
+    losses = {k: np.asarray(v, dtype=float) for k, v in raw.items() if k != "t_idx"}
+    wgeo = [m for m in WGEO_METHODS if m in losses]
+    baseline = [m for m in BASELINE_METHODS if m in losses]
+    if not wgeo or not baseline:
+        return None
+    means = {m: float(losses[m].mean()) for m in wgeo + baseline}
+    best_w = min(wgeo, key=lambda m: means[m])
+    best_b = min(baseline, key=lambda m: means[m])
+
+    # realised returns needed for residualised DM (|y|, y² controls)
+    returns = _log_returns_from_parquet(symbol)
+    if returns is None or len(returns) <= max(t_idx) + h:
+        return None
+    y = _realised_h_step(returns, t_idx, h)
+
+    # vanilla DM with the same lag-(h-1) HAC the long-horizon panel uses
+    dm_stat, dm_p = _wbtc_dm(losses[best_w], losses[best_b], h=h)
+    # residualised DM with peer losses (≤4) + |y| + y² as controls
+    peer_ctrls = [losses[k] for k in losses if k != best_w and k != best_b][:4]
+    ctrls = peer_ctrls + [np.abs(y), y * y]
+    dm_stat_r, dm_p_r = _wbtc_dm_residualised(
+        losses[best_w], losses[best_b], ctrls, h=h
+    )
+
+    wbest = means[best_w]
+    bbest = means[best_b]
+    improvement = (wbest - bbest) / bbest if bbest else float("nan")
+    return {
+        "symbol": symbol,
+        "h": h,
+        "n_test": int(losses[best_w].size),
+        "best_wgeo": best_w,
+        "best_baseline": best_b,
+        "wgeo_crps": wbest,
+        "baseline_crps": bbest,
+        "improvement": f"{improvement * 100:+.1f}%",
+        "dm_stat": dm_stat,
+        "dm_p": dm_p,
+        "dm_stat_r": dm_stat_r,
+        "dm_p_r": dm_p_r,
+    }
+
+
 def build_prices() -> dict[str, list]:
     """Full daily OHLC per asset — no downsampling, so the candlestick chart
     has no visible gaps. dataZoom handles in-browser navigation."""
@@ -315,7 +399,7 @@ def build_provenance() -> dict | None:
 def main() -> None:
     out = {
         "version": "0.4",
-        "schema": 1,
+        "schema": 2,
         "symbols": SYMBOLS,
         "horizons": HORIZONS,
         "baseline_methods": BASELINE_METHODS,
@@ -323,6 +407,7 @@ def main() -> None:
         "extended_methods": EXTENDED_METHODS,
         "long": {},
         "extended": {},
+        "headline": [],
         "prices": build_prices(),
         "returns": build_returns_overlay(),
         "sweep": build_sweep(),
@@ -335,8 +420,12 @@ def main() -> None:
             section = build_symbol_horizon(sym, h)
             if section:
                 out["long"][sym][str(h)] = section
+            row = build_headline(sym, h)
+            if row:
+                out["headline"].append(row)
 
-    for h in [1, 5]:
+    # extended panel covers BTC for the full {1, 5, 21} horizon set in v0.4
+    for h in HORIZONS:
         section = build_extended(h)
         if section:
             out["extended"][str(h)] = section

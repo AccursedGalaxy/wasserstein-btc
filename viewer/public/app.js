@@ -21,6 +21,8 @@ const METHOD_DESC = {
   "WGeo-EWMA": ["wgeo", "Recency-weighted slope: exponentially down-weights older training points."],
   "WGeo-Hetero": ["wgeo", "Dispersion conditioned on a GARCH-style scale estimate."],
   "WGeo-GARCH-Ens": ["wgeo", "Regime-aware mixture of WGeo and GARCH-t. The v0.3 headline forecaster."],
+  "WGeo-Adaptive": ["wgeo", "v0.4 — recency-weighted empirical base quantile (EW with λ_q≈0.97); the forecast tracks the current vol regime through the *shape* axis, not just the slope."],
+  "WGeo-Ensemble": ["wgeo", "v0.4 headline — W₂ barycentre (equal-weight quantile-space mean) of TheilSen + EWMA + Gated. Convex CRPS makes the ensemble weakly dominate the component average."],
   // extended comparators
   "HAR-RV": ["ext", "Heterogeneous Autoregressive model on realized volatility (Corsi 2009)."],
   "CAViaR-SAV": ["ext", "Conditional Autoregressive Value-at-Risk, symmetric-absolute-value (Engle-Manganelli 2004)."],
@@ -121,15 +123,27 @@ async function load() {
 // =====================================================
 // 2. Render: hero stats
 // =====================================================
+function headlineRows() {
+  // Prefer the freshly-computed headline (v0.4: includes residualised DM)
+  // and fall back to the MANIFEST snapshot only if build_data.py couldn't
+  // derive one (e.g., missing parquet).
+  if (Array.isArray(DATA.headline) && DATA.headline.length) return DATA.headline;
+  return DATA.provenance?.headline || [];
+}
+
 function renderHero() {
   document.getElementById("version-chip").textContent = `v${DATA.version}`;
-  const head = DATA.provenance?.headline || [];
+  const head = headlineRows();
   const wins = head.filter((h) => parseFloat(h.improvement) < 0).length;
   const total = head.length;
   const meanImp = head.length
     ? head.reduce((s, h) => s + parseFloat(h.improvement), 0) / head.length
     : 0;
-  const sigCount = head.filter((h) => Number.isFinite(h.dm_p) && h.dm_p < 0.1).length;
+  // Use residualised DM when available (the v0.4 headline test).
+  const pKey = head.some((h) => Number.isFinite(h.dm_p_r)) ? "dm_p_r" : "dm_p";
+  const sigCount = head.filter(
+    (h) => Number.isFinite(h[pKey]) && h[pKey] < 0.05,
+  ).length;
   const totalN = head.reduce((s, h) => s + (h.n_test || 0), 0);
 
   const stats = [
@@ -146,9 +160,16 @@ function renderHero() {
       cls: meanImp < 0 ? "good" : "bad",
     },
     {
-      label: "DM significant (p<.1)",
+      label:
+        pKey === "dm_p_r"
+          ? "DM significant (p_r < .05)"
+          : "DM significant (p < .05)",
       val: `${sigCount}`,
-      sub: `of ${total} (asset × horizon) cells`,
+      sub:
+        pKey === "dm_p_r"
+          ? `of ${total} cells · residualised DM`
+          : `of ${total} (asset × horizon) cells`,
+      cls: sigCount * 2 >= total ? "good" : "",
     },
     {
       label: "Total test steps",
@@ -200,13 +221,22 @@ function renderMethodGrid() {
 // 4. Render: headline table
 // =====================================================
 function renderHeadlineTable() {
-  const head = DATA.provenance?.headline || [];
+  const head = headlineRows();
   const body = document.querySelector("#headline-table tbody");
   body.innerHTML = head
     .map((h) => {
       const imp = parseFloat(h.improvement);
       const sign = imp < 0 ? "good" : imp > 0 ? "bad" : "";
-      const sig = Number.isFinite(h.dm_p) && h.dm_p < 0.1 ? "sig-strong" : "sig-weak";
+      const sig = Number.isFinite(h.dm_p) && h.dm_p < 0.05 ? "sig-strong" : "sig-weak";
+      const hasResid = Number.isFinite(h.dm_p_r);
+      const sigR = hasResid && h.dm_p_r < 0.05 ? "sig-strong" : "sig-weak";
+      const residCells = hasResid
+        ? `
+          <td class="num">${h.dm_stat_r.toFixed(2)}</td>
+          <td class="num ${sigR}">${fmtP(h.dm_p_r)}</td>`
+        : `
+          <td class="num muted">—</td>
+          <td class="num muted">—</td>`;
       return `
         <tr>
           <td><span class="mono">${h.symbol}</span></td>
@@ -218,7 +248,7 @@ function renderHeadlineTable() {
           <td class="num">${fmtNum(h.baseline_crps)}</td>
           <td class="num delta ${sign}">${h.improvement}</td>
           <td class="num">${Number.isFinite(h.dm_stat) ? h.dm_stat.toFixed(2) : "—"}</td>
-          <td class="num ${sig}">${fmtP(h.dm_p)}</td>
+          <td class="num ${sig}">${fmtP(h.dm_p)}</td>${residCells}
         </tr>`;
     })
     .join("");
