@@ -23,3 +23,6 @@ viewer/public/data.json
 # local agent + tool config
 .claude/
 .playwright-mcp/
+
+# launch-only drafts + monitor state
+.launch/
