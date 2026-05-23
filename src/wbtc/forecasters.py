@@ -15,6 +15,7 @@ intentionally do not maintain state across calls.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Protocol, runtime_checkable
 
 import numpy as np
 from arch import arch_model
@@ -23,6 +24,7 @@ from scipy.stats import norm, t as student_t
 from .quantiles import empirical_quantiles, isotonic_project, weighted_quantiles
 
 __all__ = [
+    "Forecaster",
     "StaticEmpirical",
     "RandomWalkDrift",
     "GarchNormal",
@@ -46,6 +48,54 @@ __all__ = [
     "StochasticVolatilityAR1",
     "BivariateVARGarch",
 ]
+
+
+# ----------------------------- interface -------------------------------
+
+
+@runtime_checkable
+class Forecaster(Protocol):
+    """Structural protocol every distributional forecaster satisfies.
+
+    The two-method seam through which :mod:`wbtc.backtest` and the public
+    :func:`wbtc.forecast` API talk to forecasters. Conformance is checked
+    structurally (via :class:`typing.Protocol`); no inheritance is required.
+
+    ``@runtime_checkable`` enables ``isinstance(x, Forecaster)`` for
+    conformance smoke tests — note this only verifies that ``fit`` and
+    ``predict`` *exist*, not that their signatures are right. Pyright /
+    other static type checkers do the real signature enforcement.
+    """
+
+    def fit(self, returns: np.ndarray) -> None:
+        """Train on a window of past log-returns."""
+        ...
+
+    def predict(self, h: int, u: np.ndarray) -> np.ndarray:
+        """Return the h-step quantile forecast on grid ``u`` in (0, 1)."""
+        ...
+
+
+# ----------------------------- helpers ---------------------------------
+
+
+def fit_garch(
+    returns: np.ndarray,
+    *,
+    mean: str = "Constant",
+    dist: str = "normal",
+    o: int = 0,
+):
+    """Fit GARCH(1,o,1) on ``returns`` and return the arch result.
+
+    Wraps the percent-scaling gotcha (the ``arch`` package expects returns
+    expressed in percent, not raw log-returns) and the standard
+    ``disp="off"`` / ``show_warning=False`` boilerplate that every GARCH
+    call site needs. Pass raw log-returns; this helper applies the ``×100``.
+    """
+    r_pct = np.asarray(returns, dtype=float) * 100.0
+    am = arch_model(r_pct, mean=mean, vol="GARCH", p=1, o=o, q=1, dist=dist)
+    return am.fit(disp="off", show_warning=False)
 
 
 # ----------------------------- baselines -------------------------------
@@ -92,13 +142,9 @@ class GarchNormal:
     """B3: GARCH(1,1) with Gaussian innovations, fit by MLE."""
 
     _result = None
-    _last_returns: np.ndarray | None = None
 
     def fit(self, returns: np.ndarray) -> None:
-        r = np.asarray(returns, dtype=float) * 100.0  # arch wants percent
-        am = arch_model(r, mean="Constant", vol="GARCH", p=1, q=1, dist="normal")
-        self._result = am.fit(disp="off", show_warning=False)
-        self._last_returns = r
+        self._result = fit_garch(returns, mean="Constant", dist="normal")
 
     def predict(self, h: int, u: np.ndarray) -> np.ndarray:
         assert self._result is not None
@@ -120,9 +166,7 @@ class GarchStudentT:
     _result = None
 
     def fit(self, returns: np.ndarray) -> None:
-        r = np.asarray(returns, dtype=float) * 100.0
-        am = arch_model(r, mean="Constant", vol="GARCH", p=1, q=1, dist="t")
-        self._result = am.fit(disp="off", show_warning=False)
+        self._result = fit_garch(returns, mean="Constant", dist="t")
 
     def predict(self, h: int, u: np.ndarray) -> np.ndarray:
         assert self._result is not None
@@ -149,9 +193,7 @@ class GJRGarchStudentT:
     _result = None
 
     def fit(self, returns: np.ndarray) -> None:
-        r = np.asarray(returns, dtype=float) * 100.0
-        am = arch_model(r, mean="Constant", vol="GARCH", p=1, o=1, q=1, dist="t")
-        self._result = am.fit(disp="off", show_warning=False)
+        self._result = fit_garch(returns, mean="Constant", dist="t", o=1)
 
     def predict(self, h: int, u: np.ndarray) -> np.ndarray:
         assert self._result is not None
@@ -208,12 +250,13 @@ def _garch_h_step_sigma_ratio(returns: np.ndarray, h: int) -> float:
     1.0 (i.e. revert to sqrt(h) scaling) on any exception.
     """
     try:
-        r = np.asarray(returns, dtype=float) * 100.0
-        am = arch_model(r, mean="Zero", vol="GARCH", p=1, q=1, dist="normal")
-        res = am.fit(disp="off", show_warning=False)
+        r = np.asarray(returns, dtype=float)
+        res = fit_garch(r, mean="Zero", dist="normal")
         f = res.forecast(horizon=h, reindex=False)
         var_path = np.asarray(f.variance.values[-1, :], dtype=float)  # length h
-        var_uncond = float(r.var(ddof=1))
+        # var of the percent-scaled returns the fit consumed — ratio is then
+        # scale-invariant against var_path (also on the percent scale).
+        var_uncond = float((r * 100.0).var(ddof=1))
         if var_uncond <= 0 or np.any(var_path <= 0):
             return 1.0
         return float(np.sqrt(var_path.sum() / (h * var_uncond)))
@@ -1384,9 +1427,11 @@ class BivariateVARGarch:
 
     Alignment with the univariate harness: the constructor stores the
     full exogenous (ETH) series along with the full target (BTC) series.
-    `fit(returns)` matches `returns` against the BTC tail to recover the
-    matching ETH window. This avoids needing harness-level support for
-    exogenous arrays while preserving correct walk-forward alignment.
+    The walk-forward harness slices windows as ``full_target[s:e]`` (a
+    numpy view), so ``fit(returns)`` recovers the start/end indices via
+    buffer-offset arithmetic — deterministic O(1), no float comparison.
+    Passing a non-view (e.g. ``full_target.copy()``) raises ``ValueError``
+    rather than silently misaligning.
     """
 
     full_target: np.ndarray  # full BTC log-return series
@@ -1408,24 +1453,38 @@ class BivariateVARGarch:
             )
 
     def _locate_window(self, returns: np.ndarray) -> int:
-        """Find the suffix-end index of `returns` inside full_target.
+        """Recover the suffix-end index of ``returns`` inside ``full_target``.
 
-        We expect walk-forward to pass a contiguous suffix of full_target.
-        Match on the last 16 values (high-probability uniqueness for
-        continuous log-returns). Returns the end index (exclusive).
+        The walk-forward harness passes a numpy view ``full_target[s:e]``,
+        so the start offset is recoverable exactly from the byte delta
+        between the two buffers. Raises ``ValueError`` if ``returns`` is
+        not a slice of ``full_target`` (e.g. a freshly-allocated array
+        with the same values) — that case cannot be safely aligned and
+        used to fail silently under float-match heuristics.
         """
-        n = len(returns)
-        k = min(16, n)
-        needle = returns[-k:]
-        # search from the right for efficiency (walk-forward advances forward)
         target = self.full_target
-        for end in range(len(target), k - 1, -1):
-            if np.allclose(target[end - k : end], needle, atol=1e-12, rtol=0):
-                # also verify length-n window matches
-                start = end - n
-                if start >= 0 and np.allclose(target[start:end], returns, atol=1e-12):
-                    return end
-        raise ValueError("could not align returns window to full_target")
+        if (
+            returns.dtype != target.dtype
+            or returns.ndim != 1
+            or returns.strides[0] != target.strides[0]
+            or not np.shares_memory(returns, target)
+        ):
+            raise ValueError(
+                "BivariateVARGarch.fit(returns) requires `returns` to be a "
+                "numpy slice of `full_target` (e.g. full_target[s:e]); "
+                "got an incompatible array (wrong dtype, shape, stride, or "
+                "a separate buffer)."
+            )
+        target_addr = target.__array_interface__["data"][0]
+        returns_addr = returns.__array_interface__["data"][0]
+        byte_offset = returns_addr - target_addr
+        if byte_offset < 0 or byte_offset % target.itemsize != 0:
+            raise ValueError("returns does not align on a full_target element")
+        start = byte_offset // target.itemsize
+        end = start + len(returns)
+        if end > len(target):
+            raise ValueError("returns extends past full_target")
+        return end
 
     def fit(self, returns: np.ndarray) -> None:
         end = self._locate_window(returns)
@@ -1445,8 +1504,7 @@ class BivariateVARGarch:
         # BTC residuals -> GARCH
         resid_btc = y_btc - X @ b_btc
         self._resid_btc = resid_btc
-        am = arch_model(resid_btc * 100.0, mean="Zero", vol="GARCH", p=1, q=1, dist="t")
-        self._garch_result = am.fit(disp="off", show_warning=False)
+        self._garch_result = fit_garch(resid_btc, mean="Zero", dist="t")
         self._df = float(self._garch_result.params["nu"])
         self._last_btc = float(r_btc[-1])
         self._last_eth = float(r_eth[-1])

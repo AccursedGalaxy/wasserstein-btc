@@ -10,11 +10,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 
 from wbtc.backtest import load_returns
@@ -44,6 +39,7 @@ from wbtc.long_horizon import (
     run_long_horizon,
     tag_regimes,
 )
+from wbtc.report import fmt_markdown, fmt_pct_diff, plot_cumulative_crps, slug
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -90,16 +86,6 @@ METHODS = {
 SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"]
 HORIZONS = [1, 5, 21]
 BURN_IN = 730
-
-
-def slug(symbol: str) -> str:
-    return symbol.lower().replace("/", "")
-
-
-def fmt_pct_diff(a: float, b: float) -> str:
-    if b == 0:
-        return "—"
-    return f"{(a - b) / b * 100:+.1f}%"
 
 
 def main():
@@ -204,21 +190,15 @@ def main():
                 "",
                 "**Overall mean CRPS on the full test span (bootstrap 95% CI):**",
                 "",
-                summary.map(
-                    lambda x: f"{x:.6f}" if isinstance(x, float) else x
-                ).to_markdown(),
+                fmt_markdown(summary, float_fmt="{:.6f}"),
                 "",
                 "**Per-year mean CRPS:**",
                 "",
-                yr.map(
-                    lambda x: f"{x:.5f}" if isinstance(x, float) else x
-                ).to_markdown(),
+                fmt_markdown(yr, float_fmt="{:.5f}"),
                 "",
                 "**Per-regime mean CRPS (regime tagged from 60d trailing return + vol):**",
                 "",
-                reg.map(
-                    lambda x: f"{x:.5f}" if isinstance(x, float) else x
-                ).to_markdown(),
+                fmt_markdown(reg, float_fmt="{:.5f}"),
                 "",
                 f"**Diebold-Mariano vs {baseline_best_name}** "
                 f"(headline best WGeo-family variant is **{wgeo_best_name}**; "
@@ -243,20 +223,12 @@ def main():
                 "",
             ]
 
-            # cumulative CRPS plot
-            fig, ax = plt.subplots(figsize=(10, 4))
-            xs = np.arange(len(res.aligned_idx))
-            for name, losses in res.aligned_losses.items():
-                ax.plot(xs, np.cumsum(losses), label=name, lw=1.0)
-            ax.set_title(f"Cumulative CRPS — {symbol} h={h}d ({len(xs)} test steps)")
-            ax.set_xlabel("step")
-            ax.set_ylabel("cumulative CRPS")
-            ax.legend(loc="upper left", fontsize=7, ncols=2)
-            ax.grid(alpha=0.3)
-            fig.tight_layout()
             png = RESULTS / f"long_cum_crps_{sym_slug}_h{h}.png"
-            fig.savefig(png, dpi=110)
-            plt.close(fig)
+            plot_cumulative_crps(
+                res.aligned_losses,
+                png,
+                title=f"Cumulative CRPS — {symbol} h={h}d ({len(res.aligned_idx)} test steps)",
+            )
             md += [f"![cumulative CRPS](../results/{png.name})", ""]
 
     md = [

@@ -16,6 +16,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wbtc.report import slug
 from wbtc.scoring import diebold_mariano
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -40,10 +41,6 @@ BASELINE_VARIANTS = [
 
 SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"]
 HORIZONS = [1, 5, 21]
-
-
-def slug(sym: str) -> str:
-    return sym.lower().replace("/", "")
 
 
 def summarize() -> pd.DataFrame:

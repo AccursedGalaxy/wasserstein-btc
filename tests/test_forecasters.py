@@ -1,6 +1,8 @@
 import numpy as np
+import pytest
 
 from wbtc.forecasters import (
+    Forecaster,
     GarchNormal,
     StaticEmpirical,
     WassersteinGeodesic,
@@ -503,3 +505,117 @@ def test_bivariate_var_garch_uses_exog_for_mean():
     assert f._coef is not None  # type: ignore[attr-defined]
     cross = float(f._coef[0, 2])  # type: ignore[index]
     assert abs(cross) > 0.05, f"expected non-trivial cross-coef, got {cross:.4f}"
+
+
+def test_bivariate_var_garch_rejects_non_view_returns():
+    """The harness passes a numpy slice of full_target; passing a separately-
+    allocated array with matching values must fail loudly rather than fall
+    back to a float-suffix heuristic that could silently misalign."""
+    from wbtc.forecasters import BivariateVARGarch
+
+    rng = np.random.default_rng(0)
+    n = 60
+    btc = rng.normal(0, 0.02, n)
+    eth = rng.normal(0, 0.02, n)
+    f = BivariateVARGarch(full_target=btc, full_exog=eth)
+
+    # Fresh buffer, same values: rejected.
+    with pytest.raises(ValueError, match="numpy slice"):
+        f.fit(btc.copy())
+
+    # Actual slice view: accepted (no exception).
+    f.fit(btc[:50])
+
+
+def test_bivariate_var_garch_aligns_arbitrary_window():
+    """fit() on a non-tail slice (e.g. middle of full_target) recovers the
+    correct end index and uses the matching ETH window — not the last
+    `len(returns)` ETH values."""
+    from wbtc.forecasters import BivariateVARGarch
+
+    rng = np.random.default_rng(3)
+    n = 200
+    btc = rng.normal(0, 0.02, n)
+    # Make ETH have a strong, position-dependent signal so that wrong
+    # alignment (e.g. always using the ETH tail) would shift the fitted
+    # cross-coefficient noticeably.
+    eth = np.linspace(-0.05, 0.05, n) + rng.normal(0, 0.005, n)
+    for t in range(1, n):
+        btc[t] += 0.4 * eth[t - 1]
+
+    f = BivariateVARGarch(full_target=btc, full_exog=eth)
+    # Fit on a window in the middle, not the tail.
+    f.fit(btc[20:120])
+    assert f._coef is not None  # type: ignore[attr-defined]
+    cross_mid = float(f._coef[0, 2])  # type: ignore[index]
+
+    # Compare to a fit where full_target == the same window (so the
+    # alignment is trivially correct). Coefficients should match closely.
+    btc_mid = btc[20:120].copy()
+    eth_mid = eth[20:120].copy()
+    f2 = BivariateVARGarch(full_target=btc_mid, full_exog=eth_mid)
+    f2.fit(btc_mid)
+    cross_trivial = float(f2._coef[0, 2])  # type: ignore[index]
+    assert abs(cross_mid - cross_trivial) < 1e-10, (
+        f"middle-slice fit drifted from trivial fit: {cross_mid} vs {cross_trivial}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Protocol conformance — every exported forecaster must implement Forecaster
+# ---------------------------------------------------------------------------
+
+
+def _forecaster_factories():
+    """One factory per exported forecaster class, including the multivariate
+    BivariateVARGarch which requires a paired exogenous series at construction.
+    """
+    from wbtc import forecasters as fc
+
+    n = 32
+    zeros = np.zeros(n, dtype=float)
+    return [
+        ("StaticEmpirical", fc.StaticEmpirical),
+        ("RandomWalkDrift", fc.RandomWalkDrift),
+        ("GarchNormal", fc.GarchNormal),
+        ("GarchStudentT", fc.GarchStudentT),
+        ("GJRGarchStudentT", fc.GJRGarchStudentT),
+        ("HistoricalSimulationBootstrap", fc.HistoricalSimulationBootstrap),
+        ("WassersteinGeodesic", fc.WassersteinGeodesic),
+        ("WassersteinGeodesicTheilSen", fc.WassersteinGeodesicTheilSen),
+        ("WassersteinGeodesicGated", fc.WassersteinGeodesicGated),
+        ("WassersteinGeodesicEWMA", fc.WassersteinGeodesicEWMA),
+        ("WassersteinGeodesicHetero", fc.WassersteinGeodesicHetero),
+        ("WassersteinGeodesicAdaptive", fc.WassersteinGeodesicAdaptive),
+        ("WassersteinGeodesicCondShape", fc.WassersteinGeodesicCondShape),
+        ("WGeoEnsemble", fc.WGeoEnsemble),
+        ("WGeoGarchEnsemble", fc.WGeoGarchEnsemble),
+        ("HARRV", fc.HARRV),
+        ("CAViaRSAV", fc.CAViaRSAV),
+        ("MarkovSwitching2", fc.MarkovSwitching2),
+        ("FIGARCH", fc.FIGARCH),
+        ("StochasticVolatilityAR1", fc.StochasticVolatilityAR1),
+        (
+            "BivariateVARGarch",
+            lambda: fc.BivariateVARGarch(full_target=zeros, full_exog=zeros),
+        ),
+    ]
+
+
+@pytest.mark.parametrize(
+    "name,factory",
+    _forecaster_factories(),
+    ids=lambda v: v if isinstance(v, str) else "",
+)
+def test_forecaster_protocol_conformance(name, factory):
+    """Every exported forecaster satisfies the Forecaster Protocol.
+
+    runtime_checkable Protocols only verify method *existence*, not
+    signature — that's good enough to catch the drift case the candidate
+    cares about (a new forecaster missing fit or predict). Signature
+    enforcement is the static-type-checker's job.
+    """
+    instance = factory()
+    assert isinstance(instance, Forecaster), (
+        f"{name} does not satisfy the Forecaster Protocol"
+    )

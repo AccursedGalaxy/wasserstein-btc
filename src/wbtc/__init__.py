@@ -36,6 +36,7 @@ from .data import (
     load_returns,
 )
 from .forecasters import (
+    Forecaster,
     GJRGarchStudentT,
     GarchNormal,
     GarchStudentT,
@@ -63,6 +64,7 @@ __all__ = [
     "load_ohlcv",
     "load_returns",
     # forecasters
+    "Forecaster",
     "StaticEmpirical",
     "RandomWalkDrift",
     "HistoricalSimulationBootstrap",
@@ -148,7 +150,7 @@ class ForecastResult:
         }
 
 
-def default_forecaster(horizon: int):
+def default_forecaster(horizon: int) -> Forecaster:
     """Return the recommended forecaster instance for a given horizon.
 
     Justification: per `docs/RESULTS_LONG.md` (v0.2) the curvature-gate
@@ -171,7 +173,7 @@ def forecast(
     asof: pd.Timestamp | str | None = None,
     train_window_days: int = 730,
     K: int = DEFAULT_K,
-    forecaster: object | None = None,
+    forecaster: Forecaster | None = None,
 ) -> ForecastResult:
     """Return a distributional forecast for `symbol` from the cached data.
 
@@ -204,8 +206,8 @@ def forecast(
     u = make_grid(K)
 
     fc = forecaster if forecaster is not None else default_forecaster(horizon)
-    fc.fit(window)  # type: ignore[attr-defined]
-    q = fc.predict(horizon, u)  # type: ignore[attr-defined]
+    fc.fit(window)
+    q = fc.predict(horizon, u)
 
     return ForecastResult(
         symbol=symbol,

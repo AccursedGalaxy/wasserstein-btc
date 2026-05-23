@@ -25,10 +25,6 @@ import json
 import time
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -51,6 +47,7 @@ from wbtc.long_horizon import (
     run_long_horizon,
     tag_regimes,
 )
+from wbtc.report import fmt_markdown, fmt_pct_diff, plot_cumulative_crps, slug
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -64,10 +61,6 @@ HORIZONS = [1, 5, 21]
 BURN_IN = 730
 WGEO_WINDOW = 90
 WGEO_LOOKBACK = 20
-
-
-def slug(symbol: str) -> str:
-    return symbol.lower().replace("/", "")
 
 
 def build_methods(btc_full: np.ndarray, eth_full: np.ndarray) -> dict:
@@ -101,12 +94,6 @@ def align_series(
     eth_renamed = eth[["ts", "r"]].rename(columns={"r": "r_eth"})
     merged = btc.merge(eth_renamed, on="ts", how="inner").reset_index(drop=True)
     return merged.drop(columns=["r_eth"]), merged["r_eth"].to_numpy()
-
-
-def fmt_pct_diff(a: float, b: float) -> str:
-    if b == 0:
-        return "—"
-    return f"{(a - b) / b * 100:+.1f}%"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -234,17 +221,15 @@ def main(argv: list[str] | None = None) -> int:
             "",
             "**Overall mean CRPS (bootstrap 95% CI):**",
             "",
-            summary.map(
-                lambda x: f"{x:.6f}" if isinstance(x, float) else x
-            ).to_markdown(),
+            fmt_markdown(summary, float_fmt="{:.6f}"),
             "",
             "**Per-year mean CRPS:**",
             "",
-            yr.map(lambda x: f"{x:.5f}" if isinstance(x, float) else x).to_markdown(),
+            fmt_markdown(yr, float_fmt="{:.5f}"),
             "",
             "**Per-regime mean CRPS:**",
             "",
-            reg.map(lambda x: f"{x:.5f}" if isinstance(x, float) else x).to_markdown(),
+            fmt_markdown(reg, float_fmt="{:.5f}"),
             "",
             "**Diebold-Mariano p-values vs WGeo-GARCH-Ens** "
             "(p < 0.05 favours WGeo-GARCH-Ens):",
@@ -253,21 +238,16 @@ def main(argv: list[str] | None = None) -> int:
             "",
         ]
 
-        fig, ax = plt.subplots(figsize=(11, 4.5))
-        xs = np.arange(len(res.aligned_idx))
-        for name, losses in res.aligned_losses.items():
-            ax.plot(xs, np.cumsum(losses), label=name, lw=1.0)
-        ax.set_title(
-            f"Cumulative CRPS — {SYMBOL} h={h}d ({len(xs)} test steps) — extended panel"
-        )
-        ax.set_xlabel("step")
-        ax.set_ylabel("cumulative CRPS")
-        ax.legend(loc="upper left", fontsize=7, ncols=2)
-        ax.grid(alpha=0.3)
-        fig.tight_layout()
         png = RESULTS / f"extended_cum_crps_btc_h{h}.png"
-        fig.savefig(png, dpi=110)
-        plt.close(fig)
+        plot_cumulative_crps(
+            res.aligned_losses,
+            png,
+            title=(
+                f"Cumulative CRPS — {SYMBOL} h={h}d "
+                f"({len(res.aligned_idx)} test steps) — extended panel"
+            ),
+            figsize=(11, 4.5),
+        )
         horizon_lines += [f"![cumulative CRPS](../results/{png.name})", ""]
 
     # headline table sits between the intro and the per-horizon sections

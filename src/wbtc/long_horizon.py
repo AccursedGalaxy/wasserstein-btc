@@ -1,8 +1,10 @@
 """Long-horizon backtest with per-year and per-regime breakdowns.
 
-Unlike `backtest.compare_methods`, this evaluates on ALL days after the
-initial 730-day burn-in (no separate holdout), so the "test set" is multi-
-year and lets us measure stability across regimes.
+Unlike :func:`wbtc.backtest.compare_methods`, this evaluates on ALL days
+after the initial 730-day burn-in (no separate holdout), so the "test set"
+is multi-year and lets us measure stability across regimes. The inner
+walk-forward loop is the same one used by ``compare_methods`` — see
+:func:`wbtc.backtest._walk_forward_one`.
 """
 
 from __future__ import annotations
@@ -12,12 +14,11 @@ from typing import Callable
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 
-from .backtest import h_step_log_return
+from .backtest import _align_methods, _walk_forward_one
+from .forecasters import Forecaster
 from .quantiles import make_grid
 from .scoring import (
-    crps_from_quantiles,
     diebold_mariano,
     diebold_mariano_residualised,
     stationary_bootstrap_ci,
@@ -44,56 +45,10 @@ class LongRunResult:
     realised: np.ndarray
 
 
-def _run_one_method(
-    name: str,
-    fac: Callable[[], object],
-    returns: np.ndarray,
-    burn_in: int,
-    horizon: int,
-    u: np.ndarray,
-    stride: int,
-    show_progress: bool,
-) -> tuple[str, pd.DataFrame]:
-    """Walk-forward CRPS series for a single method.
-
-    With ``stride > 1`` the forecaster is refit every ``stride`` walk-forward
-    steps and reused for the intervening predictions. The intervening
-    predictions are therefore conditioned on data up to the most recent
-    refit, not the present step — a standard "weekly-refit"
-    approximation used by production risk systems. Default ``stride=1``
-    preserves the methodologically conservative refit-every-step
-    behaviour required by the headline panel.
-    """
-    rows: list[dict] = []
-    steps = range(burn_in, len(returns) - horizon)
-    iterator = tqdm(steps, desc=name, leave=False) if show_progress else steps
-    f: object | None = None
-    for i, t in enumerate(iterator):
-        if (i % stride == 0) or (f is None):
-            window = returns[:t] if t < burn_in + 1 else returns[t - burn_in : t]
-            f = fac()
-            try:
-                f.fit(window)  # type: ignore[attr-defined]
-            except Exception:
-                rows.append({"t": t, "crps": np.nan, "y": np.nan})
-                f = None
-                continue
-        try:
-            q = f.predict(horizon, u)  # type: ignore[attr-defined]
-        except Exception:
-            rows.append({"t": t, "crps": np.nan, "y": np.nan})
-            continue
-        y = h_step_log_return(returns, t, horizon)
-        if y is None:
-            continue
-        rows.append({"t": t, "crps": crps_from_quantiles(q, u, y), "y": y})
-    return name, pd.DataFrame(rows)
-
-
 def run_long_horizon(
     returns: np.ndarray,
     timestamps: pd.Series,  # one per return
-    method_factories: dict[str, Callable[[], object]],
+    method_factories: dict[str, Callable[[], Forecaster]],
     burn_in: int,
     horizon: int,
     K: int = 30,
@@ -101,38 +56,44 @@ def run_long_horizon(
     stride: int = 1,
 ) -> LongRunResult:
     u = make_grid(K)
-    per_step: dict[str, pd.DataFrame] = {}
     if n_jobs == 1:
-        for name, fac in method_factories.items():
-            _, df = _run_one_method(
-                name, fac, returns, burn_in, horizon, u, stride, show_progress=True
+        per_step = {
+            name: _walk_forward_one(
+                returns,
+                fac,
+                train_window=burn_in,
+                horizon=horizon,
+                u=u,
+                stride=stride,
+                show_progress=True,
+                label=name,
             )
-            per_step[name] = df
+            for name, fac in method_factories.items()
+        }
     else:
         from joblib import Parallel, delayed
 
         results = Parallel(n_jobs=n_jobs, backend="loky")(
-            delayed(_run_one_method)(
-                name, fac, returns, burn_in, horizon, u, stride, False
+            delayed(_walk_forward_one)(
+                returns,
+                fac,
+                train_window=burn_in,
+                horizon=horizon,
+                u=u,
+                stride=stride,
+                show_progress=False,
+                label=name,
             )
             for name, fac in method_factories.items()
         )
-        for name, df in results:  # type: ignore[misc]
-            per_step[name] = df
+        per_step = dict(zip(method_factories.keys(), results))
 
-    # align
-    common = None
-    for df in per_step.values():
-        idx = set(df["t"].tolist())
-        common = idx if common is None else common & idx
-    common = sorted(common or set())
-    aligned = {
-        name: df.set_index("t").loc[common, "crps"].to_numpy()
-        for name, df in per_step.items()
-    }
-    realised = next(iter(per_step.values())).set_index("t").loc[common, "y"].to_numpy()
+    common_idx, aligned, realised = _align_methods(per_step)
     return LongRunResult(
-        per_step=per_step, aligned_idx=common, aligned_losses=aligned, realised=realised
+        per_step=per_step,
+        aligned_idx=common_idx,
+        aligned_losses=aligned,
+        realised=realised,
     )
 
 

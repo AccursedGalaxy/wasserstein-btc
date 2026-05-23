@@ -19,10 +19,11 @@ programmatic access.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
-import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import matplotlib
 
@@ -43,6 +44,26 @@ from .data import DATA_DIR
 ROOT = Path(__file__).resolve().parent.parent.parent
 RESULTS = ROOT / "results"
 RESULTS.mkdir(exist_ok=True)
+
+
+def _load_script(name: str) -> ModuleType:
+    """Import ``scripts/<name>.py`` as a module in-process.
+
+    ``scripts/`` is not a Python package (and the wheel doesn't ship it), so
+    we load by path under a private namespace. Source checkouts only — pip-
+    installed wheel users get a clear ImportError instead of a silent
+    FileNotFoundError from the previous subprocess-call approach.
+    """
+    path = ROOT / "scripts" / f"{name}.py"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"{path} not found — this command requires the source checkout."
+        )
+    spec = importlib.util.spec_from_file_location(f"_wbtc_scripts.{name}", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 # ---------- subcommands ----------
@@ -77,8 +98,8 @@ def cmd_info(args: argparse.Namespace) -> int:
 
 def cmd_fetch(args: argparse.Namespace) -> int:
     """Delegate to scripts/fetch_data.py — it already does the right thing."""
-    script = ROOT / "scripts" / "fetch_data.py"
-    return subprocess.call([sys.executable, str(script), *args.symbols])
+    mod = _load_script("fetch_data")
+    return int(mod.main(args.symbols) or 0)
 
 
 def _fan_chart_png(
@@ -199,29 +220,31 @@ def cmd_backtest(args: argparse.Namespace) -> int:
 
 
 def cmd_backtest_long(args: argparse.Namespace) -> int:
-    script = ROOT / "scripts" / "run_long_horizon.py"
-    return subprocess.call([sys.executable, str(script)])
+    mod = _load_script("run_long_horizon")
+    return int(mod.main() or 0)
 
 
 def cmd_extended_baselines(args: argparse.Namespace) -> int:
     """Extended econometric baselines (HAR-RV, CAViaR, MS, FIGARCH, SV, BVAR)."""
-    script = ROOT / "scripts" / "run_extended_baselines.py"
-    cmd = [sys.executable, str(script)]
+    mod = _load_script("run_extended_baselines")
+    argv: list[str] = []
     if args.parallel != 1:
-        cmd += ["--parallel", str(args.parallel)]
+        argv += ["--parallel", str(args.parallel)]
     if args.stride != 1:
-        cmd += ["--stride", str(args.stride)]
+        argv += ["--stride", str(args.stride)]
     if args.out is not None:
-        cmd += ["--out", str(args.out)]
-    return subprocess.call(cmd)
+        argv += ["--out", str(args.out)]
+    return int(mod.main(argv) or 0)
 
 
 def cmd_sweep(args: argparse.Namespace) -> int:
-    script = ROOT / "scripts" / "hyperparam_sweep.py"
-    return subprocess.call([sys.executable, str(script)])
+    mod = _load_script("hyperparam_sweep")
+    return int(mod.main() or 0)
 
 
 def cmd_test(args: argparse.Namespace) -> int:
+    import subprocess
+
     return subprocess.call([sys.executable, "-m", "pytest", *args.pytest_args])
 
 

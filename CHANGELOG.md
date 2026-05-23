@@ -4,7 +4,64 @@ All notable changes to this project will be documented here. Dates ISO-8601.
 
 ## [Unreleased]
 
+### Added
+
+- **`Forecaster` typing protocol.** A `typing.Protocol` at the top of
+  `src/wbtc/forecasters.py` formalises the two-method `fit(returns)` /
+  `predict(h, u)` seam that every forecaster already obeys. Re-exported from
+  `wbtc/__init__.py` as `Forecaster`. The walk-forward primitives
+  (`_walk_forward_one`, `walk_forward`, `compare_methods` in `backtest.py`;
+  `run_long_horizon` in `long_horizon.py`) and the public `forecast(...)` and
+  `default_forecaster(...)` APIs are now typed against the Protocol instead of
+  `object`, dropping all four `# type: ignore[attr-defined]` markers at the
+  forecaster fit/predict call sites. `@runtime_checkable` enables
+  `isinstance(x, Forecaster)` smoke checks; a parametrised conformance test
+  exercises every exported forecaster class (21 cases, including a
+  `BivariateVARGarch` factory that supplies the required `full_target` /
+  `full_exog`). No runtime behaviour changes; 74 tests pass. Resolves
+  Candidate 03 of the 2026-05-23 architecture review.
+
+- **`src/wbtc/report.py` shared reporting primitives.** `slug(symbol)`,
+  `fmt_pct_diff(a, b)`, `fmt_markdown(df, *, float_fmt)`, and
+  `plot_cumulative_crps(aligned_losses, png_path, *, title, figsize, dpi)`
+  centralise the three patterns the long-horizon, extended-baselines, and
+  v0.3 summary scripts had all open-coded: symbol→filename slug, signed
+  percentage delta, dataframe→markdown with consistent float formatting,
+  and the canonical cumulative-CRPS figure. `scripts/run_long_horizon.py`,
+  `scripts/run_extended_baselines.py`, and `scripts/summarize_v03.py` now
+  import from `wbtc.report` instead of carrying their own copies. The
+  generated `docs/RESULTS_LONG.md` / `docs/RESULTS_EXTENDED.md` (tables
+  and figures) are byte-identical. Resolves Candidate 04 of the 2026-05-23
+  architecture review.
+
+- **`fit_garch(returns, *, mean, dist, o)` helper.** Folds the `×100
+  percent-scaling → arch_model(...) → fit(disp="off", show_warning=False)`
+  boilerplate that `GarchNormal`, `GarchStudentT`, `GJRGarchStudentT`,
+  `_garch_h_step_sigma_ratio`, and `BivariateVARGarch` all repeated into
+  one helper at the top of `src/wbtc/forecasters.py`. Each call site now
+  passes raw log-returns; the helper applies the well-documented "arch
+  wants percent" gotcha in one place. Internal only — not exported.
+
 ### Changed
+
+- **`BivariateVARGarch` window alignment is now exact, not heuristic.**
+  The harness passes a numpy view `full_target[s:e]`; `_locate_window`
+  now recovers the start offset by buffer-byte arithmetic
+  (`returns.__array_interface__["data"][0] - target.__array_interface__["data"][0]`)
+  instead of the prior 16-value float-`allclose` suffix search. Passing a
+  non-view (e.g. `full_target.copy()`) now raises `ValueError` instead of
+  silently fitting on the wrong ETH window. Two new tests cover both the
+  rejection path and arbitrary-window (non-tail) alignment.
+
+- **CLI subcommands load scripts in-process instead of via `subprocess`.**
+  `wbtc fetch`, `wbtc backtest-long`, `wbtc extended-baselines`, and
+  `wbtc sweep` previously shelled out to `python scripts/<name>.py`; they
+  now import the script module by path under a private `_wbtc_scripts.*`
+  namespace and call `mod.main(...)` directly. Same exit codes, same
+  arguments — but no subprocess fork, no Python re-import, and pip-
+  installed wheel users get a clear `FileNotFoundError("…requires the
+  source checkout")` instead of a silent zero-exit. `wbtc test` still
+  shells out because pytest is the intended boundary.
 
 - **`WassersteinGeodesic` collapsed into one configurable class.** The seven
   variants (`WassersteinGeodesic`, `…Gated`, `…TheilSen`, `…EWMA`, `…Hetero`,
@@ -20,6 +77,21 @@ All notable changes to this project will be documented here. Dates ISO-8601.
   `_h_step_scale()` and dead `_ewma_variance_path()` deleted. All 53 tests
   pass unchanged. Resolves Candidate 01 of the 2026-05-23 architecture
   review.
+
+- **Walk-forward harness unified.** Extracted `_walk_forward_one(returns,
+  factory, *, train_window, horizon, u, stride=1, show_progress, label)` and
+  `_align_methods(per_step)` as the canonical primitives in
+  `src/wbtc/backtest.py`. Both `compare_methods` (short-horizon with
+  test_holdout) and `run_long_horizon` (multi-year + stride + joblib
+  parallel) now call them. The duplicated `_run_one_method` in
+  `long_horizon.py` and the vestigial `t < burn_in + 1` window-slice branch
+  are deleted. Public API surface is unchanged (`walk_forward`,
+  `compare_methods`, `BacktestConfig`, `run_long_horizon`, `LongRunResult`,
+  `h_step_log_return`), so CLI / scripts / viewer call sites need no edits.
+  Verified `wbtc backtest BTC/USDT -H 1 --quick` mean CRPS byte-identical
+  pre/post refactor and `n_jobs=1` vs `n_jobs=2` long-horizon paths agree
+  max|Δ|=0. All 53 tests pass unchanged. Resolves Candidate 02 of the
+  2026-05-23 architecture review.
 
 ## [0.4.0] — 2026-05-23
 
