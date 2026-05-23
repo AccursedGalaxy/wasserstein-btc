@@ -191,186 +191,12 @@ class HistoricalSimulationBootstrap:
 
 
 # ----------------------- the proposed method ---------------------------
-
-
-@dataclass
-class WassersteinGeodesic:
-    """Pure tangent-space W2-geodesic forecaster (no regime gating).
-
-    Parameters
-    ----------
-    window
-        Length n of the rolling window used to estimate each empirical
-        quantile vector q_t.
-    lookback
-        Number of past quantile vectors used to estimate the tangent slope.
-    """
-
-    window: int = 90
-    lookback: int = 30
-
-    _returns: np.ndarray | None = None
-
-    def fit(self, returns: np.ndarray) -> None:
-        if len(returns) < self.window + self.lookback:
-            raise ValueError(
-                f"need >= {self.window + self.lookback} returns, got {len(returns)}"
-            )
-        self._returns = np.asarray(returns, dtype=float)
-
-    def _quantile_history(self, u: np.ndarray) -> np.ndarray:
-        """Build the (lookback, K) matrix of rolling quantile vectors ending at t."""
-        assert self._returns is not None
-        n = self.window
-        r = self._returns
-        Q = np.empty((self.lookback, len(u)), dtype=float)
-        # most recent quantile vector uses last `n` returns; previous one uses
-        # the window shifted back by 1, etc.
-        for j in range(self.lookback):
-            start = len(r) - n - j
-            stop = len(r) - j
-            Q[self.lookback - 1 - j] = empirical_quantiles(r[start:stop], u)
-        return Q  # rows ordered oldest -> newest
-
-    def _slope(self, Q: np.ndarray) -> np.ndarray:
-        """OLS slope of each column of Q against time index s = 0..L-1."""
-        L = Q.shape[0]
-        s = np.arange(L, dtype=float)
-        s_mean = s.mean()
-        s_var = ((s - s_mean) ** 2).sum()
-        Q_mean = Q.mean(axis=0, keepdims=True)
-        return ((s - s_mean)[:, None] * (Q - Q_mean)).sum(axis=0) / s_var
-
-    def _h_step_scale(self, h: int) -> float:
-        """Scale forecast spread to h-day returns under sqrt-time aggregation.
-
-        The geodesic-velocity slope `beta` is in units of (return / day) per day,
-        i.e. how much each quantile moves per day. For an h-step forecast we
-        accumulate h days of drift but rescale dispersion by sqrt(h) under the
-        weak assumption that 1-day shocks are roughly uncorrelated.
-        """
-        return float(h)
-
-    def predict(self, h: int, u: np.ndarray) -> np.ndarray:
-        Q = self._quantile_history(u)
-        beta = self._slope(Q)
-        q_now = Q[-1]
-        median_now = float(np.median(q_now))
-        # split into level (median) and shape; drift the level by h*beta_median,
-        # widen the shape by sqrt(h).
-        beta_median = float(np.median(beta))
-        center = q_now - median_now
-        q_pred = (
-            (median_now + h * beta_median)
-            + center * np.sqrt(h)
-            + h * (beta - beta_median)
-        )
-        return isotonic_project(q_pred)
-
-
-@dataclass
-class WassersteinGeodesicGated(WassersteinGeodesic):
-    """The proposed method: WassersteinGeodesic + regime-curvature gate.
-
-    Parameters
-    ----------
-    kappa_star
-        Curvature threshold. Above this the forecast is blended with the
-        static-empirical fallback. Continuous gating with linear ramp.
-    tau
-        Lag (in steps) used when measuring two consecutive tangent vectors
-        for curvature estimation. tau=5 -> weekly-ish tangents.
-    """
-
-    kappa_star: float = 0.6
-    tau: int = 5
-
-    def _curvature(self, u: np.ndarray) -> float:
-        assert self._returns is not None
-        r = self._returns
-        n = self.window
-        tau = self.tau
-        if len(r) < n + 2 * tau:
-            return 0.0
-        q_now = empirical_quantiles(r[-n:], u)
-        q_mid = empirical_quantiles(r[-n - tau : -tau], u)
-        q_old = empirical_quantiles(r[-n - 2 * tau : -2 * tau], u)
-        v1 = q_now - q_mid
-        v2 = q_mid - q_old
-        n1 = np.linalg.norm(v1)
-        n2 = np.linalg.norm(v2)
-        if n1 < 1e-12 or n2 < 1e-12:
-            return 0.0
-        cos = float(np.dot(v1, v2) / (n1 * n2))
-        return 1.0 - cos  # in [0, 2]
-
-    def predict(self, h: int, u: np.ndarray) -> np.ndarray:
-        q_geo = super().predict(h, u)
-        # static-empirical fallback (sqrt-time scaled)
-        q_now = empirical_quantiles(self._returns, u)  # type: ignore[arg-type]
-        mu = float(self._returns.mean())  # type: ignore[union-attr]
-        q_static = mu * h + (q_now - mu) * np.sqrt(h)
-        # blend weight
-        kappa = self._curvature(u)
-        w = max(0.0, min(1.0, kappa / self.kappa_star - 1.0))
-        q_pred = (1.0 - w) * q_geo + w * q_static
-        return isotonic_project(q_pred)
-
-
-@dataclass
-class WassersteinGeodesicTheilSen(WassersteinGeodesic):
-    """The proposed method, robust slope variant.
-
-    Replaces the per-quantile OLS slope with the Theil-Sen median-of-pairwise-
-    slopes estimator. Theil-Sen has a 29.3% breakdown point and is provably
-    robust to outliers in the response — exactly the failure mode that hurts
-    OLS during regime shifts. No explicit curvature gate needed.
-
-    See Theil (1950), Sen (1968), Rousseeuw & Leroy (1987 §3.1).
-    """
-
-    def _slope(self, Q: np.ndarray) -> np.ndarray:
-        L, K = Q.shape
-        s = np.arange(L, dtype=float)
-        # all pairwise i < j slopes per column, then median
-        i_idx, j_idx = np.triu_indices(L, k=1)
-        ds = s[j_idx] - s[i_idx]  # always positive
-        dq = Q[j_idx] - Q[i_idx]  # (pairs, K)
-        return np.median(dq / ds[:, None], axis=0)
-
-
-@dataclass
-class WassersteinGeodesicEWMA(WassersteinGeodesic):
-    """v0.3: Exponentially-weighted recency slope.
-
-    OLS gives every lookback observation the same weight; Theil-Sen gives the
-    median (robust but with equal voting power). In regime-switching dynamics
-    the *recent* tangent vectors are more representative of the current
-    geodesic direction than the oldest ones.
-
-    We use a weighted least-squares slope with weights
-        w_j = lambda^(L-1-j),  j = 0..L-1 (oldest=0, newest=L-1)
-    where lambda in (0, 1] is the decay factor. lambda=1 reduces to OLS;
-    smaller lambda emphasises recency.
-
-    The WLS slope of y on x with weights w is the standard:
-        beta = sum_j w_j (x_j - x_bar_w)(y_j - y_bar_w) / sum_j w_j (x_j - x_bar_w)^2
-    """
-
-    decay: float = 0.85
-
-    def _slope(self, Q: np.ndarray) -> np.ndarray:
-        L, K = Q.shape
-        if not (0.0 < self.decay <= 1.0):
-            raise ValueError("decay must be in (0, 1]")
-        s = np.arange(L, dtype=float)
-        w = self.decay ** (L - 1 - s)  # newest has w=1, oldest has w=lambda^{L-1}
-        w_sum = w.sum()
-        s_mean = (w * s).sum() / w_sum
-        Q_mean = (w[:, None] * Q).sum(axis=0, keepdims=True) / w_sum
-        num = (w[:, None] * (s - s_mean)[:, None] * (Q - Q_mean)).sum(axis=0)
-        den = (w * (s - s_mean) ** 2).sum()
-        return num / max(den, 1e-12)
+#
+# The Wasserstein-geodesic forecaster is a single class with four orthogonal
+# strategy knobs — slope estimator, base-shape window, dispersion scaler,
+# and curvature gate. The seven published variants (Gated, TheilSen, EWMA,
+# Hetero, Adaptive, CondShape) are thin @dataclass subclasses that only
+# override the relevant defaults; the predict-formula lives in one place.
 
 
 def _garch_h_step_sigma_ratio(returns: np.ndarray, h: int) -> float:
@@ -396,279 +222,314 @@ def _garch_h_step_sigma_ratio(returns: np.ndarray, h: int) -> float:
 
 
 @dataclass
-class WassersteinGeodesicHetero(WassersteinGeodesicTheilSen):
-    """v0.3: Heteroskedastic geodesic — dispersion scaled by GARCH variance forecast.
+class WassersteinGeodesic:
+    """Tangent-space W2-geodesic forecaster (configurable variant family).
 
-    The vanilla WGeo expands the quantile vector around its median by sqrt(h),
-    which is the i.i.d.-shock spread-scaling exponent. Under heteroskedasticity
-    (volatility clustering), the true h-step return variance can be
-    *substantially* different from h*sigma_1^2 — especially right after a
-    regime switch.
+    The forecast composes three pieces:
 
-    We replace the static sqrt(h) factor by a *conditional* scaling derived
-    from a GARCH(1,1) variance forecast:
-
-        s_h(t) := sqrt( sum_{i=1..h} sigma_{t+i}^2 / (h * sigma_uncond^2) )
-
-    so that s_h = 1 when the next-h cumulative vol equals the long-run sqrt-h
-    scaling, and s_h > 1 (resp. < 1) in turbulent (calm) regimes. The forecast
-    becomes:
-
-        q_pred(u) = (median + h * beta_median)
-                  + (q_now(u) - median_now) * sqrt(h) * s_h(t)
-                  + h * (beta(u) - beta_median)
-
-    Direction (the tangent slope) is still estimated robustly with Theil-Sen.
-    Only the *dispersion* picks up GARCH conditioning. This addresses the
-    long-horizon weakness of WGeo (the constant-velocity tangent says nothing
-    about *width* of the predictive distribution at h=21).
-
-    The novelty vs published methods: existing Wasserstein-time-series methods
-    (Koopman-Wasserstein, Saluzzi-Soize 2025) do not condition the dispersion
-    on a parametric vol forecast; existing GARCH methods do not use a
-    distributional tangent direction. This is the missing cross.
-    """
-
-    def predict(self, h: int, u: np.ndarray) -> np.ndarray:
-        Q = self._quantile_history(u)
-        beta = self._slope(Q)
-        q_now = Q[-1]
-        median_now = float(np.median(q_now))
-        beta_median = float(np.median(beta))
-        s_h = _garch_h_step_sigma_ratio(self._returns, h)  # type: ignore[arg-type]
-        center = q_now - median_now
-        q_pred = (
-            (median_now + h * beta_median)
-            + center * np.sqrt(h) * s_h
-            + h * (beta - beta_median)
-        )
-        return isotonic_project(q_pred)
-
-
-def _ewma_variance_path(returns: np.ndarray, alpha: float) -> np.ndarray:
-    """RiskMetrics-style EWMA conditional variance path (one-step-ahead).
-
-    ``σ²_t = (1 - α) σ²_{t-1} + α r²_{t-1}`` with the seed
-    ``σ²_0 = mean(r²)`` so the recursion is fully back-looking and
-    well-defined from t=1 onwards. Returns the σ²_t series aligned to
-    ``returns`` (length N). The standard RiskMetrics α=0.06 is the default
-    used by callers.
-
-    Notes
-    -----
-    The forecast at time t uses *only* returns up to t-1, so callers can
-    safely standardise ``r_t`` by ``σ_t`` without look-ahead.
-    """
-    r = np.asarray(returns, dtype=float)
-    n = len(r)
-    var = np.empty(n, dtype=float)
-    sigma2_0 = float(np.mean(r * r)) if n else 1e-12
-    var[0] = sigma2_0
-    for t in range(1, n):
-        var[t] = (1.0 - alpha) * var[t - 1] + alpha * (r[t - 1] ** 2)
-    return np.maximum(var, 1e-18)
-
-
-@dataclass
-class WassersteinGeodesicAdaptive(WassersteinGeodesicEWMA):
-    """v0.4: Recency-weighted empirical-quantile tangent forecaster.
-
-    Motivation
-    ----------
-    Every previous WGeo variant uses ``q_now = empirical_quantiles(r[-W:], u)``
-    as the base quantile, *equally* weighting every observation in the
-    trailing window. Because StaticEmpirical does the same, the *shape* of
-    the two forecasts is essentially identical — only the median drift
-    differs. The per-day CRPS differential is therefore dominated by a few
-    basis points of drift, too small relative to its serial-correlated
-    variance for the Diebold-Mariano test to reject in most panel cells.
-
-    The principled fix is to recognise that the *base measure* itself is
-    time-varying: yesterday's returns are more representative of tomorrow's
-    risk than three-month-old returns. Replacing the unweighted empirical
-    quantile by an exponentially-weighted empirical quantile lets the
-    forecast track the current vol regime through the *shape* axis instead
-    of just through a trend slope.
-
-    Note that this is *not* the same intervention as
-    :class:`WassersteinGeodesicHetero` (which multiplied dispersion by a
-    GARCH-implied ratio and double-counted recent vol with the *equal-
-    weighted* quantile that already partially contained it). Here there is
-    no parametric vol forecast multiplier; the EW empirical quantile
-    naturally tightens/widens as the regime evolves.
-
-    Method
-    ------
-    Let ``r_{t-W+1}, ..., r_t`` be the trailing-window returns. Define
-    exponential weights anchored at the most recent observation,
-
-        w_j = lambda_q ** (W - 1 - j),    j = 0..W-1.
-
-    The recency-weighted base quantile is
-
-        q_w(u) := weighted_quantiles(r_{t-W+1:t}, u, w).
-
-    The tangent slope β(u) is the EWMA-WLS slope from
-    :class:`WassersteinGeodesicEWMA`, applied to the *same* rolling
-    quantile-vector history but each row of that history is itself a
-    weighted quantile vector (so direction is also estimated in a recency-
-    weighted way). The h-step forecast is the standard WGeo composition:
-
-        q_pred(u) = (median(q_w) + h · β̄)
-                  + (q_w(u) - median(q_w)) · √h
+        q_pred(u) = (median(q_base) + h · β̄)
+                  + (q_base(u) - median(q_base)) · √h · s_h
                   + h · (β(u) - β̄)
 
-    With ``decay_quantile = 1.0`` the weighted quantile reduces to the
-    unweighted empirical quantile and the forecaster collapses to
-    :class:`WassersteinGeodesicEWMA`.
+    optionally blended with a static-empirical fallback under a regime-
+    curvature gate. The four orthogonal strategy knobs determine which
+    published variant the forecaster reproduces:
+
+    Slope strategy (``slope``)
+        - ``"ols"`` (default): unweighted least-squares on the lookback
+          history. Plain :class:`WassersteinGeodesic`.
+        - ``"theil_sen"``: median of pairwise slopes, 29.3% breakdown point
+          (Theil 1950, Sen 1968). Robust to outliers in the response.
+        - ``"ewma"``: weighted least-squares with exponential recency decay
+          ``decay``. ``decay=1`` collapses to OLS.
+
+    Base shape (``shape_window``)
+        - ``None`` (default): ``q_base = Q[-1]`` — the most recent row of
+          the short-window quantile history.
+        - ``int N``: ``q_base = empirical_quantiles(r[-N:], u)`` — the long-
+          window unconditional shape (CondShape).
+
+    Quantile-history weighting (``decay_quantile``)
+        - ``1.0`` (default): uniform — each row of Q is the unweighted
+          empirical quantile.
+        - ``< 1.0``: each row is a recency-weighted empirical quantile with
+          exponential decay (Adaptive).
+
+    Dispersion scale (``garch``)
+        - ``None`` (default): ``s_h = 1`` — pure √h dispersion scaling.
+        - ``"full"``: ``s_h`` from GARCH(1,1) fit on the entire training
+          window (Hetero).
+        - ``"short"``: ``s_h`` from GARCH(1,1) fit on the trailing
+          ``self.window`` returns (CondShape).
+        - ``garch_clip``: optional ``(lo, hi)`` tuple to clamp ``s_h``.
+
+    Curvature gate (``gate``)
+        - ``False`` (default): no blending.
+        - ``True``: blend with a static-empirical fallback when the
+          geodesic curvature exceeds ``kappa_star`` (Gated).
 
     Parameters
     ----------
     window
-        Trailing window length used for the base quantile and rolling
-        quantile-vector history.
+        Length of the rolling window for each row of the quantile history.
     lookback
-        Number of past quantile vectors in the EWMA-WLS slope.
-    decay
-        EWMA-WLS decay for the slope (inherited).
-    decay_quantile
-        Exponential decay for the recency-weighted base-quantile estimator.
-        ``1.0`` = unweighted, smaller = more concentrated on the recent
-        observations. Default ``0.97`` corresponds to a Hazen-position
-        half-life of about ``ln(2)/ln(1/0.97) ≈ 23`` observations within a
-        90-day window.
+        Number of past quantile vectors used to estimate the tangent slope.
     """
 
-    decay_quantile: float = 0.97
+    window: int = 90
+    lookback: int = 30
 
-    def _quantile_history(self, u: np.ndarray) -> np.ndarray:  # type: ignore[override]
-        """Recency-weighted rolling quantile vectors ending at each lookback step.
+    # slope estimator
+    slope: str = "ols"
+    decay: float = 0.85
 
-        Mirrors the base class but each row is a weighted empirical quantile
-        with exponential decay ``decay_quantile``.
+    # base shape: None → use Q[-1]; int N → use empirical_quantiles(r[-N:], u)
+    shape_window: int | None = None
+
+    # quantile-history weighting (1.0 = uniform, <1 = recency-weighted)
+    decay_quantile: float = 1.0
+
+    # dispersion scaler s_h
+    garch: str | None = None  # None | "full" | "short"
+    garch_clip: tuple[float, float] | None = None
+
+    # curvature gate (blend with static-empirical fallback)
+    gate: bool = False
+    kappa_star: float = 0.6
+    tau: int = 5
+
+    _returns: np.ndarray | None = None
+
+    def fit(self, returns: np.ndarray) -> None:
+        if len(returns) < self.window + self.lookback:
+            raise ValueError(
+                f"need >= {self.window + self.lookback} returns, got {len(returns)}"
+            )
+        if self.shape_window is not None and len(returns) < self.shape_window:
+            raise ValueError(
+                f"need >= {self.shape_window} returns for the long shape window"
+            )
+        self._returns = np.asarray(returns, dtype=float)
+
+    # ---- strategy primitives ------------------------------------------------
+
+    def _quantile_history(self, u: np.ndarray) -> np.ndarray:
+        """(lookback, K) matrix of rolling quantile vectors, oldest-first.
+
+        Each row spans ``window`` returns ending ``j`` steps before the
+        latest observation. Rows are unweighted empirical quantiles when
+        ``decay_quantile == 1``, otherwise recency-weighted quantiles with
+        exponential decay.
         """
         assert self._returns is not None
         n = self.window
         r = self._returns
+        Q = np.empty((self.lookback, len(u)), dtype=float)
+        if self.decay_quantile == 1.0:
+            for j in range(self.lookback):
+                start = len(r) - n - j
+                stop = len(r) - j
+                Q[self.lookback - 1 - j] = empirical_quantiles(r[start:stop], u)
+            return Q
         if not (0.0 < self.decay_quantile <= 1.0):
             raise ValueError("decay_quantile must be in (0, 1]")
-        # Pre-compute the (length-n) weight vector once; the most recent
-        # observation in each window has weight 1, the oldest has weight
-        # lambda^(n-1).
         w = self.decay_quantile ** np.arange(n)[::-1]
-        Q = np.empty((self.lookback, len(u)), dtype=float)
         for j in range(self.lookback):
             start = len(r) - n - j
             stop = len(r) - j
             Q[self.lookback - 1 - j] = weighted_quantiles(r[start:stop], u, w)
         return Q
 
-    # predict() inherited from WassersteinGeodesicEWMA — it consumes
-    # _quantile_history (now recency-weighted) and applies the EWMA-WLS slope
-    # plus the standard WGeo composition. No further override needed.
+    def _slope(self, Q: np.ndarray) -> np.ndarray:
+        """Per-quantile slope of Q against time index s = 0..L-1."""
+        L = Q.shape[0]
+        s = np.arange(L, dtype=float)
+        if self.slope == "ols":
+            s_mean = s.mean()
+            s_var = ((s - s_mean) ** 2).sum()
+            Q_mean = Q.mean(axis=0, keepdims=True)
+            return ((s - s_mean)[:, None] * (Q - Q_mean)).sum(axis=0) / s_var
+        if self.slope == "theil_sen":
+            i_idx, j_idx = np.triu_indices(L, k=1)
+            ds = s[j_idx] - s[i_idx]  # always positive
+            dq = Q[j_idx] - Q[i_idx]  # (pairs, K)
+            return np.median(dq / ds[:, None], axis=0)
+        if self.slope == "ewma":
+            if not (0.0 < self.decay <= 1.0):
+                raise ValueError("decay must be in (0, 1]")
+            w = self.decay ** (L - 1 - s)  # newest has w=1
+            w_sum = w.sum()
+            s_mean = (w * s).sum() / w_sum
+            Q_mean = (w[:, None] * Q).sum(axis=0, keepdims=True) / w_sum
+            num = (w[:, None] * (s - s_mean)[:, None] * (Q - Q_mean)).sum(axis=0)
+            den = (w * (s - s_mean) ** 2).sum()
+            return num / max(den, 1e-12)
+        raise ValueError(
+            f"slope must be 'ols' | 'theil_sen' | 'ewma', got {self.slope!r}"
+        )
 
-
-@dataclass
-class WassersteinGeodesicCondShape(WassersteinGeodesicTheilSen):
-    """v0.4: Long-window shape × GARCH-conditioned scale × Theil-Sen direction.
-
-    Motivation — fixing the v0.3 ``Hetero`` failure
-    -----------------------------------------------
-    :class:`WassersteinGeodesicHetero` multiplied ``(q_now - median_now)`` by a
-    GARCH variance-forecast ratio, where ``q_now`` was the *short-window*
-    (90-day) empirical quantile. Empirically this lost out — RESULTS_LONG.md
-    documents the negative finding as "the empirical quantile vector already
-    encodes recent realised volatility, so a parametric vol multiplier on top
-    is double-counting".
-
-    The mathematically correct decomposition exists once one accepts that
-    ``q_now`` should encode *unconditional* shape only. Replacing the short
-    window by a long window (default 500 days) recovers the stationary shape
-    of standardised log-returns (fat tails, asymmetry, kurtosis) without
-    confounding with current volatility — exactly the gap the GARCH multiplier
-    is supposed to fill. The product
-    ``shape(unconditional) × scale(conditional)`` is then *unique* up to
-    location, and the two factors no longer overlap in what they explain.
-
-    Method
-    ------
-    Let ``r_{t-N+1}, ..., r_t`` be the trailing-window returns of length
-    ``N = shape_window``. We compute:
-
-      ``q_long(u)   := empirical_quantiles(r[-shape_window:], u)``
-      ``σ_uncond    := std(r[-shape_window:])``
-      ``s_h         := √( Σ_{i=1..h} σ²_{t+i} ) / ( √h · σ_uncond )``
-
-    where ``σ²_{t+i}`` is the GARCH(1,1) forecast variance path on the
-    *short* window (matching the existing ``WassersteinGeodesicHetero``
-    estimator). ``s_h`` is the conditional/unconditional volatility ratio at
-    horizon h: ``s_h > 1`` in turbulent regimes, ``< 1`` in calm regimes,
-    and ``s_h = 1`` if next-h cumulative variance equals the long-run
-    sqrt-time scaling.
-
-    The tangent direction ``β(u)`` uses the Theil-Sen estimator on the
-    short-window rolling quantile history (inherited). The h-step forecast
-    is
-
-      ``q_pred(u) = (median(q_long) + h · β̄)
-                  + (q_long(u) - median(q_long)) · √h · s_h
-                  + h · (β(u) - β̄)``
-
-    The first row carries the level + geodesic-velocity drift; the second
-    row injects scale conditioning into the *long-window unconditional
-    shape*; the third row carries the per-quantile direction deviation.
-
-    With ``shape_window = window`` and ``s_h = 1`` the forecaster
-    degenerates to plain :class:`WassersteinGeodesicTheilSen`.
-
-    Parameters
-    ----------
-    window
-        Short window used for the tangent-slope quantile history (slope is
-        a *local* signal).
-    lookback
-        Number of past quantile vectors in the Theil-Sen slope.
-    shape_window
-        Long window used for the unconditional empirical shape. Default 500
-        balances "enough data to pin down tails" with "still local enough to
-        adapt across multi-year regime drift in crypto markets".
-    """
-
-    shape_window: int = 500
-
-    def fit(self, returns: np.ndarray) -> None:  # type: ignore[override]
-        super().fit(returns)
-        if len(returns) < self.shape_window:
+    def _dispersion_scale(self, h: int) -> float:
+        """s_h: optional GARCH conditional/unconditional vol ratio at horizon h."""
+        if self.garch is None:
+            return 1.0
+        assert self._returns is not None
+        if self.garch == "full":
+            s_h = _garch_h_step_sigma_ratio(self._returns, h)
+        elif self.garch == "short":
+            s_h = _garch_h_step_sigma_ratio(self._returns[-self.window :], h)
+        else:
             raise ValueError(
-                f"need >= {self.shape_window} returns for the long shape window"
+                f"garch must be None | 'full' | 'short', got {self.garch!r}"
             )
+        if self.garch_clip is not None:
+            s_h = float(np.clip(s_h, self.garch_clip[0], self.garch_clip[1]))
+        return float(s_h)
 
-    def predict(self, h: int, u: np.ndarray) -> np.ndarray:  # type: ignore[override]
+    def _curvature(self, u: np.ndarray) -> float:
+        """Geodesic curvature κ used by the regime gate; in [0, 2]."""
         assert self._returns is not None
         r = self._returns
-        # short-window slope (the geodesic direction)
+        n = self.window
+        tau = self.tau
+        if len(r) < n + 2 * tau:
+            return 0.0
+        q_now = empirical_quantiles(r[-n:], u)
+        q_mid = empirical_quantiles(r[-n - tau : -tau], u)
+        q_old = empirical_quantiles(r[-n - 2 * tau : -2 * tau], u)
+        v1 = q_now - q_mid
+        v2 = q_mid - q_old
+        n1 = np.linalg.norm(v1)
+        n2 = np.linalg.norm(v2)
+        if n1 < 1e-12 or n2 < 1e-12:
+            return 0.0
+        cos = float(np.dot(v1, v2) / (n1 * n2))
+        return 1.0 - cos
+
+    def _compose_geodesic(self, h: int, u: np.ndarray) -> np.ndarray:
+        """The core W2-tangent forecast, isotonic-projected."""
+        assert self._returns is not None
         Q = self._quantile_history(u)
         beta = self._slope(Q)
         beta_median = float(np.median(beta))
-        # long-window unconditional shape
-        long_tail = r[-self.shape_window :]
-        q_long = empirical_quantiles(long_tail, u)
-        median_long = float(np.median(q_long))
-        sigma_uncond = float(np.std(long_tail, ddof=1))
-        # conditional / unconditional scale at horizon h via GARCH(1,1)
-        # (re-fit on the short window to match the existing Hetero estimator)
-        s_h = (
-            _garch_h_step_sigma_ratio(r[-self.window :], h) if sigma_uncond > 0 else 1.0
-        )
-        # robustness: cap the ratio to keep predictions in a sensible range
-        s_h = float(np.clip(s_h, 0.5, 2.0))
-        centred_shape = q_long - median_long
+        if self.shape_window is None:
+            q_base = Q[-1]
+        else:
+            q_base = empirical_quantiles(self._returns[-self.shape_window :], u)
+        median_base = float(np.median(q_base))
+        s_h = self._dispersion_scale(h)
+        centred = q_base - median_base
         q_pred = (
-            (median_long + h * beta_median)
-            + centred_shape * np.sqrt(h) * s_h
+            (median_base + h * beta_median)
+            + centred * np.sqrt(h) * s_h
             + h * (beta - beta_median)
         )
         return isotonic_project(q_pred)
+
+    def predict(self, h: int, u: np.ndarray) -> np.ndarray:
+        q_geo = self._compose_geodesic(h, u)
+        if not self.gate:
+            return q_geo
+        # static-empirical fallback (sqrt-time scaled), blended by curvature
+        assert self._returns is not None
+        q_now = empirical_quantiles(self._returns, u)
+        mu = float(self._returns.mean())
+        q_static = mu * h + (q_now - mu) * np.sqrt(h)
+        kappa = self._curvature(u)
+        w = max(0.0, min(1.0, kappa / self.kappa_star - 1.0))
+        return isotonic_project((1.0 - w) * q_geo + w * q_static)
+
+
+@dataclass
+class WassersteinGeodesicGated(WassersteinGeodesic):
+    """WGeo + regime-curvature gate against the static-empirical fallback.
+
+    When the geodesic curvature exceeds ``kappa_star`` the forecast is
+    blended linearly with the static-empirical sqrt-time projection. The
+    blend weight ramps continuously from 0 to 1 over κ ∈ [κ*, 2κ*].
+    """
+
+    gate: bool = True
+
+
+@dataclass
+class WassersteinGeodesicTheilSen(WassersteinGeodesic):
+    """WGeo with the Theil-Sen robust slope.
+
+    Median of all pairwise lookback slopes — 29.3% breakdown point, provably
+    robust to outliers in the response. See Theil (1950), Sen (1968),
+    Rousseeuw & Leroy (1987 §3.1).
+    """
+
+    slope: str = "theil_sen"
+
+
+@dataclass
+class WassersteinGeodesicEWMA(WassersteinGeodesic):
+    """WGeo with an exponentially-weighted recency slope.
+
+    Weighted least squares with weights ``w_j = decay**(L-1-j)``. The newest
+    lookback observation has weight 1; the oldest has weight ``decay**(L-1)``.
+    ``decay=1`` collapses exactly to OLS.
+    """
+
+    slope: str = "ewma"
+
+
+@dataclass
+class WassersteinGeodesicHetero(WassersteinGeodesic):
+    """WGeo with Theil-Sen direction and GARCH-conditioned dispersion.
+
+    Replaces the static √h spread scaling with ``√h · s_h`` where ``s_h`` is
+    the conditional/unconditional cumulative-variance ratio from a GARCH(1,1)
+    fit on the full training window. Direction is still Theil-Sen.
+
+    Addresses the long-horizon spread-calibration weakness of the constant-
+    velocity tangent: the slope says nothing about distribution *width* at
+    h=21, but the GARCH forecast does.
+    """
+
+    slope: str = "theil_sen"
+    garch: str | None = "full"
+
+
+@dataclass
+class WassersteinGeodesicAdaptive(WassersteinGeodesic):
+    """WGeo with recency-weighted base quantiles + EWMA slope.
+
+    Each row of the rolling quantile history is a recency-weighted empirical
+    quantile with exponential decay ``decay_quantile`` (default 0.97), so both
+    the base shape *and* the slope adapt to the current vol regime. With
+    ``decay_quantile=1.0`` the forecaster collapses to
+    :class:`WassersteinGeodesicEWMA` (unweighted history rows).
+
+    Fixes the static-shape limitation: previous WGeo variants used an
+    unweighted base quantile that gave week-old returns the same weight as
+    today's, so per-day CRPS differentials against StaticEmpirical were
+    dominated by a few basis points of drift.
+    """
+
+    slope: str = "ewma"
+    decay_quantile: float = 0.97
+
+
+@dataclass
+class WassersteinGeodesicCondShape(WassersteinGeodesic):
+    """Long-window unconditional shape × short-window GARCH scale.
+
+    Replaces the short-window ``q_now`` by a long-window unconditional
+    empirical quantile (default 500 days) so the GARCH conditional/uncondi-
+    tional ratio multiplier does not double-count recent realised volatility.
+    Direction is Theil-Sen on the short-window history; the GARCH ratio is
+    fit on the trailing ``self.window`` returns and clipped to [0.5, 2.0].
+
+    The product ``shape(unconditional) × scale(conditional)`` is unique up to
+    location and the two factors no longer overlap in what they explain.
+    """
+
+    slope: str = "theil_sen"
+    shape_window: int | None = 500
+    garch: str | None = "short"
+    garch_clip: tuple[float, float] | None = (0.5, 2.0)
 
 
 @dataclass

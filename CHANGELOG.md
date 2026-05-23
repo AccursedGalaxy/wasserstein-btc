@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented here. Dates ISO-8601.
 
+## [Unreleased]
+
+### Changed
+
+- **`WassersteinGeodesic` collapsed into one configurable class.** The seven
+  variants (`WassersteinGeodesic`, `…Gated`, `…TheilSen`, `…EWMA`, `…Hetero`,
+  `…Adaptive`, `…CondShape`) are now `@dataclass` subclasses of one base that
+  only override field defaults — the predict-formula lives in one place.
+  Strategy knobs on the base: `slope` ∈ {ols, theil_sen, ewma}; `shape_window`
+  (None → `Q[-1]`, int → long-window empirical); `decay_quantile` (recency-
+  weighted history rows); `garch` ∈ {None, full, short} with optional
+  `garch_clip`; `gate` (curvature blend against the static fallback). Class
+  names and all kwargs are unchanged, so `default_forecaster()`, the script
+  `METHODS` dicts, and the CLI continue to work without modification. Net
+  `src/wbtc/forecasters.py` shrinks by 139 lines (-414/+275). Vestigial
+  `_h_step_scale()` and dead `_ewma_variance_path()` deleted. All 53 tests
+  pass unchanged. Resolves Candidate 01 of the 2026-05-23 architecture
+  review.
+
 ## [0.4.0] — 2026-05-23
 
 ### Headline numbers (vs v0.3)
