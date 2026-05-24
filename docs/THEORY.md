@@ -1,7 +1,7 @@
 # Tangent-Space Wasserstein Geodesic Forecasting for Bitcoin Returns
 
 **Status:** version 0.3 (2026-05-23) — heteroskedastic dispersion + regime-aware ensembling.
-**Author:** AccursedGalaxy (driven by Claude)
+**Author:** Robin Bohrer ([AccursedGalaxy](https://github.com/AccursedGalaxy))
 **Goal:** A mathematically rigorous, falsifiable, and genuinely under-explored
 framing for short-horizon Bitcoin forecasting. We do not predict prices. We
 predict the **distribution** of future log-returns, and we score that forecast
@@ -489,7 +489,17 @@ If we hit any of those, the results report says so plainly. No spinning.
   curvature gate is a continuous, non-Markovian gating, not a latent
   discrete state.
 
-## 6. References
+## 6. Acknowledgements
+
+This work was developed by the author with substantial assistance from
+Anthropic's Claude (Opus 4 family) used as a pair-programming and
+drafting collaborator: literature search, code implementation, and
+prose drafting were AI-assisted; the geometric framing, methodology
+choices, falsification criteria (§4), and the hyperparameter discipline
+were directed by the author. All numerical results referenced from this
+document are reproducible from `uv run wbtc backtest-long`.
+
+## 7. References
 
 - Bonneel, N., Rabin, J., Peyré, G., & Pfister, H. (2015). *Sliced and
   Radon Wasserstein barycenters of measures*. JMIV.
