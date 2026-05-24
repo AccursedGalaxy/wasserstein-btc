@@ -18,7 +18,7 @@ import pandas as pd
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-DEFAULT_SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
+DEFAULT_SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT"]
 TIMEFRAME = "1d"
 LIMIT = 1000  # Binance daily cap per call
 
@@ -29,6 +29,7 @@ LISTED_SINCE = {
     "SOL/USDT": "2020-08-11T00:00:00Z",
     "BNB/USDT": "2017-11-06T00:00:00Z",
     "ADA/USDT": "2018-04-17T00:00:00Z",
+    "XRP/USDT": "2018-05-04T00:00:00Z",
 }
 
 

@@ -1,211 +1,126 @@
-# Long-Horizon Results — Multi-Year, Multi-Asset Validation (v0.5)
+# Long-Horizon Results — Multi-Year, Multi-Asset Validation
 
 Goal: prove the Wasserstein-Geodesic forecaster works over a *long* time horizon.
 Train: rolling 730-day window. Test: every day after burn-in (no separate holdout).
 Scoring: CRPS (lower better, strictly proper).
 
-## Pre-registration (v0.5, 2026-05-24)
+## Pre-registration
 
-The forecaster, comparators, control set, and falsification threshold
-for the **12-month out-of-sample evaluation window 2026-06-01 →
-2027-05-31** are locked in [`PREREGISTRATION.md`](../PREREGISTRATION.md).
-The full re-run against that frozen window happens on **2027-06-01**.
-The tables below report the *in-sample* numbers (6.75 years through
-2026-05-23) against the same pre-registered specification, so the
-comparison done on 2027-06-01 has a directly-comparable baseline.
+**Pre-registered headline forecaster:** `WGeo-Ensemble` (the equal-weight W₂ barycentre of `WGeo-TheilSen`, `WGeo-EWMA`, `WGeo-Gated` — see `THEORY.md §2.9`). All headline DM tests below are `WGeo-Ensemble` against a fixed reference baseline. The previous reporting style — *best-of-family vs best-of-baseline* — is retained as a robustness appendix because the implicit max-over-comparators inflates type-I error and is not a valid pre-committed test.
 
-**Pre-registered headline forecaster:** `WGeo-Ensemble` — the equal-weight
-W₂ barycentre of `WGeo-TheilSen`, `WGeo-EWMA`, `WGeo-Gated` (see
-[`THEORY.md`](THEORY.md) §2.9). All headline DM tests below are
-`WGeo-Ensemble` vs a *fixed* reference baseline. The previous reporting
-style — *best-of-family vs best-of-baseline* — is retained as a
-robustness appendix; selecting both sides by minimum cell CRPS is an
-implicit max over 8 WGeo variants × 6 baselines = 48 implicit pairs per
-cell and inflates type-I error.
-
-**Pre-registered reference baselines:** `Static` and `GARCH-N`. `Static`
-is the naive distributional baseline (current empirical quantile,
-√h-scaled); `GARCH-N` is the standard parametric vol baseline from the
-econometrics canon. A win against both is the minimum bar for the v0.5
-claim — beating `Static` is necessary (any vol-aware model should) but
-not sufficient (it does not engage with conditional variance);
-beating `GARCH-N` is the substantive test.
-
-**Pre-registered falsification floor:** ≥6 of 12 cells with residualised
-DM p_r<0.05 under the `vol` control set (`[y, |y|, y²]`), against each
-of the two baselines. See `PREREGISTRATION.md` for the exact procedure
-and the [sensitivity table](#residualised-dm-sensitivity-to-control-set)
-below for why the floor is anchored to vol-only.
-
-## TL;DR (v0.5, 2026-05-24)
-
-1. **`WGeo-Ensemble` beats both pre-registered baselines on CRPS in all
-   12 cells.** Mean CRPS improvement is 0.2% to 3.4% vs `Static` and 0.3%
-   to 2.8% vs `GARCH-N` over 6.75 years on the 4-asset × 3-horizon panel
-   (BTC, ETH, SOL, BNB at h ∈ {1, 5, 21}).
-2. **Residualised Diebold-Mariano with vol-only controls already clears
-   the 6/12 falsification floor at 9/12 vs both baselines.** The `vol`
-   control set is `[y, |y|, y²]` — predictable at time t and uncorrelated
-   with the EPA mean. Adding four peer-method loss series (the `full`
-   control set) lifts the count to 9/12 vs `Static` (no change) and 11/12
-   vs `GARCH-N` (+2 cells). The pre-registered falsification threshold
-   is anchored to the `vol_only` column so the headline does not depend
-   on peer-loss correlations — see the
-   [sensitivity table](#residualised-dm-sensitivity-to-control-set).
-3. **Vanilla Diebold-Mariano: 6/12 cells significant vs each baseline.**
-   At h=21 the lag-h-1 Newey-West HAC inflates the vanilla SE by ~3-4×;
-   the residualised test recovers most of those cells without changing
-   the null hypothesis (see `THEORY.md §2.10`).
-4. **Regime-conditional DM** (per-cell, after the main DM panel) makes
-   the structure visible: `WGeo-Ensemble` beats `Static` decisively in
-   calm regimes (neutral + low-vol ≈ 60% of days), is statistical noise
-   in crash/rally regimes, and slightly loses in the rare high-vol
-   regime (~3%). Matches the v0.2 regime story.
-5. **Provenance.** All numbers below are produced by `wbtc backtest-long`
-   from the parquet caches in `data/`. Per-step CRPS arrays are in
-   `results/long_*.json`; the (entry_point, file hash, package versions)
-   manifest is in `results/MANIFEST.json`. Headlines 1–2 below were
-   recomputed in v0.5 from the saved per-step arrays without rerunning
-   the 20-minute backtest; the next full rerun will reproduce them
-   exactly.
-
-For the research-paper-style writeup see
-[`RESEARCH_REPORT.md`](RESEARCH_REPORT.md). For the mathematical
-description see [`THEORY.md`](THEORY.md) §2.9 (ensemble) and §2.10
-(residualised DM).
+**Pre-registered reference baselines:** `Static`, `GARCH-N`. `Static` is the most naive distributional baseline (the current empirical quantile, √h-scaled); `GARCH-N` is the standard parametric vol baseline from the econometrics canon. A win against both is the minimum bar for the v0.5 claim.
 
 ## Headline 1 — WGeo-Ensemble vs Static (pre-registered)
 
 | symbol   |   h |   n_test | baseline   |   ensemble_crps |   baseline_crps | improvement   |   dm_stat |   dm_p |   dm_stat_r |   dm_p_r |
 |:---------|----:|---------:|:-----------|----------------:|----------------:|:--------------|----------:|-------:|------------:|---------:|
-| BTC/USDT |   1 |     2470 | Static     |        0.016168 |        0.016236 | -0.4%         |     -1.71 | 0.0871 |       -1.80 |   0.0720 |
+| BTC/USDT |   1 |     2470 | Static     |        0.016168 |        0.016236 | -0.4%         |     -1.71 | 0.0871 |       -1.8  |   0.072  |
 | BTC/USDT |   5 |     2466 | Static     |        0.037061 |        0.037367 | -0.8%         |     -1.97 | 0.0491 |       -2.71 |   0.0067 |
-| BTC/USDT |  21 |     2450 | Static     |        0.083158 |        0.085347 | -2.6%         |     -1.78 | 0.0756 |       -4.74 |   0.0000 |
-| ETH/USDT |   1 |     2470 | Static     |        0.021739 |        0.021897 | -0.7%         |     -3.02 | 0.0025 |       -3.30 |   0.0010 |
-| ETH/USDT |   5 |     2466 | Static     |        0.049256 |        0.049834 | -1.2%         |     -2.73 | 0.0064 |       -3.92 |   0.0001 |
-| ETH/USDT |  21 |     2450 | Static     |        0.109816 |        0.113701 | -3.4%         |     -2.28 | 0.0227 |       -7.40 |   0.0000 |
-| SOL/USDT |   1 |     1380 | Static     |        0.025030 |        0.025075 | -0.2%         |     -0.55 | 0.5839 |       -0.60 |   0.5502 |
+| BTC/USDT |  21 |     2450 | Static     |        0.083158 |        0.085347 | -2.6%         |     -1.78 | 0.0756 |       -4.6  |   0      |
+| ETH/USDT |   1 |     2470 | Static     |        0.021739 |        0.021897 | -0.7%         |     -3.02 | 0.0025 |       -3.28 |   0.001  |
+| ETH/USDT |   5 |     2466 | Static     |        0.049256 |        0.049834 | -1.2%         |     -2.73 | 0.0064 |       -4.02 |   0.0001 |
+| ETH/USDT |  21 |     2450 | Static     |        0.109816 |        0.113701 | -3.4%         |     -2.28 | 0.0227 |       -7.27 |   0      |
+| SOL/USDT |   1 |     1380 | Static     |        0.02503  |        0.025075 | -0.2%         |     -0.55 | 0.5839 |       -0.6  |   0.5502 |
 | SOL/USDT |   5 |     1376 | Static     |        0.057153 |        0.057622 | -0.8%         |     -1.41 | 0.1588 |       -1.81 |   0.0706 |
-| SOL/USDT |  21 |     1360 | Static     |        0.129833 |        0.134406 | -3.4%         |     -1.94 | 0.0529 |       -5.13 |   0.0000 |
-| BNB/USDT |   1 |     2389 | Static     |        0.020144 |        0.020339 | -1.0%         |     -3.33 | 0.0009 |       -3.81 |   0.0001 |
-| BNB/USDT |   5 |     2385 | Static     |        0.045782 |        0.046297 | -1.1%         |     -2.20 | 0.0281 |       -2.96 |   0.0031 |
-| BNB/USDT |  21 |     2369 | Static     |        0.102619 |        0.105553 | -2.8%         |     -1.55 | 0.1200 |       -3.99 |   0.0001 |
-
-**Aggregates vs `Static`:** CRPS wins 12/12; vanilla DM p<0.05 in 6/12;
-residualised DM (`full` control set) p_r<0.05 in 9/12.
+| SOL/USDT |  21 |     1360 | Static     |        0.129833 |        0.134406 | -3.4%         |     -1.94 | 0.0529 |       -5.08 |   0      |
+| BNB/USDT |   1 |     2389 | Static     |        0.020144 |        0.020339 | -1.0%         |     -3.33 | 0.0009 |       -3.83 |   0.0001 |
+| BNB/USDT |   5 |     2385 | Static     |        0.045782 |        0.046297 | -1.1%         |     -2.2  | 0.0281 |       -2.96 |   0.0031 |
+| BNB/USDT |  21 |     2369 | Static     |        0.102619 |        0.105553 | -2.8%         |     -1.55 | 0.12   |       -3.81 |   0.0001 |
+| XRP/USDT |   1 |     2210 | Static     |        0.024359 |        0.024566 | -0.8%         |     -2.9  | 0.0038 |       -3.3  |   0.001  |
+| XRP/USDT |   5 |     2206 | Static     |        0.055389 |        0.056199 | -1.4%         |     -3.15 | 0.0017 |       -3.77 |   0.0002 |
+| XRP/USDT |  21 |     2190 | Static     |        0.129103 |        0.132709 | -2.7%         |     -3.17 | 0.0015 |       -4.21 |   0      |
 
 ## Headline 2 — WGeo-Ensemble vs GARCH-N (pre-registered)
 
 | symbol   |   h |   n_test | baseline   |   ensemble_crps |   baseline_crps | improvement   |   dm_stat |   dm_p |   dm_stat_r |   dm_p_r |
 |:---------|----:|---------:|:-----------|----------------:|----------------:|:--------------|----------:|-------:|------------:|---------:|
-| BTC/USDT |   1 |     2470 | GARCH-N    |        0.016168 |        0.016463 | -1.8%         |     -5.08 | 0.0000 |       -7.30 |   0.0000 |
-| BTC/USDT |   5 |     2466 | GARCH-N    |        0.037061 |        0.037807 | -2.0%         |     -3.15 | 0.0016 |       -5.43 |   0.0000 |
-| BTC/USDT |  21 |     2450 | GARCH-N    |        0.083158 |        0.084848 | -2.0%         |     -0.84 | 0.4009 |       -2.49 |   0.0130 |
-| ETH/USDT |   1 |     2470 | GARCH-N    |        0.021739 |        0.021947 | -0.9%         |     -2.85 | 0.0044 |       -4.04 |   0.0001 |
-| ETH/USDT |   5 |     2466 | GARCH-N    |        0.049256 |        0.050368 | -2.2%         |     -4.04 | 0.0001 |       -7.27 |   0.0000 |
-| ETH/USDT |  21 |     2450 | GARCH-N    |        0.109816 |        0.112970 | -2.8%         |     -1.50 | 0.1337 |       -4.31 |   0.0000 |
-| SOL/USDT |   1 |     1380 | GARCH-N    |        0.025030 |        0.025219 | -0.7%         |     -1.70 | 0.0894 |       -2.37 |   0.0177 |
-| SOL/USDT |   5 |     1376 | GARCH-N    |        0.057153 |        0.058296 | -2.0%         |     -2.93 | 0.0034 |       -4.49 |   0.0000 |
-| SOL/USDT |  21 |     1360 | GARCH-N    |        0.129833 |        0.133568 | -2.8%         |     -1.62 | 0.1043 |       -3.95 |   0.0000 |
+| BTC/USDT |   1 |     2470 | GARCH-N    |        0.016168 |        0.016463 | -1.8%         |     -5.08 | 0      |       -7.16 |   0      |
+| BTC/USDT |   5 |     2466 | GARCH-N    |        0.037061 |        0.037807 | -2.0%         |     -3.15 | 0.0016 |       -5.93 |   0      |
+| BTC/USDT |  21 |     2450 | GARCH-N    |        0.083158 |        0.084848 | -2.0%         |     -0.84 | 0.4009 |       -2.48 |   0.013  |
+| ETH/USDT |   1 |     2470 | GARCH-N    |        0.021739 |        0.021947 | -0.9%         |     -2.85 | 0.0044 |       -4.03 |   0.0001 |
+| ETH/USDT |   5 |     2466 | GARCH-N    |        0.049256 |        0.050368 | -2.2%         |     -4.04 | 0.0001 |       -7.13 |   0      |
+| ETH/USDT |  21 |     2450 | GARCH-N    |        0.109816 |        0.11297  | -2.8%         |     -1.5  | 0.1337 |       -4.47 |   0      |
+| SOL/USDT |   1 |     1380 | GARCH-N    |        0.02503  |        0.025219 | -0.7%         |     -1.7  | 0.0894 |       -2.37 |   0.0177 |
+| SOL/USDT |   5 |     1376 | GARCH-N    |        0.057153 |        0.058296 | -2.0%         |     -2.93 | 0.0034 |       -4.34 |   0      |
+| SOL/USDT |  21 |     1360 | GARCH-N    |        0.129833 |        0.133568 | -2.8%         |     -1.62 | 0.1043 |       -4.07 |   0      |
 | BNB/USDT |   1 |     2389 | GARCH-N    |        0.020144 |        0.020199 | -0.3%         |     -0.61 | 0.5433 |       -1.03 |   0.3018 |
-| BNB/USDT |   5 |     2385 | GARCH-N    |        0.045782 |        0.046475 | -1.5%         |     -2.20 | 0.0278 |       -3.97 |   0.0001 |
-| BNB/USDT |  21 |     2369 | GARCH-N    |        0.102619 |        0.105595 | -2.8%         |     -1.73 | 0.0845 |       -3.36 |   0.0008 |
+| BNB/USDT |   5 |     2385 | GARCH-N    |        0.045782 |        0.046475 | -1.5%         |     -2.2  | 0.0278 |       -3.83 |   0.0001 |
+| BNB/USDT |  21 |     2369 | GARCH-N    |        0.102619 |        0.105595 | -2.8%         |     -1.73 | 0.0845 |       -3.37 |   0.0008 |
+| XRP/USDT |   1 |     2210 | GARCH-N    |        0.024359 |        0.024697 | -1.4%         |     -2.69 | 0.0071 |       -4.1  |   0      |
+| XRP/USDT |   5 |     2206 | GARCH-N    |        0.055389 |        0.057258 | -3.3%         |     -4.51 | 0      |       -6.29 |   0      |
+| XRP/USDT |  21 |     2190 | GARCH-N    |        0.129103 |        0.136474 | -5.4%         |     -3.5  | 0.0005 |       -4.79 |   0      |
 
-**Aggregates vs `GARCH-N`:** CRPS wins 12/12; vanilla DM p<0.05 in 6/12;
-residualised DM (`full` control set) p_r<0.05 in 11/12. The single non-
-significant residualised cell is BNB h=1 (p_r=0.30, CRPS improvement only −0.3%).
-
-*`dm_p` is the classic Diebold-Mariano (1995) p-value; `dm_p_r` is the
-variance-reduced residualised DM with the `full` control set (`y`, `|y|`,
-`y²` + four peer-method loss series — a Giacomini-White-style augmented
-test of the same unconditional EPA null). See the
-[sensitivity table](#residualised-dm-sensitivity-to-control-set) below
-for the breakdown by control set, and [`THEORY.md`](THEORY.md) §2.10 for
-the math.*
+*`dm_p` is the classic Diebold-Mariano (1995) p-value; `dm_p_r` is the variance-reduced residualised DM with the `full` control set (vol moments + four peer-method loss series) — a Giacomini-White-style augmented test of the same unconditional EPA null. See the sensitivity table below for the breakdown by control set, and `docs/THEORY.md §2.10` for the math.*
 
 ## Residualised-DM sensitivity to control set
 
-The residualised DM test admits any covariate predictable at time t.
-Three control sets are reported, ordered from least to most powerful:
-`none` (= vanilla DM), `vol` (`[y, |y|, y²]` — sign, magnitude, and
-kurtosis-like moment of the realised return), and `full` (`vol` plus up
-to four peer-method loss series). Peer-loss controls are admissible
-under Giacomini-White (predictable at time t) but rhetorically more
-endogenous than vol controls; the table below decomposes the
-residualised lift so the reader can see how much is driven by vol
-controls alone vs. peer losses.
+The residualised DM test admits any covariate predictable at time t. Three control sets are reported, ordered from least to most powerful: `none` (= vanilla DM), `vol` (`[y, |y|, y²]` — sign, magnitude, and kurtosis-like moment of the realised return), and `full` (`vol` plus up to four peer-method loss series). Peer-loss controls are admissible under Giacomini-White but rhetorically more endogenous; the table below decomposes the residualised lift so the reader can see how much is driven by vol controls alone vs. peer losses.
 
 **Aggregate — cells with `dm_p < 0.05` and `WGeo-Ensemble` lower CRPS:**
 
 | baseline   |   cells | no_controls   | vol_only   | vol_plus_peers   |
 |:-----------|--------:|:--------------|:-----------|:-----------------|
-| Static     |      12 | 6/12          | 9/12       | 9/12             |
-| GARCH-N    |      12 | 6/12          | 9/12       | 11/12            |
+| Static     |      15 | 9/15          | 12/15      | 12/15            |
+| GARCH-N    |      15 | 9/15          | 12/15      | 14/15            |
 
-**The `vol_only` column already clears the v0.5 falsification floor
-(6/12) at 9/12 vs both baselines.** Peer losses add no cells vs `Static`
-and only +2 vs `GARCH-N` — so the headline claim does not depend on
-peer-loss correlations. The pre-registered floor in
-[`PREREGISTRATION.md`](../PREREGISTRATION.md) is anchored to `vol_only`;
-`vol_plus_peers` is reported as a power-only bonus.
+The pre-registered falsification threshold in `PREREGISTRATION.md` is anchored to the `vol_only` column so the v0.5 bar does not depend on peer-loss correlations — peer losses are reported as a power-only bonus, not a contributor to the headline claim.
 
 **Per-cell residualised-DM p-values:**
 
 | symbol   |   h | baseline   |   dm_p_none |   dm_p_vol |   dm_p_full |
 |:---------|----:|:-----------|------------:|-----------:|------------:|
-| BTC/USDT |   1 | Static     |      0.0871 |     0.0862 |      0.0720 |
-| BTC/USDT |   1 | GARCH-N    |      0.0000 |     0.0000 |      0.0000 |
+| BTC/USDT |   1 | Static     |      0.0871 |     0.0862 |      0.072  |
+| BTC/USDT |   1 | GARCH-N    |      0      |     0      |      0      |
 | BTC/USDT |   5 | Static     |      0.0491 |     0.0211 |      0.0067 |
-| BTC/USDT |   5 | GARCH-N    |      0.0016 |     0.0000 |      0.0000 |
-| BTC/USDT |  21 | Static     |      0.0756 |     0.0100 |      0.0000 |
-| BTC/USDT |  21 | GARCH-N    |      0.4009 |     0.1107 |      0.0130 |
-| ETH/USDT |   1 | Static     |      0.0025 |     0.0025 |      0.0010 |
+| BTC/USDT |   5 | GARCH-N    |      0.0016 |     0      |      0      |
+| BTC/USDT |  21 | Static     |      0.0756 |     0.01   |      0      |
+| BTC/USDT |  21 | GARCH-N    |      0.4009 |     0.1107 |      0.013  |
+| ETH/USDT |   1 | Static     |      0.0025 |     0.0025 |      0.001  |
 | ETH/USDT |   1 | GARCH-N    |      0.0044 |     0.0009 |      0.0001 |
 | ETH/USDT |   5 | Static     |      0.0064 |     0.0033 |      0.0001 |
-| ETH/USDT |   5 | GARCH-N    |      0.0001 |     0.0000 |      0.0000 |
-| ETH/USDT |  21 | Static     |      0.0227 |     0.0070 |      0.0000 |
-| ETH/USDT |  21 | GARCH-N    |      0.1337 |     0.0362 |      0.0000 |
+| ETH/USDT |   5 | GARCH-N    |      0.0001 |     0      |      0      |
+| ETH/USDT |  21 | Static     |      0.0227 |     0.007  |      0      |
+| ETH/USDT |  21 | GARCH-N    |      0.1337 |     0.0362 |      0      |
 | SOL/USDT |   1 | Static     |      0.5839 |     0.5613 |      0.5502 |
 | SOL/USDT |   1 | GARCH-N    |      0.0894 |     0.0563 |      0.0177 |
 | SOL/USDT |   5 | Static     |      0.1588 |     0.1391 |      0.0706 |
-| SOL/USDT |   5 | GARCH-N    |      0.0034 |     0.0007 |      0.0000 |
-| SOL/USDT |  21 | Static     |      0.0529 |     0.0364 |      0.0000 |
-| SOL/USDT |  21 | GARCH-N    |      0.1043 |     0.0306 |      0.0000 |
+| SOL/USDT |   5 | GARCH-N    |      0.0034 |     0.0007 |      0      |
+| SOL/USDT |  21 | Static     |      0.0529 |     0.0364 |      0      |
+| SOL/USDT |  21 | GARCH-N    |      0.1043 |     0.0306 |      0      |
 | BNB/USDT |   1 | Static     |      0.0009 |     0.0005 |      0.0001 |
 | BNB/USDT |   1 | GARCH-N    |      0.5433 |     0.4857 |      0.3018 |
 | BNB/USDT |   5 | Static     |      0.0281 |     0.0156 |      0.0031 |
 | BNB/USDT |   5 | GARCH-N    |      0.0278 |     0.0105 |      0.0001 |
-| BNB/USDT |  21 | Static     |      0.1200 |     0.0320 |      0.0001 |
+| BNB/USDT |  21 | Static     |      0.12   |     0.032  |      0.0001 |
 | BNB/USDT |  21 | GARCH-N    |      0.0845 |     0.0233 |      0.0008 |
+| XRP/USDT |   1 | Static     |      0.0038 |     0.0025 |      0.001  |
+| XRP/USDT |   1 | GARCH-N    |      0.0071 |     0.0022 |      0      |
+| XRP/USDT |   5 | Static     |      0.0017 |     0.0009 |      0.0002 |
+| XRP/USDT |   5 | GARCH-N    |      0      |     0      |      0      |
+| XRP/USDT |  21 | Static     |      0.0015 |     0.0005 |      0      |
+| XRP/USDT |  21 | GARCH-N    |      0.0005 |     0      |      0      |
 
-## Robustness — best WGeo-family vs best non-WGeo baseline (legacy v0.4 reporting)
+## Robustness — best WGeo-family vs best non-WGeo baseline (legacy)
 
-Retained for continuity with the v0.3 / v0.4 reports. Both sides are
-selected by minimum cell CRPS, so the implicit multiple comparison
-(8 WGeo variants × 6 baselines = 48 pairs per cell) inflates type-I
-error and this table is **not** a valid pre-committed test. Use
-Headlines 1–2 above for inference; this table shows that the choice of
-`WGeo-Ensemble` as the pre-registered headline does not depend on
-cherry-picking — even when the comparison floor is lowered to the best
-baseline, the conclusion stands.
+Retained for continuity with v0.3 / v0.4 reporting. Both sides are selected by minimum cell CRPS, so the implicit multiple comparison (8 WGeo variants × 6 baselines = 48 implicit pairs per cell) inflates type-I error. Use Headlines 1–2 above for inference; this table is a robustness check that the pre-registered headline does not depend on the choice of WGeo variant.
 
-| symbol   |   h |   n_test | best_wgeo     | best_baseline   |   wgeo_crps |   baseline_crps | improvement   |   dm_stat |   dm_p |   dm_stat_r |   dm_p_r |
-|:---------|----:|---------:|:--------------|:----------------|------------:|----------------:|:--------------|----------:|-------:|------------:|---------:|
-| BTC/USDT |   1 |     2470 | WGeo-Ensemble | Static          |    0.016168 |        0.016236 | -0.4%         |     -1.71 | 0.0871 |       -1.79 |   0.0727 |
-| BTC/USDT |   5 |     2466 | WGeo-Ensemble | Static          |    0.037061 |        0.037367 | -0.8%         |     -1.97 | 0.0491 |       -2.53 |   0.0116 |
-| BTC/USDT |  21 |     2450 | WGeo-Ensemble | GARCH-N         |    0.083158 |        0.084848 | -2.0%         |     -0.84 | 0.4009 |       -2.15 |   0.0312 |
-| ETH/USDT |   1 |     2470 | WGeo-Ensemble | HS-Bootstrap    |    0.021739 |        0.021893 | -0.7%         |     -2.97 | 0.0030 |       -3.19 |   0.0014 |
-| ETH/USDT |   5 |     2466 | WGeo-Ensemble | Static          |    0.049256 |        0.049834 | -1.2%         |     -2.73 | 0.0064 |       -3.95 |   0.0001 |
-| ETH/USDT |  21 |     2450 | WGeo-TheilSen | GARCH-N         |    0.109404 |        0.112970 | -3.2%         |     -1.42 | 0.1559 |       -4.19 |   0.0000 |
-| SOL/USDT |   1 |     1380 | WGeo-Ensemble | Static          |    0.025030 |        0.025075 | -0.2%         |     -0.55 | 0.5839 |       -0.60 |   0.5509 |
-| SOL/USDT |   5 |     1376 | WGeo-Ensemble | Static          |    0.057153 |        0.057622 | -0.8%         |     -1.41 | 0.1588 |       -1.80 |   0.0722 |
-| SOL/USDT |  21 |     1360 | WGeo-Adaptive | GARCH-N         |    0.129263 |        0.133568 | -3.2%         |     -1.49 | 0.1370 |       -3.74 |   0.0002 |
-| BNB/USDT |   1 |     2389 | WGeo-Ensemble | GARCH-N         |    0.020144 |        0.020199 | -0.3%         |     -0.61 | 0.5433 |       -1.01 |   0.3110 |
-| BNB/USDT |   5 |     2385 | WGeo-Ensemble | Static          |    0.045782 |        0.046297 | -1.1%         |     -2.20 | 0.0281 |       -2.94 |   0.0033 |
-| BNB/USDT |  21 |     2369 | WGeo-Ensemble | Static          |    0.102619 |        0.105553 | -2.8%         |     -1.55 | 0.1200 |       -3.85 |   0.0001 |
-
-**Robustness aggregates:** CRPS wins 12/12; vanilla DM p<0.05 in 4/12;
-residualised DM p_r<0.05 in 8/12.
+| symbol   |   h |   n_test | best_wgeo     | best_baseline   |   wgeo_crps |   baseline_crps | improvement   |   dm_stat |   dm_p |   dm_stat_r |   dm_p_r | hetero_garch_fallback   |
+|:---------|----:|---------:|:--------------|:----------------|------------:|----------------:|:--------------|----------:|-------:|------------:|---------:|:------------------------|
+| BTC/USDT |   1 |     2470 | WGeo-Ensemble | Static          |    0.016168 |        0.016236 | -0.4%         |     -1.71 | 0.0871 |       -1.8  |   0.072  | 0.0%                    |
+| BTC/USDT |   5 |     2466 | WGeo-Ensemble | Static          |    0.037061 |        0.037367 | -0.8%         |     -1.97 | 0.0491 |       -2.71 |   0.0067 | 0.0%                    |
+| BTC/USDT |  21 |     2450 | WGeo-Ensemble | GARCH-N         |    0.083158 |        0.084848 | -2.0%         |     -0.84 | 0.4009 |       -2.48 |   0.013  | 0.0%                    |
+| ETH/USDT |   1 |     2470 | WGeo-Ensemble | HS-Bootstrap    |    0.021739 |        0.021893 | -0.7%         |     -2.97 | 0.003  |       -3.19 |   0.0014 | 0.0%                    |
+| ETH/USDT |   5 |     2466 | WGeo-Ensemble | Static          |    0.049256 |        0.049834 | -1.2%         |     -2.73 | 0.0064 |       -4.02 |   0.0001 | 0.0%                    |
+| ETH/USDT |  21 |     2450 | WGeo-TheilSen | GARCH-N         |    0.109404 |        0.11297  | -3.2%         |     -1.42 | 0.1559 |       -4.43 |   0      | 0.0%                    |
+| SOL/USDT |   1 |     1380 | WGeo-Ensemble | Static          |    0.02503  |        0.025075 | -0.2%         |     -0.55 | 0.5839 |       -0.6  |   0.5502 | 0.0%                    |
+| SOL/USDT |   5 |     1376 | WGeo-Ensemble | Static          |    0.057153 |        0.057622 | -0.8%         |     -1.41 | 0.1588 |       -1.81 |   0.0706 | 0.0%                    |
+| SOL/USDT |  21 |     1360 | WGeo-Adaptive | GARCH-N         |    0.129263 |        0.133568 | -3.2%         |     -1.49 | 0.137  |       -3.75 |   0.0002 | 0.0%                    |
+| BNB/USDT |   1 |     2389 | WGeo-Ensemble | GARCH-N         |    0.020144 |        0.020199 | -0.3%         |     -0.61 | 0.5433 |       -1.03 |   0.3018 | 0.0%                    |
+| BNB/USDT |   5 |     2385 | WGeo-Ensemble | Static          |    0.045782 |        0.046297 | -1.1%         |     -2.2  | 0.0281 |       -2.96 |   0.0031 | 0.0%                    |
+| BNB/USDT |  21 |     2369 | WGeo-Ensemble | Static          |    0.102619 |        0.105553 | -2.8%         |     -1.55 | 0.12   |       -3.81 |   0.0001 | 0.0%                    |
+| XRP/USDT |   1 |     2210 | WGeo-Ensemble | HS-Bootstrap    |    0.024359 |        0.024548 | -0.8%         |     -2.69 | 0.0072 |       -3.01 |   0.0026 | 0.0%                    |
+| XRP/USDT |   5 |     2206 | WGeo-Ensemble | Static          |    0.055389 |        0.056199 | -1.4%         |     -3.15 | 0.0017 |       -3.77 |   0.0002 | 0.0%                    |
+| XRP/USDT |  21 |     2190 | WGeo-Ensemble | Static          |    0.129103 |        0.132709 | -2.7%         |     -3.17 | 0.0015 |       -4.21 |   0      | 0.0%                    |
 
 ## BTC/USDT
 
@@ -215,22 +130,22 @@ _3201 days from 2017-08-18 to 2026-05-23_
 
 **Overall mean CRPS on the full test span (bootstrap 95% CI):**
 
-| method         |    n |   mean_crps |    ci_lo |    ci_hi |
-|:---------------|-----:|------------:|---------:|---------:|
-| Static         | 2470 |    0.016236 | 0.015385 | 0.017189 |
-| RW-Drift       | 2470 |    0.016236 | 0.015385 | 0.017189 |
-| HS-Bootstrap   | 2470 |    0.016239 | 0.015385 | 0.017187 |
-| GARCH-N        | 2470 |    0.016463 | 0.015635 | 0.017398 |
-| GARCH-t        | 2470 |    0.017178 | 0.016407 | 0.018085 |
-| GJR-GARCH-t    | 2470 |    0.017176 | 0.016402 | 0.01807  |
-| WGeo           | 2470 |    0.016212 | 0.015309 | 0.017195 |
-| WGeo-Gated     | 2470 |    0.016203 | 0.015338 | 0.017167 |
-| WGeo-TheilSen  | 2470 |    0.016212 | 0.015309 | 0.017196 |
-| WGeo-EWMA      | 2470 |    0.016212 | 0.01531  | 0.017196 |
-| WGeo-Hetero    | 2470 |    0.016221 | 0.01532  | 0.017198 |
-| WGeo-GARCH-Ens | 2470 |    0.016253 | 0.015388 | 0.017222 |
-| WGeo-Adaptive  | 2470 |    0.016238 | 0.01535  | 0.017206 |
-| WGeo-Ensemble  | 2470 |    0.016168 | 0.015281 | 0.017139 |
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 2470 |    0.016236 | 0.015385 | 0.017189 |              nan |
+| RW-Drift       | 2470 |    0.016236 | 0.015385 | 0.017189 |              nan |
+| HS-Bootstrap   | 2470 |    0.016239 | 0.015385 | 0.017187 |              nan |
+| GARCH-N        | 2470 |    0.016463 | 0.015635 | 0.017398 |              nan |
+| GARCH-t        | 2470 |    0.017178 | 0.016407 | 0.018085 |              nan |
+| GJR-GARCH-t    | 2470 |    0.017176 | 0.016402 | 0.01807  |              nan |
+| WGeo           | 2470 |    0.016212 | 0.015309 | 0.017195 |              nan |
+| WGeo-Gated     | 2470 |    0.016203 | 0.015338 | 0.017167 |              nan |
+| WGeo-TheilSen  | 2470 |    0.016212 | 0.015309 | 0.017196 |              nan |
+| WGeo-EWMA      | 2470 |    0.016212 | 0.01531  | 0.017196 |              nan |
+| WGeo-Hetero    | 2470 |    0.016221 | 0.01532  | 0.017198 |                0 |
+| WGeo-GARCH-Ens | 2470 |    0.016253 | 0.015388 | 0.017222 |              nan |
+| WGeo-Adaptive  | 2470 |    0.016238 | 0.01535  | 0.017206 |              nan |
+| WGeo-Ensemble  | 2470 |    0.016168 | 0.015281 | 0.017139 |              nan |
 
 **Per-year mean CRPS:**
 
@@ -261,18 +176,18 @@ _3201 days from 2017-08-18 to 2026-05-23_
 |:---------------|------------:|-----------------:|
 | Static         |      1      |           1      |
 | RW-Drift       |      1      |           1      |
-| HS-Bootstrap   |      0.7195 |           0.7181 |
+| HS-Bootstrap   |      0.7195 |           0.7174 |
 | GARCH-N        |      0      |           0      |
 | GARCH-t        |      0      |           0      |
 | GJR-GARCH-t    |      0      |           0      |
-| WGeo           |      0.6169 |           0.598  |
-| WGeo-Gated     |      0.2185 |           0.2088 |
-| WGeo-TheilSen  |      0.6152 |           0.5964 |
-| WGeo-EWMA      |      0.6261 |           0.6076 |
-| WGeo-Hetero    |      0.795  |           0.7408 |
-| WGeo-GARCH-Ens |      0.7659 |           0.6441 |
-| WGeo-Adaptive  |      0.9811 |           0.9793 |
-| WGeo-Ensemble  |      0.0871 |           0.0727 |
+| WGeo           |      0.6169 |           0.5971 |
+| WGeo-Gated     |      0.2185 |           0.2084 |
+| WGeo-TheilSen  |      0.6152 |           0.5955 |
+| WGeo-EWMA      |      0.6261 |           0.6067 |
+| WGeo-Hetero    |      0.795  |           0.7398 |
+| WGeo-GARCH-Ens |      0.7659 |           0.6424 |
+| WGeo-Adaptive  |      0.9811 |           0.9792 |
+| WGeo-Ensemble  |      0.0871 |           0.072  |
 
 **Regime-conditional DM** (WGeo-Ensemble vs Static, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
 
@@ -284,28 +199,34 @@ _3201 days from 2017-08-18 to 2026-05-23_
 | low-vol  |  498 |  0.01193 |  0.01212 |    -1.57101 | -3.12695 | 0.00177 |
 | rally    |  536 |  0.01851 |  0.01846 |     0.26063 |  0.42678 | 0.66954 |
 
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
+
 ![cumulative CRPS](../results/long_cum_crps_btcusdt_h1.png)
 
 ### Horizon h = 5 day(s)
 
 **Overall mean CRPS on the full test span (bootstrap 95% CI):**
 
-| method         |    n |   mean_crps |    ci_lo |    ci_hi |
-|:---------------|-----:|------------:|---------:|---------:|
-| Static         | 2466 |    0.037367 | 0.034483 | 0.040159 |
-| RW-Drift       | 2466 |    0.037367 | 0.034483 | 0.040159 |
-| HS-Bootstrap   | 2466 |    0.037565 | 0.034801 | 0.040252 |
-| GARCH-N        | 2466 |    0.037807 | 0.035025 | 0.040469 |
-| GARCH-t        | 2466 |    0.039544 | 0.036965 | 0.042101 |
-| GJR-GARCH-t    | 2466 |    0.039547 | 0.036949 | 0.042129 |
-| WGeo           | 2466 |    0.037137 | 0.034299 | 0.039989 |
-| WGeo-Gated     | 2466 |    0.037228 | 0.034353 | 0.040014 |
-| WGeo-TheilSen  | 2466 |    0.037135 | 0.034298 | 0.039985 |
-| WGeo-EWMA      | 2466 |    0.03714  | 0.034304 | 0.039995 |
-| WGeo-Hetero    | 2466 |    0.037333 | 0.034447 | 0.040179 |
-| WGeo-GARCH-Ens | 2466 |    0.037363 | 0.034455 | 0.040212 |
-| WGeo-Adaptive  | 2466 |    0.037228 | 0.034377 | 0.040019 |
-| WGeo-Ensemble  | 2466 |    0.037061 | 0.034167 | 0.039886 |
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 2466 |    0.037367 | 0.034483 | 0.040159 |              nan |
+| RW-Drift       | 2466 |    0.037367 | 0.034483 | 0.040159 |              nan |
+| HS-Bootstrap   | 2466 |    0.037565 | 0.034801 | 0.040252 |              nan |
+| GARCH-N        | 2466 |    0.037807 | 0.035025 | 0.040469 |              nan |
+| GARCH-t        | 2466 |    0.039544 | 0.036965 | 0.042101 |              nan |
+| GJR-GARCH-t    | 2466 |    0.039547 | 0.036949 | 0.042129 |              nan |
+| WGeo           | 2466 |    0.037137 | 0.034299 | 0.039989 |              nan |
+| WGeo-Gated     | 2466 |    0.037228 | 0.034353 | 0.040014 |              nan |
+| WGeo-TheilSen  | 2466 |    0.037135 | 0.034298 | 0.039985 |              nan |
+| WGeo-EWMA      | 2466 |    0.03714  | 0.034304 | 0.039995 |              nan |
+| WGeo-Hetero    | 2466 |    0.037333 | 0.034447 | 0.040179 |                0 |
+| WGeo-GARCH-Ens | 2466 |    0.037363 | 0.034455 | 0.040212 |              nan |
+| WGeo-Adaptive  | 2466 |    0.037228 | 0.034377 | 0.040019 |              nan |
+| WGeo-Ensemble  | 2466 |    0.037061 | 0.034167 | 0.039886 |              nan |
 
 **Per-year mean CRPS:**
 
@@ -340,14 +261,14 @@ _3201 days from 2017-08-18 to 2026-05-23_
 | GARCH-N        |      0.0132 |           0      |
 | GARCH-t        |      0      |           0      |
 | GJR-GARCH-t    |      0      |           0      |
-| WGeo           |      0.2388 |           0.1282 |
-| WGeo-Gated     |      0.1458 |           0.0888 |
-| WGeo-TheilSen  |      0.2344 |           0.1243 |
-| WGeo-EWMA      |      0.2466 |           0.1345 |
-| WGeo-Hetero    |      0.8767 |           0.8322 |
-| WGeo-GARCH-Ens |      0.9834 |           0.9787 |
-| WGeo-Adaptive  |      0.5114 |           0.387  |
-| WGeo-Ensemble  |      0.0491 |           0.0116 |
+| WGeo           |      0.2388 |           0.1052 |
+| WGeo-Gated     |      0.1458 |           0.0736 |
+| WGeo-TheilSen  |      0.2344 |           0.1012 |
+| WGeo-EWMA      |      0.2466 |           0.1107 |
+| WGeo-Hetero    |      0.8767 |           0.8184 |
+| WGeo-GARCH-Ens |      0.9834 |           0.9779 |
+| WGeo-Adaptive  |      0.5114 |           0.3636 |
+| WGeo-Ensemble  |      0.0491 |           0.0067 |
 
 **Regime-conditional DM** (WGeo-Ensemble vs Static, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
 
@@ -359,28 +280,34 @@ _3201 days from 2017-08-18 to 2026-05-23_
 | low-vol  |  494 |  0.02973 |  0.03028 |    -1.84222 | -1.87781 | 0.06041 |
 | rally    |  536 |  0.04003 |  0.03991 |     0.28801 |  0.38306 | 0.70167 |
 
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
+
 ![cumulative CRPS](../results/long_cum_crps_btcusdt_h5.png)
 
 ### Horizon h = 21 day(s)
 
 **Overall mean CRPS on the full test span (bootstrap 95% CI):**
 
-| method         |    n |   mean_crps |    ci_lo |    ci_hi |
-|:---------------|-----:|------------:|---------:|---------:|
-| Static         | 2450 |    0.085347 | 0.075667 | 0.095899 |
-| RW-Drift       | 2450 |    0.085347 | 0.075667 | 0.095899 |
-| HS-Bootstrap   | 2450 |    0.085057 | 0.076106 | 0.094639 |
-| GARCH-N        | 2450 |    0.084848 | 0.075685 | 0.09484  |
-| GARCH-t        | 2450 |    0.089412 | 0.080782 | 0.099096 |
-| GJR-GARCH-t    | 2450 |    0.089596 | 0.08085  | 0.099366 |
-| WGeo           | 2450 |    0.083313 | 0.07345  | 0.094259 |
-| WGeo-Gated     | 2450 |    0.084033 | 0.074379 | 0.094524 |
-| WGeo-TheilSen  | 2450 |    0.083296 | 0.073428 | 0.094273 |
-| WGeo-EWMA      | 2450 |    0.083317 | 0.073446 | 0.094264 |
-| WGeo-Hetero    | 2450 |    0.083683 | 0.073814 | 0.094527 |
-| WGeo-GARCH-Ens | 2450 |    0.083394 | 0.073873 | 0.093618 |
-| WGeo-Adaptive  | 2450 |    0.083908 | 0.074175 | 0.094437 |
-| WGeo-Ensemble  | 2450 |    0.083158 | 0.073451 | 0.093473 |
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 2450 |    0.085347 | 0.075667 | 0.095899 |              nan |
+| RW-Drift       | 2450 |    0.085347 | 0.075667 | 0.095899 |              nan |
+| HS-Bootstrap   | 2450 |    0.085057 | 0.076106 | 0.094639 |              nan |
+| GARCH-N        | 2450 |    0.084848 | 0.075685 | 0.09484  |              nan |
+| GARCH-t        | 2450 |    0.089412 | 0.080782 | 0.099096 |              nan |
+| GJR-GARCH-t    | 2450 |    0.089596 | 0.08085  | 0.099366 |              nan |
+| WGeo           | 2450 |    0.083313 | 0.07345  | 0.094259 |              nan |
+| WGeo-Gated     | 2450 |    0.084033 | 0.074379 | 0.094524 |              nan |
+| WGeo-TheilSen  | 2450 |    0.083296 | 0.073428 | 0.094273 |              nan |
+| WGeo-EWMA      | 2450 |    0.083317 | 0.073446 | 0.094264 |              nan |
+| WGeo-Hetero    | 2450 |    0.083683 | 0.073814 | 0.094527 |                0 |
+| WGeo-GARCH-Ens | 2450 |    0.083394 | 0.073873 | 0.093618 |              nan |
+| WGeo-Adaptive  | 2450 |    0.083908 | 0.074175 | 0.094437 |              nan |
+| WGeo-Ensemble  | 2450 |    0.083158 | 0.073451 | 0.093473 |              nan |
 
 **Per-year mean CRPS:**
 
@@ -409,20 +336,20 @@ _3201 days from 2017-08-18 to 2026-05-23_
 
 |                |   p_vanilla |   p_residualised |
 |:---------------|------------:|-----------------:|
-| Static         |      0.6713 |           0.3479 |
-| RW-Drift       |      0.6713 |           0.3479 |
-| HS-Bootstrap   |      0.7984 |           0.7006 |
+| Static         |      0.6713 |           0.2956 |
+| RW-Drift       |      0.6713 |           0.2956 |
+| HS-Bootstrap   |      0.7984 |           0.6665 |
 | GARCH-N        |      1      |           1      |
 | GARCH-t        |      0.0001 |           0      |
 | GJR-GARCH-t    |      0.0001 |           0      |
-| WGeo           |      0.5038 |           0.0869 |
-| WGeo-Gated     |      0.5905 |           0.2179 |
-| WGeo-TheilSen  |      0.4998 |           0.0831 |
-| WGeo-EWMA      |      0.5047 |           0.0873 |
-| WGeo-Hetero    |      0.6004 |           0.1995 |
-| WGeo-GARCH-Ens |      0.4447 |           0.2158 |
-| WGeo-Adaptive  |      0.6724 |           0.2906 |
-| WGeo-Ensemble  |      0.4009 |           0.0312 |
+| WGeo           |      0.5038 |           0.0521 |
+| WGeo-Gated     |      0.5905 |           0.1584 |
+| WGeo-TheilSen  |      0.4998 |           0.0484 |
+| WGeo-EWMA      |      0.5047 |           0.0525 |
+| WGeo-Hetero    |      0.6004 |           0.1475 |
+| WGeo-GARCH-Ens |      0.4447 |           0.1982 |
+| WGeo-Adaptive  |      0.6724 |           0.2372 |
+| WGeo-Ensemble  |      0.4009 |           0.013  |
 
 **Regime-conditional DM** (WGeo-Ensemble vs GARCH-N, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
 
@@ -434,6 +361,12 @@ _3201 days from 2017-08-18 to 2026-05-23_
 | low-vol  |  478 |  0.07035 |  0.07431 |    -5.32974 | -1.55432 | 0.12011 |
 | rally    |  536 |  0.08862 |  0.08707 |     1.77728 |  0.30277 | 0.76207 |
 
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
+
 ![cumulative CRPS](../results/long_cum_crps_btcusdt_h21.png)
 
 ## ETH/USDT
@@ -444,22 +377,22 @@ _3201 days from 2017-08-18 to 2026-05-23_
 
 **Overall mean CRPS on the full test span (bootstrap 95% CI):**
 
-| method         |    n |   mean_crps |    ci_lo |    ci_hi |
-|:---------------|-----:|------------:|---------:|---------:|
-| Static         | 2470 |    0.021897 | 0.020759 | 0.023146 |
-| RW-Drift       | 2470 |    0.021897 | 0.020759 | 0.023146 |
-| HS-Bootstrap   | 2470 |    0.021893 | 0.020755 | 0.023142 |
-| GARCH-N        | 2470 |    0.021947 | 0.02087  | 0.023137 |
-| GARCH-t        | 2470 |    0.022877 | 0.021852 | 0.02403  |
-| GJR-GARCH-t    | 2470 |    0.022877 | 0.021859 | 0.024022 |
-| WGeo           | 2470 |    0.021793 | 0.020641 | 0.023043 |
-| WGeo-Gated     | 2470 |    0.021793 | 0.020634 | 0.023049 |
-| WGeo-TheilSen  | 2470 |    0.021792 | 0.02064  | 0.023043 |
-| WGeo-EWMA      | 2470 |    0.021792 | 0.02064  | 0.023041 |
-| WGeo-Hetero    | 2470 |    0.021883 | 0.02075  | 0.0231   |
-| WGeo-GARCH-Ens | 2470 |    0.021802 | 0.020723 | 0.023028 |
-| WGeo-Adaptive  | 2470 |    0.021845 | 0.020689 | 0.023057 |
-| WGeo-Ensemble  | 2470 |    0.021739 | 0.020585 | 0.022995 |
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 2470 |    0.021897 | 0.020759 | 0.023146 |              nan |
+| RW-Drift       | 2470 |    0.021897 | 0.020759 | 0.023146 |              nan |
+| HS-Bootstrap   | 2470 |    0.021893 | 0.020755 | 0.023142 |              nan |
+| GARCH-N        | 2470 |    0.021947 | 0.02087  | 0.023137 |              nan |
+| GARCH-t        | 2470 |    0.022877 | 0.021852 | 0.02403  |              nan |
+| GJR-GARCH-t    | 2470 |    0.022877 | 0.021859 | 0.024022 |              nan |
+| WGeo           | 2470 |    0.021793 | 0.020641 | 0.023043 |              nan |
+| WGeo-Gated     | 2470 |    0.021793 | 0.020634 | 0.023049 |              nan |
+| WGeo-TheilSen  | 2470 |    0.021792 | 0.02064  | 0.023043 |              nan |
+| WGeo-EWMA      | 2470 |    0.021792 | 0.02064  | 0.023041 |              nan |
+| WGeo-Hetero    | 2470 |    0.021883 | 0.02075  | 0.0231   |                0 |
+| WGeo-GARCH-Ens | 2470 |    0.021802 | 0.020723 | 0.023028 |              nan |
+| WGeo-Adaptive  | 2470 |    0.021845 | 0.020689 | 0.023057 |              nan |
+| WGeo-Ensemble  | 2470 |    0.021739 | 0.020585 | 0.022995 |              nan |
 
 **Per-year mean CRPS:**
 
@@ -488,19 +421,19 @@ _3201 days from 2017-08-18 to 2026-05-23_
 
 |                |   p_vanilla |   p_residualised |
 |:---------------|------------:|-----------------:|
-| Static         |      0.6122 |           0.6086 |
-| RW-Drift       |      0.6122 |           0.6086 |
+| Static         |      0.6122 |           0.6085 |
+| RW-Drift       |      0.6122 |           0.6085 |
 | HS-Bootstrap   |      1      |           1      |
-| GARCH-N        |      0.4221 |           0.098  |
+| GARCH-N        |      0.4221 |           0.0978 |
 | GARCH-t        |      0      |           0      |
 | GJR-GARCH-t    |      0      |           0      |
-| WGeo           |      0.1166 |           0.0912 |
+| WGeo           |      0.1166 |           0.0909 |
 | WGeo-Gated     |      0.0051 |           0.0032 |
-| WGeo-TheilSen  |      0.1148 |           0.0896 |
-| WGeo-EWMA      |      0.1148 |           0.0895 |
-| WGeo-Hetero    |      0.9143 |           0.8728 |
+| WGeo-TheilSen  |      0.1148 |           0.0894 |
+| WGeo-EWMA      |      0.1148 |           0.0893 |
+| WGeo-Hetero    |      0.9143 |           0.8724 |
 | WGeo-GARCH-Ens |      0.2212 |           0.0371 |
-| WGeo-Adaptive  |      0.5433 |           0.4967 |
+| WGeo-Adaptive  |      0.5433 |           0.4966 |
 | WGeo-Ensemble  |      0.003  |           0.0014 |
 
 **Regime-conditional DM** (WGeo-Ensemble vs HS-Bootstrap, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
@@ -513,28 +446,34 @@ _3201 days from 2017-08-18 to 2026-05-23_
 | low-vol  | 464 |  0.0154  |  0.01594 |    -3.37149 | -5.43303 | 0       |
 | rally    | 730 |  0.02622 |  0.02625 |    -0.09898 | -0.24435 | 0.80696 |
 
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
+
 ![cumulative CRPS](../results/long_cum_crps_ethusdt_h1.png)
 
 ### Horizon h = 5 day(s)
 
 **Overall mean CRPS on the full test span (bootstrap 95% CI):**
 
-| method         |    n |   mean_crps |    ci_lo |    ci_hi |
-|:---------------|-----:|------------:|---------:|---------:|
-| Static         | 2466 |    0.049834 | 0.046071 | 0.053619 |
-| RW-Drift       | 2466 |    0.049834 | 0.046071 | 0.053619 |
-| HS-Bootstrap   | 2466 |    0.050045 | 0.046399 | 0.053638 |
-| GARCH-N        | 2466 |    0.050368 | 0.046695 | 0.054078 |
-| GARCH-t        | 2466 |    0.052513 | 0.049186 | 0.056076 |
-| GJR-GARCH-t    | 2466 |    0.052517 | 0.049186 | 0.056055 |
-| WGeo           | 2466 |    0.049314 | 0.045547 | 0.053033 |
-| WGeo-Gated     | 2466 |    0.049546 | 0.045768 | 0.053333 |
-| WGeo-TheilSen  | 2466 |    0.049304 | 0.045534 | 0.053021 |
-| WGeo-EWMA      | 2466 |    0.049309 | 0.045545 | 0.053029 |
-| WGeo-Hetero    | 2466 |    0.05     | 0.046249 | 0.05376  |
-| WGeo-GARCH-Ens | 2466 |    0.049894 | 0.046202 | 0.053659 |
-| WGeo-Adaptive  | 2466 |    0.049607 | 0.045943 | 0.053349 |
-| WGeo-Ensemble  | 2466 |    0.049256 | 0.045535 | 0.05298  |
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 2466 |    0.049834 | 0.046071 | 0.053619 |              nan |
+| RW-Drift       | 2466 |    0.049834 | 0.046071 | 0.053619 |              nan |
+| HS-Bootstrap   | 2466 |    0.050045 | 0.046399 | 0.053638 |              nan |
+| GARCH-N        | 2466 |    0.050368 | 0.046695 | 0.054078 |              nan |
+| GARCH-t        | 2466 |    0.052513 | 0.049186 | 0.056076 |              nan |
+| GJR-GARCH-t    | 2466 |    0.052517 | 0.049186 | 0.056055 |              nan |
+| WGeo           | 2466 |    0.049314 | 0.045547 | 0.053033 |              nan |
+| WGeo-Gated     | 2466 |    0.049546 | 0.045768 | 0.053333 |              nan |
+| WGeo-TheilSen  | 2466 |    0.049304 | 0.045534 | 0.053021 |              nan |
+| WGeo-EWMA      | 2466 |    0.049309 | 0.045545 | 0.053029 |              nan |
+| WGeo-Hetero    | 2466 |    0.05     | 0.046249 | 0.05376  |                0 |
+| WGeo-GARCH-Ens | 2466 |    0.049894 | 0.046202 | 0.053659 |              nan |
+| WGeo-Adaptive  | 2466 |    0.049607 | 0.045943 | 0.053349 |              nan |
+| WGeo-Ensemble  | 2466 |    0.049256 | 0.045535 | 0.05298  |              nan |
 
 **Per-year mean CRPS:**
 
@@ -569,13 +508,13 @@ _3201 days from 2017-08-18 to 2026-05-23_
 | GARCH-N        |      0.0095 |           0      |
 | GARCH-t        |      0      |           0      |
 | GJR-GARCH-t    |      0      |           0      |
-| WGeo           |      0.0503 |           0.0044 |
-| WGeo-Gated     |      0.0258 |           0.0047 |
-| WGeo-TheilSen  |      0.0455 |           0.0037 |
-| WGeo-EWMA      |      0.0484 |           0.0041 |
-| WGeo-Hetero    |      0.5996 |           0.389  |
-| WGeo-GARCH-Ens |      0.8253 |           0.7309 |
-| WGeo-Adaptive  |      0.4299 |           0.2661 |
+| WGeo           |      0.0503 |           0.0038 |
+| WGeo-Gated     |      0.0258 |           0.0044 |
+| WGeo-TheilSen  |      0.0455 |           0.0031 |
+| WGeo-EWMA      |      0.0484 |           0.0035 |
+| WGeo-Hetero    |      0.5996 |           0.3741 |
+| WGeo-GARCH-Ens |      0.8253 |           0.7159 |
+| WGeo-Adaptive  |      0.4299 |           0.261  |
 | WGeo-Ensemble  |      0.0064 |           0.0001 |
 
 **Regime-conditional DM** (WGeo-Ensemble vs Static, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
@@ -588,28 +527,34 @@ _3201 days from 2017-08-18 to 2026-05-23_
 | low-vol  | 460 |  0.04134 |  0.04282 |    -3.46939 | -4.31838 | 2e-05   |
 | rally    | 730 |  0.05821 |  0.05829 |    -0.15066 | -0.24939 | 0.80306 |
 
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
+
 ![cumulative CRPS](../results/long_cum_crps_ethusdt_h5.png)
 
 ### Horizon h = 21 day(s)
 
 **Overall mean CRPS on the full test span (bootstrap 95% CI):**
 
-| method         |    n |   mean_crps |    ci_lo |    ci_hi |
-|:---------------|-----:|------------:|---------:|---------:|
-| Static         | 2450 |    0.113701 | 0.099233 | 0.127949 |
-| RW-Drift       | 2450 |    0.113701 | 0.099233 | 0.127949 |
-| HS-Bootstrap   | 2450 |    0.113365 | 0.099827 | 0.126705 |
-| GARCH-N        | 2450 |    0.11297  | 0.099596 | 0.126538 |
-| GARCH-t        | 2450 |    0.117615 | 0.104672 | 0.13089  |
-| GJR-GARCH-t    | 2450 |    0.117455 | 0.104636 | 0.130535 |
-| WGeo           | 2450 |    0.109454 | 0.095087 | 0.124069 |
-| WGeo-Gated     | 2450 |    0.111918 | 0.097416 | 0.125936 |
-| WGeo-TheilSen  | 2450 |    0.109404 | 0.095068 | 0.123986 |
-| WGeo-EWMA      | 2450 |    0.109478 | 0.095167 | 0.124097 |
-| WGeo-Hetero    | 2450 |    0.110506 | 0.096155 | 0.125552 |
-| WGeo-GARCH-Ens | 2450 |    0.11033  | 0.09617  | 0.124374 |
-| WGeo-Adaptive  | 2450 |    0.110164 | 0.095801 | 0.124499 |
-| WGeo-Ensemble  | 2450 |    0.109816 | 0.095444 | 0.124147 |
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 2450 |    0.113701 | 0.099233 | 0.127949 |              nan |
+| RW-Drift       | 2450 |    0.113701 | 0.099233 | 0.127949 |              nan |
+| HS-Bootstrap   | 2450 |    0.113365 | 0.099827 | 0.126705 |              nan |
+| GARCH-N        | 2450 |    0.11297  | 0.099596 | 0.126538 |              nan |
+| GARCH-t        | 2450 |    0.117615 | 0.104672 | 0.13089  |              nan |
+| GJR-GARCH-t    | 2450 |    0.117455 | 0.104636 | 0.130535 |              nan |
+| WGeo           | 2450 |    0.109454 | 0.095087 | 0.124069 |              nan |
+| WGeo-Gated     | 2450 |    0.111918 | 0.097416 | 0.125936 |              nan |
+| WGeo-TheilSen  | 2450 |    0.109404 | 0.095068 | 0.123986 |              nan |
+| WGeo-EWMA      | 2450 |    0.109478 | 0.095167 | 0.124097 |              nan |
+| WGeo-Hetero    | 2450 |    0.110506 | 0.096155 | 0.125552 |                0 |
+| WGeo-GARCH-Ens | 2450 |    0.11033  | 0.09617  | 0.124374 |              nan |
+| WGeo-Adaptive  | 2450 |    0.110164 | 0.095801 | 0.124499 |              nan |
+| WGeo-Ensemble  | 2450 |    0.109816 | 0.095444 | 0.124147 |              nan |
 
 **Per-year mean CRPS:**
 
@@ -638,19 +583,19 @@ _3201 days from 2017-08-18 to 2026-05-23_
 
 |                |   p_vanilla |   p_residualised |
 |:---------------|------------:|-----------------:|
-| Static         |      0.4645 |           0.2436 |
-| RW-Drift       |      0.4645 |           0.2436 |
-| HS-Bootstrap   |      0.5778 |           0.524  |
+| Static         |      0.4645 |           0.2215 |
+| RW-Drift       |      0.4645 |           0.2215 |
+| HS-Bootstrap   |      0.5778 |           0.5041 |
 | GARCH-N        |      1      |           1      |
 | GARCH-t        |      0.0006 |           0      |
 | GJR-GARCH-t    |      0.0008 |           0      |
 | WGeo           |      0.1619 |           0      |
-| WGeo-Gated     |      0.451  |           0.1314 |
+| WGeo-Gated     |      0.451  |           0.1138 |
 | WGeo-TheilSen  |      0.1559 |           0      |
 | WGeo-EWMA      |      0.1641 |           0      |
-| WGeo-Hetero    |      0.3178 |           0.0061 |
-| WGeo-GARCH-Ens |      0.2009 |           0.0112 |
-| WGeo-Adaptive  |      0.2565 |           0.003  |
+| WGeo-Hetero    |      0.3178 |           0.0042 |
+| WGeo-GARCH-Ens |      0.2009 |           0.0083 |
+| WGeo-Adaptive  |      0.2565 |           0.0016 |
 | WGeo-Ensemble  |      0.1337 |           0      |
 
 **Regime-conditional DM** (WGeo-TheilSen vs GARCH-N, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
@@ -663,6 +608,12 @@ _3201 days from 2017-08-18 to 2026-05-23_
 | low-vol  | 444 |  0.09359 |  0.09562 |    -2.12288 | -0.80476 | 0.42096 |
 | rally    | 730 |  0.11706 |  0.11801 |    -0.80687 | -0.19367 | 0.84644 |
 
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
+
 ![cumulative CRPS](../results/long_cum_crps_ethusdt_h21.png)
 
 ## SOL/USDT
@@ -673,22 +624,22 @@ _2111 days from 2020-08-12 to 2026-05-23_
 
 **Overall mean CRPS on the full test span (bootstrap 95% CI):**
 
-| method         |    n |   mean_crps |    ci_lo |    ci_hi |
-|:---------------|-----:|------------:|---------:|---------:|
-| Static         | 1380 |    0.025075 | 0.023561 | 0.026689 |
-| RW-Drift       | 1380 |    0.025075 | 0.023561 | 0.026689 |
-| HS-Bootstrap   | 1380 |    0.025076 | 0.023567 | 0.026697 |
-| GARCH-N        | 1380 |    0.025219 | 0.023722 | 0.026786 |
-| GARCH-t        | 1380 |    0.025519 | 0.024072 | 0.027022 |
-| GJR-GARCH-t    | 1380 |    0.025521 | 0.024071 | 0.027029 |
-| WGeo           | 1380 |    0.025094 | 0.023522 | 0.02682  |
-| WGeo-Gated     | 1380 |    0.02504  | 0.023523 | 0.026678 |
-| WGeo-TheilSen  | 1380 |    0.025094 | 0.023521 | 0.026821 |
-| WGeo-EWMA      | 1380 |    0.025094 | 0.023522 | 0.026818 |
-| WGeo-Hetero    | 1380 |    0.025168 | 0.023564 | 0.026914 |
-| WGeo-GARCH-Ens | 1380 |    0.025101 | 0.02355  | 0.026799 |
-| WGeo-Adaptive  | 1380 |    0.02518  | 0.023612 | 0.026902 |
-| WGeo-Ensemble  | 1380 |    0.02503  | 0.023479 | 0.026732 |
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 1380 |    0.025075 | 0.023561 | 0.026689 |              nan |
+| RW-Drift       | 1380 |    0.025075 | 0.023561 | 0.026689 |              nan |
+| HS-Bootstrap   | 1380 |    0.025076 | 0.023567 | 0.026697 |              nan |
+| GARCH-N        | 1380 |    0.025219 | 0.023722 | 0.026786 |              nan |
+| GARCH-t        | 1380 |    0.025519 | 0.024072 | 0.027022 |              nan |
+| GJR-GARCH-t    | 1380 |    0.025521 | 0.024071 | 0.027029 |              nan |
+| WGeo           | 1380 |    0.025094 | 0.023522 | 0.02682  |              nan |
+| WGeo-Gated     | 1380 |    0.02504  | 0.023523 | 0.026678 |              nan |
+| WGeo-TheilSen  | 1380 |    0.025094 | 0.023521 | 0.026821 |              nan |
+| WGeo-EWMA      | 1380 |    0.025094 | 0.023522 | 0.026818 |              nan |
+| WGeo-Hetero    | 1380 |    0.025168 | 0.023564 | 0.026914 |                0 |
+| WGeo-GARCH-Ens | 1380 |    0.025101 | 0.02355  | 0.026799 |              nan |
+| WGeo-Adaptive  | 1380 |    0.02518  | 0.023612 | 0.026902 |              nan |
+| WGeo-Ensemble  | 1380 |    0.02503  | 0.023479 | 0.026732 |              nan |
 
 **Per-year mean CRPS:**
 
@@ -719,14 +670,14 @@ _2111 days from 2020-08-12 to 2026-05-23_
 | GARCH-N        |      0.0497 |           0      |
 | GARCH-t        |      0      |           0      |
 | GJR-GARCH-t    |      0      |           0      |
-| WGeo           |      0.85   |           0.8353 |
-| WGeo-Gated     |      0.5675 |           0.5502 |
-| WGeo-TheilSen  |      0.8546 |           0.8403 |
-| WGeo-EWMA      |      0.8529 |           0.8384 |
-| WGeo-Hetero    |      0.4623 |           0.3478 |
-| WGeo-GARCH-Ens |      0.7836 |           0.718  |
+| WGeo           |      0.85   |           0.8348 |
+| WGeo-Gated     |      0.5675 |           0.5501 |
+| WGeo-TheilSen  |      0.8546 |           0.8399 |
+| WGeo-EWMA      |      0.8529 |           0.838  |
+| WGeo-Hetero    |      0.4623 |           0.3427 |
+| WGeo-GARCH-Ens |      0.7836 |           0.7171 |
 | WGeo-Adaptive  |      0.3782 |           0.3413 |
-| WGeo-Ensemble  |      0.5839 |           0.5509 |
+| WGeo-Ensemble  |      0.5839 |           0.5502 |
 
 **Regime-conditional DM** (WGeo-Ensemble vs Static, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
 
@@ -737,28 +688,34 @@ _2111 days from 2020-08-12 to 2026-05-23_
 | low-vol  | 274 |  0.02109 |  0.02119 |    -0.47672 | -0.6026  | 0.54678 |
 | rally    | 364 |  0.02685 |  0.02662 |     0.86542 |  1.11259 | 0.26588 |
 
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
+
 ![cumulative CRPS](../results/long_cum_crps_solusdt_h1.png)
 
 ### Horizon h = 5 day(s)
 
 **Overall mean CRPS on the full test span (bootstrap 95% CI):**
 
-| method         |    n |   mean_crps |    ci_lo |    ci_hi |
-|:---------------|-----:|------------:|---------:|---------:|
-| Static         | 1376 |    0.057622 | 0.052216 | 0.063797 |
-| RW-Drift       | 1376 |    0.057622 | 0.052216 | 0.063797 |
-| HS-Bootstrap   | 1376 |    0.058124 | 0.052966 | 0.064264 |
-| GARCH-N        | 1376 |    0.058296 | 0.053116 | 0.064585 |
-| GARCH-t        | 1376 |    0.058874 | 0.053809 | 0.065001 |
-| GJR-GARCH-t    | 1376 |    0.058877 | 0.053782 | 0.064977 |
-| WGeo           | 1376 |    0.057192 | 0.051808 | 0.063757 |
-| WGeo-Gated     | 1376 |    0.057408 | 0.051958 | 0.06358  |
-| WGeo-TheilSen  | 1376 |    0.057186 | 0.051801 | 0.063747 |
-| WGeo-EWMA      | 1376 |    0.057198 | 0.051818 | 0.063774 |
-| WGeo-Hetero    | 1376 |    0.05766  | 0.052138 | 0.064433 |
-| WGeo-GARCH-Ens | 1376 |    0.057699 | 0.052102 | 0.064386 |
-| WGeo-Adaptive  | 1376 |    0.057365 | 0.051938 | 0.063861 |
-| WGeo-Ensemble  | 1376 |    0.057153 | 0.051737 | 0.063599 |
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 1376 |    0.057622 | 0.052216 | 0.063797 |              nan |
+| RW-Drift       | 1376 |    0.057622 | 0.052216 | 0.063797 |              nan |
+| HS-Bootstrap   | 1376 |    0.058124 | 0.052966 | 0.064264 |              nan |
+| GARCH-N        | 1376 |    0.058296 | 0.053116 | 0.064585 |              nan |
+| GARCH-t        | 1376 |    0.058874 | 0.053809 | 0.065001 |              nan |
+| GJR-GARCH-t    | 1376 |    0.058877 | 0.053782 | 0.064977 |              nan |
+| WGeo           | 1376 |    0.057192 | 0.051808 | 0.063757 |              nan |
+| WGeo-Gated     | 1376 |    0.057408 | 0.051958 | 0.06358  |              nan |
+| WGeo-TheilSen  | 1376 |    0.057186 | 0.051801 | 0.063747 |              nan |
+| WGeo-EWMA      | 1376 |    0.057198 | 0.051818 | 0.063774 |              nan |
+| WGeo-Hetero    | 1376 |    0.05766  | 0.052138 | 0.064433 |                0 |
+| WGeo-GARCH-Ens | 1376 |    0.057699 | 0.052102 | 0.064386 |              nan |
+| WGeo-Adaptive  | 1376 |    0.057365 | 0.051938 | 0.063861 |              nan |
+| WGeo-Ensemble  | 1376 |    0.057153 | 0.051737 | 0.063599 |              nan |
 
 **Per-year mean CRPS:**
 
@@ -789,14 +746,14 @@ _2111 days from 2020-08-12 to 2026-05-23_
 | GARCH-N        |      0.0011 |           0      |
 | GARCH-t        |      0      |           0      |
 | GJR-GARCH-t    |      0      |           0      |
-| WGeo           |      0.2782 |           0.1584 |
-| WGeo-Gated     |      0.3695 |           0.2967 |
-| WGeo-TheilSen  |      0.2704 |           0.1517 |
-| WGeo-EWMA      |      0.2837 |           0.1629 |
-| WGeo-Hetero    |      0.9313 |           0.9009 |
-| WGeo-GARCH-Ens |      0.8333 |           0.7615 |
+| WGeo           |      0.2782 |           0.1555 |
+| WGeo-Gated     |      0.3695 |           0.296  |
+| WGeo-TheilSen  |      0.2704 |           0.1487 |
+| WGeo-EWMA      |      0.2837 |           0.16   |
+| WGeo-Hetero    |      0.9313 |           0.8991 |
+| WGeo-GARCH-Ens |      0.8333 |           0.7613 |
 | WGeo-Adaptive  |      0.5592 |           0.4417 |
-| WGeo-Ensemble  |      0.1588 |           0.0722 |
+| WGeo-Ensemble  |      0.1588 |           0.0706 |
 
 **Regime-conditional DM** (WGeo-Ensemble vs Static, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
 
@@ -807,28 +764,34 @@ _2111 days from 2020-08-12 to 2026-05-23_
 | low-vol  | 270 |  0.05625 |  0.05562 |     1.12888 |  0.98875 | 0.32279 |
 | rally    | 364 |  0.0601  |  0.06074 |    -1.06622 | -0.95906 | 0.33753 |
 
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
+
 ![cumulative CRPS](../results/long_cum_crps_solusdt_h5.png)
 
 ### Horizon h = 21 day(s)
 
 **Overall mean CRPS on the full test span (bootstrap 95% CI):**
 
-| method         |    n |   mean_crps |    ci_lo |    ci_hi |
-|:---------------|-----:|------------:|---------:|---------:|
-| Static         | 1360 |    0.134406 | 0.111058 | 0.161299 |
-| RW-Drift       | 1360 |    0.134406 | 0.111058 | 0.161299 |
-| HS-Bootstrap   | 1360 |    0.135366 | 0.11333  | 0.16129  |
-| GARCH-N        | 1360 |    0.133568 | 0.112107 | 0.158416 |
-| GARCH-t        | 1360 |    0.133909 | 0.113145 | 0.157427 |
-| GJR-GARCH-t    | 1360 |    0.134046 | 0.113148 | 0.15792  |
-| WGeo           | 1360 |    0.129518 | 0.10628  | 0.156601 |
-| WGeo-Gated     | 1360 |    0.131786 | 0.108845 | 0.158442 |
-| WGeo-TheilSen  | 1360 |    0.129447 | 0.106168 | 0.156516 |
-| WGeo-EWMA      | 1360 |    0.129428 | 0.10617  | 0.156476 |
-| WGeo-Hetero    | 1360 |    0.130267 | 0.106574 | 0.157929 |
-| WGeo-GARCH-Ens | 1360 |    0.131917 | 0.108324 | 0.159237 |
-| WGeo-Adaptive  | 1360 |    0.129263 | 0.106268 | 0.155686 |
-| WGeo-Ensemble  | 1360 |    0.129833 | 0.1065   | 0.157107 |
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 1360 |    0.134406 | 0.111058 | 0.161299 |              nan |
+| RW-Drift       | 1360 |    0.134406 | 0.111058 | 0.161299 |              nan |
+| HS-Bootstrap   | 1360 |    0.135366 | 0.11333  | 0.16129  |              nan |
+| GARCH-N        | 1360 |    0.133568 | 0.112107 | 0.158416 |              nan |
+| GARCH-t        | 1360 |    0.133909 | 0.113145 | 0.157427 |              nan |
+| GJR-GARCH-t    | 1360 |    0.134046 | 0.113148 | 0.15792  |              nan |
+| WGeo           | 1360 |    0.129518 | 0.10628  | 0.156601 |              nan |
+| WGeo-Gated     | 1360 |    0.131786 | 0.108845 | 0.158442 |              nan |
+| WGeo-TheilSen  | 1360 |    0.129447 | 0.106168 | 0.156516 |              nan |
+| WGeo-EWMA      | 1360 |    0.129428 | 0.10617  | 0.156476 |              nan |
+| WGeo-Hetero    | 1360 |    0.130267 | 0.106574 | 0.157929 |                0 |
+| WGeo-GARCH-Ens | 1360 |    0.131917 | 0.108324 | 0.159237 |              nan |
+| WGeo-Adaptive  | 1360 |    0.129263 | 0.106268 | 0.155686 |              nan |
+| WGeo-Ensemble  | 1360 |    0.129833 | 0.1065   | 0.157107 |              nan |
 
 **Per-year mean CRPS:**
 
@@ -853,20 +816,20 @@ _2111 days from 2020-08-12 to 2026-05-23_
 
 |                |   p_vanilla |   p_residualised |
 |:---------------|------------:|-----------------:|
-| Static         |      0.5047 |           0.0286 |
-| RW-Drift       |      0.5047 |           0.0286 |
+| Static         |      0.5047 |           0.0047 |
+| RW-Drift       |      0.5047 |           0.0047 |
 | HS-Bootstrap   |      0.017  |           0      |
 | GARCH-N        |      1      |           1      |
-| GARCH-t        |      0.7691 |           0.4144 |
-| GJR-GARCH-t    |      0.6759 |           0.458  |
-| WGeo           |      0.1436 |           0.0004 |
-| WGeo-Gated     |      0.2586 |           0.0278 |
-| WGeo-TheilSen  |      0.1346 |           0.0003 |
-| WGeo-EWMA      |      0.1333 |           0.0003 |
-| WGeo-Hetero    |      0.2476 |           0.0028 |
-| WGeo-GARCH-Ens |      0.4821 |           0.0718 |
+| GARCH-t        |      0.7691 |           0.2497 |
+| GJR-GARCH-t    |      0.6759 |           0.233  |
+| WGeo           |      0.1436 |           0.0002 |
+| WGeo-Gated     |      0.2586 |           0.0153 |
+| WGeo-TheilSen  |      0.1346 |           0.0001 |
+| WGeo-EWMA      |      0.1333 |           0.0001 |
+| WGeo-Hetero    |      0.2476 |           0.0021 |
+| WGeo-GARCH-Ens |      0.4821 |           0.0673 |
 | WGeo-Adaptive  |      0.137  |           0.0002 |
-| WGeo-Ensemble  |      0.1043 |           0.0002 |
+| WGeo-Ensemble  |      0.1043 |           0      |
 
 **Regime-conditional DM** (WGeo-Adaptive vs GARCH-N, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
 
@@ -876,6 +839,12 @@ _2111 days from 2020-08-12 to 2026-05-23_
 | neutral  | 460 |  0.10723 |  0.11916 |   -10.0171  | -3.37268 | 0.00074 |
 | low-vol  | 254 |  0.1889  |  0.17814 |     6.03908 |  2.75996 | 0.00578 |
 | rally    | 364 |  0.1195  |  0.13036 |    -8.33057 | -2.6148  | 0.00893 |
+
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
 
 ![cumulative CRPS](../results/long_cum_crps_solusdt_h21.png)
 
@@ -887,22 +856,22 @@ _3120 days from 2017-11-07 to 2026-05-23_
 
 **Overall mean CRPS on the full test span (bootstrap 95% CI):**
 
-| method         |    n |   mean_crps |    ci_lo |    ci_hi |
-|:---------------|-----:|------------:|---------:|---------:|
-| Static         | 2389 |    0.020339 | 0.018967 | 0.0218   |
-| RW-Drift       | 2389 |    0.020339 | 0.018967 | 0.0218   |
-| HS-Bootstrap   | 2389 |    0.020332 | 0.018962 | 0.021797 |
-| GARCH-N        | 2389 |    0.020199 | 0.01891  | 0.021533 |
-| GARCH-t        | 2389 |    0.020765 | 0.019523 | 0.022086 |
-| GJR-GARCH-t    | 2389 |    0.020783 | 0.019546 | 0.02209  |
-| WGeo           | 2389 |    0.020208 | 0.01887  | 0.021687 |
-| WGeo-Gated     | 2389 |    0.02019  | 0.018874 | 0.021619 |
-| WGeo-TheilSen  | 2389 |    0.020207 | 0.018869 | 0.021686 |
-| WGeo-EWMA      | 2389 |    0.020207 | 0.018869 | 0.021686 |
-| WGeo-Hetero    | 2389 |    0.020277 | 0.018975 | 0.021692 |
-| WGeo-GARCH-Ens | 2389 |    0.020165 | 0.018866 | 0.021549 |
-| WGeo-Adaptive  | 2389 |    0.020191 | 0.018893 | 0.021632 |
-| WGeo-Ensemble  | 2389 |    0.020144 | 0.018826 | 0.021611 |
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 2389 |    0.020339 | 0.018967 | 0.0218   |              nan |
+| RW-Drift       | 2389 |    0.020339 | 0.018967 | 0.0218   |              nan |
+| HS-Bootstrap   | 2389 |    0.020332 | 0.018962 | 0.021797 |              nan |
+| GARCH-N        | 2389 |    0.020199 | 0.01891  | 0.021533 |              nan |
+| GARCH-t        | 2389 |    0.020765 | 0.019523 | 0.022086 |              nan |
+| GJR-GARCH-t    | 2389 |    0.020783 | 0.019546 | 0.02209  |              nan |
+| WGeo           | 2389 |    0.020208 | 0.01887  | 0.021687 |              nan |
+| WGeo-Gated     | 2389 |    0.02019  | 0.018874 | 0.021619 |              nan |
+| WGeo-TheilSen  | 2389 |    0.020207 | 0.018869 | 0.021686 |              nan |
+| WGeo-EWMA      | 2389 |    0.020207 | 0.018869 | 0.021686 |              nan |
+| WGeo-Hetero    | 2389 |    0.020277 | 0.018975 | 0.021692 |                0 |
+| WGeo-GARCH-Ens | 2389 |    0.020165 | 0.018866 | 0.021549 |              nan |
+| WGeo-Adaptive  | 2389 |    0.020191 | 0.018893 | 0.021632 |              nan |
+| WGeo-Ensemble  | 2389 |    0.020144 | 0.018826 | 0.021611 |              nan |
 
 **Per-year mean CRPS:**
 
@@ -937,14 +906,14 @@ _3120 days from 2017-11-07 to 2026-05-23_
 | GARCH-N        |      1      |           1      |
 | GARCH-t        |      0      |           0      |
 | GJR-GARCH-t    |      0      |           0      |
-| WGeo           |      0.9239 |           0.8866 |
-| WGeo-Gated     |      0.9197 |           0.8381 |
-| WGeo-TheilSen  |      0.9265 |           0.8904 |
-| WGeo-EWMA      |      0.9328 |           0.9    |
-| WGeo-Hetero    |      0.3459 |           0.2524 |
-| WGeo-GARCH-Ens |      0.4771 |           0.4471 |
-| WGeo-Adaptive  |      0.9343 |           0.9203 |
-| WGeo-Ensemble  |      0.5433 |           0.311  |
+| WGeo           |      0.9239 |           0.8848 |
+| WGeo-Gated     |      0.9197 |           0.8354 |
+| WGeo-TheilSen  |      0.9265 |           0.8887 |
+| WGeo-EWMA      |      0.9328 |           0.8984 |
+| WGeo-Hetero    |      0.3459 |           0.2189 |
+| WGeo-GARCH-Ens |      0.4771 |           0.4439 |
+| WGeo-Adaptive  |      0.9343 |           0.9181 |
+| WGeo-Ensemble  |      0.5433 |           0.3018 |
 
 **Regime-conditional DM** (WGeo-Ensemble vs GARCH-N, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
 
@@ -956,28 +925,34 @@ _3120 days from 2017-11-07 to 2026-05-23_
 | low-vol  | 555 |  0.0132  |  0.01339 |    -1.3861  | -2.3689  | 0.01784 |
 | rally    | 533 |  0.03028 |  0.02998 |     0.99814 |  1.0324  | 0.30189 |
 
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
+
 ![cumulative CRPS](../results/long_cum_crps_bnbusdt_h1.png)
 
 ### Horizon h = 5 day(s)
 
 **Overall mean CRPS on the full test span (bootstrap 95% CI):**
 
-| method         |    n |   mean_crps |    ci_lo |    ci_hi |
-|:---------------|-----:|------------:|---------:|---------:|
-| Static         | 2385 |    0.046297 | 0.041903 | 0.052071 |
-| RW-Drift       | 2385 |    0.046297 | 0.041903 | 0.052071 |
-| HS-Bootstrap   | 2385 |    0.046858 | 0.042539 | 0.052444 |
-| GARCH-N        | 2385 |    0.046475 | 0.042255 | 0.051819 |
-| GARCH-t        | 2385 |    0.047919 | 0.043815 | 0.053039 |
-| GJR-GARCH-t    | 2385 |    0.047912 | 0.043791 | 0.052995 |
-| WGeo           | 2385 |    0.04593  | 0.041517 | 0.051693 |
-| WGeo-Gated     | 2385 |    0.045977 | 0.041593 | 0.051608 |
-| WGeo-TheilSen  | 2385 |    0.045923 | 0.041511 | 0.05169  |
-| WGeo-EWMA      | 2385 |    0.045916 | 0.041507 | 0.051677 |
-| WGeo-Hetero    | 2385 |    0.046596 | 0.042183 | 0.052207 |
-| WGeo-GARCH-Ens | 2385 |    0.046108 | 0.041845 | 0.051584 |
-| WGeo-Adaptive  | 2385 |    0.045898 | 0.041546 | 0.051424 |
-| WGeo-Ensemble  | 2385 |    0.045782 | 0.041336 | 0.051429 |
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 2385 |    0.046297 | 0.041903 | 0.052071 |              nan |
+| RW-Drift       | 2385 |    0.046297 | 0.041903 | 0.052071 |              nan |
+| HS-Bootstrap   | 2385 |    0.046858 | 0.042539 | 0.052444 |              nan |
+| GARCH-N        | 2385 |    0.046475 | 0.042255 | 0.051819 |              nan |
+| GARCH-t        | 2385 |    0.047919 | 0.043815 | 0.053039 |              nan |
+| GJR-GARCH-t    | 2385 |    0.047912 | 0.043791 | 0.052995 |              nan |
+| WGeo           | 2385 |    0.04593  | 0.041517 | 0.051693 |              nan |
+| WGeo-Gated     | 2385 |    0.045977 | 0.041593 | 0.051608 |              nan |
+| WGeo-TheilSen  | 2385 |    0.045923 | 0.041511 | 0.05169  |              nan |
+| WGeo-EWMA      | 2385 |    0.045916 | 0.041507 | 0.051677 |              nan |
+| WGeo-Hetero    | 2385 |    0.046596 | 0.042183 | 0.052207 |                0 |
+| WGeo-GARCH-Ens | 2385 |    0.046108 | 0.041845 | 0.051584 |              nan |
+| WGeo-Adaptive  | 2385 |    0.045898 | 0.041546 | 0.051424 |              nan |
+| WGeo-Ensemble  | 2385 |    0.045782 | 0.041336 | 0.051429 |              nan |
 
 **Per-year mean CRPS:**
 
@@ -1009,17 +984,17 @@ _3120 days from 2017-11-07 to 2026-05-23_
 | Static         |      1      |           1      |
 | RW-Drift       |      1      |           1      |
 | HS-Bootstrap   |      0      |           0      |
-| GARCH-N        |      0.5623 |           0.0993 |
+| GARCH-N        |      0.5623 |           0.0893 |
 | GARCH-t        |      0      |           0      |
 | GJR-GARCH-t    |      0      |           0      |
-| WGeo           |      0.1963 |           0.0777 |
-| WGeo-Gated     |      0.042  |           0.0134 |
-| WGeo-TheilSen  |      0.1878 |           0.0725 |
-| WGeo-EWMA      |      0.1813 |           0.0675 |
-| WGeo-Hetero    |      0.4734 |           0.1581 |
-| WGeo-GARCH-Ens |      0.6038 |           0.2344 |
-| WGeo-Adaptive  |      0.2289 |           0.048  |
-| WGeo-Ensemble  |      0.0281 |           0.0033 |
+| WGeo           |      0.1963 |           0.0756 |
+| WGeo-Gated     |      0.042  |           0.0129 |
+| WGeo-TheilSen  |      0.1878 |           0.0704 |
+| WGeo-EWMA      |      0.1813 |           0.0656 |
+| WGeo-Hetero    |      0.4734 |           0.1582 |
+| WGeo-GARCH-Ens |      0.6038 |           0.2348 |
+| WGeo-Adaptive  |      0.2289 |           0.0478 |
+| WGeo-Ensemble  |      0.0281 |           0.0031 |
 
 **Regime-conditional DM** (WGeo-Ensemble vs Static, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
 
@@ -1031,28 +1006,34 @@ _3120 days from 2017-11-07 to 2026-05-23_
 | low-vol  | 551 |  0.03161 |  0.03183 |    -0.68299 | -0.6587  | 0.51009 |
 | rally    | 533 |  0.07185 |  0.07291 |    -1.46167 | -1.70081 | 0.08898 |
 
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
+
 ![cumulative CRPS](../results/long_cum_crps_bnbusdt_h5.png)
 
 ### Horizon h = 21 day(s)
 
 **Overall mean CRPS on the full test span (bootstrap 95% CI):**
 
-| method         |    n |   mean_crps |    ci_lo |    ci_hi |
-|:---------------|-----:|------------:|---------:|---------:|
-| Static         | 2369 |    0.105553 | 0.083691 | 0.131754 |
-| RW-Drift       | 2369 |    0.105553 | 0.083691 | 0.131754 |
-| HS-Bootstrap   | 2369 |    0.106755 | 0.085854 | 0.133013 |
-| GARCH-N        | 2369 |    0.105595 | 0.084588 | 0.131451 |
-| GARCH-t        | 2369 |    0.109944 | 0.090633 | 0.13506  |
-| GJR-GARCH-t    | 2369 |    0.110042 | 0.090603 | 0.134932 |
-| WGeo           | 2369 |    0.102994 | 0.081071 | 0.130182 |
-| WGeo-Gated     | 2369 |    0.103847 | 0.08253  | 0.130426 |
-| WGeo-TheilSen  | 2369 |    0.102961 | 0.081032 | 0.130172 |
-| WGeo-EWMA      | 2369 |    0.102967 | 0.08107  | 0.130158 |
-| WGeo-Hetero    | 2369 |    0.105284 | 0.082641 | 0.133207 |
-| WGeo-GARCH-Ens | 2369 |    0.103933 | 0.082546 | 0.130324 |
-| WGeo-Adaptive  | 2369 |    0.103218 | 0.081312 | 0.129533 |
-| WGeo-Ensemble  | 2369 |    0.102619 | 0.080916 | 0.129496 |
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 2369 |    0.105553 | 0.083691 | 0.131754 |              nan |
+| RW-Drift       | 2369 |    0.105553 | 0.083691 | 0.131754 |              nan |
+| HS-Bootstrap   | 2369 |    0.106755 | 0.085854 | 0.133013 |              nan |
+| GARCH-N        | 2369 |    0.105595 | 0.084588 | 0.131451 |              nan |
+| GARCH-t        | 2369 |    0.109944 | 0.090633 | 0.13506  |              nan |
+| GJR-GARCH-t    | 2369 |    0.110042 | 0.090603 | 0.134932 |              nan |
+| WGeo           | 2369 |    0.102994 | 0.081071 | 0.130182 |              nan |
+| WGeo-Gated     | 2369 |    0.103847 | 0.08253  | 0.130426 |              nan |
+| WGeo-TheilSen  | 2369 |    0.102961 | 0.081032 | 0.130172 |              nan |
+| WGeo-EWMA      | 2369 |    0.102967 | 0.08107  | 0.130158 |              nan |
+| WGeo-Hetero    | 2369 |    0.105284 | 0.082641 | 0.133207 |                0 |
+| WGeo-GARCH-Ens | 2369 |    0.103933 | 0.082546 | 0.130324 |              nan |
+| WGeo-Adaptive  | 2369 |    0.103218 | 0.081312 | 0.129533 |              nan |
+| WGeo-Ensemble  | 2369 |    0.102619 | 0.080916 | 0.129496 |              nan |
 
 **Per-year mean CRPS:**
 
@@ -1084,16 +1065,16 @@ _3120 days from 2017-11-07 to 2026-05-23_
 | Static         |      1      |           1      |
 | RW-Drift       |      1      |           1      |
 | HS-Bootstrap   |      0.0748 |           0.0005 |
-| GARCH-N        |      0.9773 |           0.9499 |
+| GARCH-N        |      0.9773 |           0.9491 |
 | GARCH-t        |      0.0095 |           0      |
 | GJR-GARCH-t    |      0.0065 |           0      |
-| WGeo           |      0.2696 |           0.0041 |
-| WGeo-Gated     |      0.1232 |           0.0062 |
-| WGeo-TheilSen  |      0.2639 |           0.0035 |
-| WGeo-EWMA      |      0.2642 |           0.0036 |
-| WGeo-Hetero    |      0.913  |           0.7814 |
-| WGeo-GARCH-Ens |      0.4768 |           0.0662 |
-| WGeo-Adaptive  |      0.3192 |           0.0053 |
+| WGeo           |      0.2696 |           0.0047 |
+| WGeo-Gated     |      0.1232 |           0.006  |
+| WGeo-TheilSen  |      0.2639 |           0.004  |
+| WGeo-EWMA      |      0.2642 |           0.0042 |
+| WGeo-Hetero    |      0.913  |           0.7829 |
+| WGeo-GARCH-Ens |      0.4768 |           0.0674 |
+| WGeo-Adaptive  |      0.3192 |           0.0059 |
 | WGeo-Ensemble  |      0.12   |           0.0001 |
 
 **Regime-conditional DM** (WGeo-Ensemble vs Static, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
@@ -1106,42 +1087,254 @@ _3120 days from 2017-11-07 to 2026-05-23_
 | low-vol  | 535 |  0.07218 |  0.07262 |    -0.60875 | -0.2435  | 0.80762 |
 | rally    | 533 |  0.18131 |  0.18599 |    -2.51413 | -0.9397  | 0.34737 |
 
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
+
 ![cumulative CRPS](../results/long_cum_crps_bnbusdt_h21.png)
 
----
+## XRP/USDT
 
-## v0.4 verdict — falsification criteria
+_2941 days from 2018-05-05 to 2026-05-23_
 
-The falsification table for `docs/THEORY.md §4` is reproduced below
-against the v0.4 panel (4 assets × 3 horizons).
+### Horizon h = 1 day(s)
 
-| Criterion (failure if true) | Outcome |
-|---|---|
-| C1. Mean test CRPS ≥ Static at h=1 (BTC) | pass (−0.4%) |
-| C1'. Same on ETH / SOL / BNB at h=1 | pass / pass / pass |
-| C2. DM p-value vs best GARCH > 0.10 at h=5 (BTC) | **pass (p=0.049 vanilla, p=0.012 residualised)** |
-| C2'. Same on ETH | pass (p=0.006 vanilla, p<0.001 residualised) |
-| C2''. Same on SOL | fail vanilla (p=0.16), **pass residualised (p=0.07)** — borderline |
-| C2'''. Same on BNB | pass (p=0.028 vanilla, p=0.003 residualised) |
-| C4 (v0.2). Curvature gate strictly beats un-gated WGeo at h=1 | pass on BTC, ETH, SOL; tied on BNB |
-| C5 (v0.3). `WGeo-Hetero` < `WGeo-TheilSen` at h=21 on BTC, ETH | **fail** (documented negative finding, kept for boundary statement) |
-| C6 (v0.3). `WGeo-GARCH-Ens` < both components at h=5 on majority of panel | **fail** (only BNB h=1 wins outright) |
-| C7 (v0.3). `WGeo-EWMA` < `WGeo` (OLS) at every horizon | partial pass (9/12 cells; tied or slightly worse in 3) |
-| C8 (v0.4). `WGeo-Ensemble` weakly dominates the mean of its components on a majority of cells | **pass** (Jensen on convex CRPS guarantees ≤ mean; empirical gap 0.3–0.8%) |
-| C9 (v0.4). Residualised DM gives strictly more significant p-values than vanilla DM on a majority of cells where vanilla rejects | **pass** (4/4 vanilla-rejected cells also residualised-reject, with smaller p_r) |
-| C10 (v0.4). The best WGeo-family variant reaches `p_r < 0.05` in ≥6 of the 12 panel cells | **pass (8 / 12)** — exceeds the floor |
+**Overall mean CRPS on the full test span (bootstrap 95% CI):**
 
-**Honest reading.** The v0.4 cycle directly attacks the v0.3 weakness
-that mean CRPS edges of 0.5–3% were below the noise floor of vanilla DM
-at long horizons. The W₂ barycentre ensemble lifts the panel by
-~0.3–0.8% per cell *without adding any tuned hyperparameter*, and the
-residualised DM recovers test power by projecting out shared
-volatility-clustering noise in the loss differential — same null
-hypothesis, smaller variance. C5 and C6 remain documented negative
-findings.
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 2210 |    0.024566 | 0.022648 | 0.026374 |              nan |
+| RW-Drift       | 2210 |    0.024566 | 0.022648 | 0.026374 |              nan |
+| HS-Bootstrap   | 2210 |    0.024548 | 0.022635 | 0.026357 |              nan |
+| GARCH-N        | 2210 |    0.024697 | 0.022893 | 0.026412 |              nan |
+| GARCH-t        | 2210 |    0.025866 | 0.024163 | 0.027557 |              nan |
+| GJR-GARCH-t    | 2210 |    0.025872 | 0.024156 | 0.027543 |              nan |
+| WGeo           | 2210 |    0.024434 | 0.022589 | 0.026244 |              nan |
+| WGeo-Gated     | 2210 |    0.024403 | 0.022555 | 0.026199 |              nan |
+| WGeo-TheilSen  | 2210 |    0.024433 | 0.022587 | 0.026244 |              nan |
+| WGeo-EWMA      | 2210 |    0.024432 | 0.022587 | 0.026244 |              nan |
+| WGeo-Hetero    | 2210 |    0.024569 | 0.022691 | 0.026405 |                0 |
+| WGeo-GARCH-Ens | 2210 |    0.024398 | 0.02257  | 0.026141 |              nan |
+| WGeo-Adaptive  | 2210 |    0.0244   | 0.022608 | 0.026181 |              nan |
+| WGeo-Ensemble  | 2210 |    0.024359 | 0.022511 | 0.026166 |              nan |
 
-The C2′′ (SOL h=5) cell is the one borderline outcome: vanilla DM gives
-p=0.16, residualised gives p=0.07. Per-day CRPS edge is real (−0.8%) but
-SOL's 1376-day test span is smaller than BTC/ETH/BNB's 2400+, so the
-HAC standard error has fewer effective observations to shrink. We leave
-SOL h=5 as a known marginal cell rather than data-mine the controls.
+**Per-year mean CRPS:**
+
+|   year |   n |   Static |   RW-Drift |   HS-Bootstrap |   GARCH-N |   GARCH-t |   GJR-GARCH-t |    WGeo |   WGeo-Gated |   WGeo-TheilSen |   WGeo-EWMA |   WGeo-Hetero |   WGeo-GARCH-Ens |   WGeo-Adaptive |   WGeo-Ensemble |
+|-------:|----:|---------:|-----------:|---------------:|----------:|----------:|--------------:|--------:|-------------:|----------------:|------------:|--------------:|-----------------:|----------------:|----------------:|
+|   2020 | 242 |  0.0274  |    0.0274  |        0.02734 |   0.02692 |   0.02894 |       0.02892 | 0.02751 |      0.02732 |         0.02751 |     0.0275  |       0.02676 |          0.02671 |         0.02679 |         0.0274  |
+|   2021 | 365 |  0.03953 |    0.03953 |        0.03949 |   0.03895 |   0.04045 |       0.04065 | 0.03888 |      0.03897 |         0.03888 |     0.03888 |       0.03957 |          0.03869 |         0.0391  |         0.03878 |
+|   2022 | 365 |  0.02369 |    0.02369 |        0.02367 |   0.02394 |   0.02498 |       0.02496 | 0.0236  |      0.02366 |         0.0236  |     0.0236  |       0.02392 |          0.02376 |         0.02364 |         0.02356 |
+|   2023 | 365 |  0.01736 |    0.01736 |        0.01737 |   0.01807 |   0.01903 |       0.01899 | 0.01699 |      0.01718 |         0.01699 |     0.01699 |       0.01716 |          0.01731 |         0.0171  |         0.01698 |
+|   2024 | 366 |  0.02157 |    0.02157 |        0.02154 |   0.02172 |   0.02193 |       0.02187 | 0.02166 |      0.02148 |         0.02166 |     0.02165 |       0.02147 |          0.02144 |         0.02147 |         0.02157 |
+|   2025 | 365 |  0.02163 |    0.02163 |        0.02164 |   0.02196 |   0.02347 |       0.02344 | 0.02187 |      0.02156 |         0.02187 |     0.02187 |       0.02207 |          0.02183 |         0.02192 |         0.02172 |
+|   2026 | 142 |  0.01731 |    0.01731 |        0.01731 |   0.01796 |   0.01929 |       0.01929 | 0.01707 |      0.0173  |         0.01707 |     0.01707 |       0.0174  |          0.01782 |         0.01717 |         0.01709 |
+
+**Per-regime mean CRPS (regime tagged from 60d trailing return + vol):**
+
+| regime   |   n |   Static |   RW-Drift |   HS-Bootstrap |   GARCH-N |   GARCH-t |   GJR-GARCH-t |    WGeo |   WGeo-Gated |   WGeo-TheilSen |   WGeo-EWMA |   WGeo-Hetero |   WGeo-GARCH-Ens |   WGeo-Adaptive |   WGeo-Ensemble |
+|:---------|----:|---------:|-----------:|---------------:|----------:|----------:|--------------:|--------:|-------------:|----------------:|------------:|--------------:|-----------------:|----------------:|----------------:|
+| crash    | 378 |  0.02416 |    0.02416 |        0.02417 |   0.02446 |   0.02578 |       0.02566 | 0.02427 |      0.02413 |         0.02427 |     0.02427 |       0.02442 |          0.02444 |         0.02442 |         0.02413 |
+| high-vol | 136 |  0.02725 |    0.02725 |        0.02722 |   0.0285  |   0.0308  |       0.03111 | 0.02659 |      0.02655 |         0.02659 |     0.02659 |       0.02786 |          0.02792 |         0.02678 |         0.02649 |
+| neutral  | 743 |  0.02041 |    0.02041 |        0.02039 |   0.02072 |   0.02181 |       0.02178 | 0.02043 |      0.02044 |         0.02043 |     0.02043 |       0.02042 |          0.02049 |         0.02036 |         0.0204  |
+| low-vol  | 490 |  0.01904 |    0.01904 |        0.01904 |   0.01931 |   0.01976 |       0.01976 | 0.01892 |      0.01891 |         0.01892 |     0.01892 |       0.01916 |          0.01887 |         0.01879 |         0.01886 |
+| rally    | 463 |  0.03662 |    0.03662 |        0.03658 |   0.03585 |   0.03747 |       0.03755 | 0.03619 |      0.03616 |         0.03619 |     0.03619 |       0.0361  |          0.03545 |         0.0361  |         0.03609 |
+
+**Diebold-Mariano vs HS-Bootstrap** (headline best WGeo-family variant is **WGeo-Ensemble**; both vanilla and residualised tests reported — residualised uses |y|, y², y plus 4 peer losses as controls to project out shared volatility-clustering noise):
+
+|                |   p_vanilla |   p_residualised |
+|:---------------|------------:|-----------------:|
+| Static         |      0.0508 |           0.0457 |
+| RW-Drift       |      0.0508 |           0.0457 |
+| HS-Bootstrap   |      1      |           1      |
+| GARCH-N        |      0.2686 |           0.0166 |
+| GARCH-t        |      0      |           0      |
+| GJR-GARCH-t    |      0      |           0      |
+| WGeo           |      0.1695 |           0.1246 |
+| WGeo-Gated     |      0.0054 |           0.0024 |
+| WGeo-TheilSen  |      0.1673 |           0.1228 |
+| WGeo-EWMA      |      0.1643 |           0.1197 |
+| WGeo-Hetero    |      0.8832 |           0.7888 |
+| WGeo-GARCH-Ens |      0.2488 |           0.0143 |
+| WGeo-Adaptive  |      0.1617 |           0.0968 |
+| WGeo-Ensemble  |      0.0072 |           0.0026 |
+
+**Regime-conditional DM** (WGeo-Ensemble vs HS-Bootstrap, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
+
+| regime   |   n |   mean_a |   mean_b |   delta_pct |       dm |       p |
+|:---------|----:|---------:|---------:|------------:|---------:|--------:|
+| crash    | 378 |  0.02413 |  0.02417 |    -0.17679 | -0.22827 | 0.81944 |
+| high-vol | 136 |  0.02649 |  0.02722 |    -2.65205 | -2.108   | 0.03503 |
+| neutral  | 743 |  0.0204  |  0.02039 |     0.05409 |  0.15064 | 0.88026 |
+| low-vol  | 490 |  0.01886 |  0.01904 |    -0.90551 | -2.05421 | 0.03996 |
+| rally    | 463 |  0.03609 |  0.03658 |    -1.34294 | -2.05633 | 0.03975 |
+
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
+
+![cumulative CRPS](../results/long_cum_crps_xrpusdt_h1.png)
+
+### Horizon h = 5 day(s)
+
+**Overall mean CRPS on the full test span (bootstrap 95% CI):**
+
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 2206 |    0.056199 | 0.050164 | 0.063399 |              nan |
+| RW-Drift       | 2206 |    0.056199 | 0.050164 | 0.063399 |              nan |
+| HS-Bootstrap   | 2206 |    0.056742 | 0.051025 | 0.063754 |              nan |
+| GARCH-N        | 2206 |    0.057258 | 0.051868 | 0.063709 |              nan |
+| GARCH-t        | 2206 |    0.060339 | 0.055087 | 0.06643  |              nan |
+| GJR-GARCH-t    | 2206 |    0.060212 | 0.054882 | 0.066268 |              nan |
+| WGeo           | 2206 |    0.055504 | 0.049689 | 0.062558 |              nan |
+| WGeo-Gated     | 2206 |    0.055596 | 0.049758 | 0.062625 |              nan |
+| WGeo-TheilSen  | 2206 |    0.055503 | 0.049679 | 0.062552 |              nan |
+| WGeo-EWMA      | 2206 |    0.055483 | 0.049663 | 0.062535 |              nan |
+| WGeo-Hetero    | 2206 |    0.056237 | 0.050509 | 0.063239 |                0 |
+| WGeo-GARCH-Ens | 2206 |    0.055942 | 0.050349 | 0.062664 |              nan |
+| WGeo-Adaptive  | 2206 |    0.055441 | 0.049788 | 0.062198 |              nan |
+| WGeo-Ensemble  | 2206 |    0.055389 | 0.049575 | 0.062401 |              nan |
+
+**Per-year mean CRPS:**
+
+|   year |   n |   Static |   RW-Drift |   HS-Bootstrap |   GARCH-N |   GARCH-t |   GJR-GARCH-t |    WGeo |   WGeo-Gated |   WGeo-TheilSen |   WGeo-EWMA |   WGeo-Hetero |   WGeo-GARCH-Ens |   WGeo-Adaptive |   WGeo-Ensemble |
+|-------:|----:|---------:|-----------:|---------------:|----------:|----------:|--------------:|--------:|-------------:|----------------:|------------:|--------------:|-----------------:|----------------:|----------------:|
+|   2020 | 242 |  0.06926 |    0.06926 |        0.06942 |   0.06885 |   0.07514 |       0.07507 | 0.06982 |      0.06911 |         0.06982 |     0.06977 |       0.06859 |          0.06884 |         0.06824 |         0.06945 |
+|   2021 | 365 |  0.08851 |    0.08851 |        0.08731 |   0.08958 |   0.09168 |       0.09164 | 0.08662 |      0.08683 |         0.08661 |     0.08656 |       0.09056 |          0.08707 |         0.08694 |         0.08639 |
+|   2022 | 365 |  0.05096 |    0.05096 |        0.05349 |   0.0536  |   0.05598 |       0.05597 | 0.04973 |      0.05051 |         0.04972 |     0.04972 |       0.05083 |          0.0515  |         0.05035 |         0.04986 |
+|   2023 | 365 |  0.03949 |    0.03949 |        0.04132 |   0.0415  |   0.04398 |       0.04394 | 0.03884 |      0.03907 |         0.03884 |     0.03882 |       0.03871 |          0.03946 |         0.03904 |         0.03874 |
+|   2024 | 366 |  0.05333 |    0.05333 |        0.05317 |   0.05374 |   0.0547  |       0.05438 | 0.05359 |      0.05308 |         0.0536  |     0.05357 |       0.05352 |          0.05334 |         0.0526  |         0.05337 |
+|   2025 | 365 |  0.04802 |    0.04802 |        0.04772 |   0.04807 |   0.05288 |       0.05258 | 0.04745 |      0.04745 |         0.04746 |     0.04746 |       0.04772 |          0.04749 |         0.04792 |         0.04735 |
+|   2026 | 138 |  0.03512 |    0.03512 |        0.03638 |   0.03641 |   0.04096 |       0.04095 | 0.03382 |      0.03468 |         0.03381 |     0.03381 |       0.03417 |          0.03561 |         0.03395 |         0.034   |
+
+**Per-regime mean CRPS (regime tagged from 60d trailing return + vol):**
+
+| regime   |   n |   Static |   RW-Drift |   HS-Bootstrap |   GARCH-N |   GARCH-t |   GJR-GARCH-t |    WGeo |   WGeo-Gated |   WGeo-TheilSen |   WGeo-EWMA |   WGeo-Hetero |   WGeo-GARCH-Ens |   WGeo-Adaptive |   WGeo-Ensemble |
+|:---------|----:|---------:|-----------:|---------------:|----------:|----------:|--------------:|--------:|-------------:|----------------:|------------:|--------------:|-----------------:|----------------:|----------------:|
+| crash    | 378 |  0.0524  |    0.0524  |        0.05336 |   0.05558 |   0.05845 |       0.05795 | 0.0516  |      0.05189 |         0.05159 |     0.05158 |       0.05371 |          0.05359 |         0.05183 |         0.05152 |
+| high-vol | 136 |  0.06282 |    0.06282 |        0.06224 |   0.06386 |   0.07041 |       0.07086 | 0.06163 |      0.06106 |         0.06162 |     0.06162 |       0.06311 |          0.06282 |         0.06209 |         0.06125 |
+| neutral  | 743 |  0.04531 |    0.04531 |        0.04643 |   0.04676 |   0.04975 |       0.0497  | 0.04484 |      0.04502 |         0.04484 |     0.04484 |       0.04504 |          0.04544 |         0.04503 |         0.04482 |
+| low-vol  | 486 |  0.05163 |    0.05163 |        0.05266 |   0.05201 |   0.05337 |       0.0533  | 0.05169 |      0.05145 |         0.05168 |     0.05165 |       0.05188 |          0.0516  |         0.0512  |         0.05148 |
+| rally    | 463 |  0.07962 |    0.07962 |        0.07872 |   0.07904 |   0.08323 |       0.08306 | 0.07802 |      0.07834 |         0.07803 |     0.07797 |       0.07883 |          0.07726 |         0.0776  |         0.07789 |
+
+**Diebold-Mariano vs Static** (headline best WGeo-family variant is **WGeo-Ensemble**; both vanilla and residualised tests reported — residualised uses |y|, y², y plus 4 peer losses as controls to project out shared volatility-clustering noise):
+
+|                |   p_vanilla |   p_residualised |
+|:---------------|------------:|-----------------:|
+| Static         |      1      |           1      |
+| RW-Drift       |      1      |           1      |
+| HS-Bootstrap   |      0.0032 |           0      |
+| GARCH-N        |      0.0237 |           0.0001 |
+| GARCH-t        |      0      |           0      |
+| GJR-GARCH-t    |      0      |           0      |
+| WGeo           |      0.0249 |           0.0073 |
+| WGeo-Gated     |      0.0005 |           0.0001 |
+| WGeo-TheilSen  |      0.0241 |           0.007  |
+| WGeo-EWMA      |      0.0208 |           0.0055 |
+| WGeo-Hetero    |      0.9395 |           0.8952 |
+| WGeo-GARCH-Ens |      0.5513 |           0.2789 |
+| WGeo-Adaptive  |      0.0471 |           0.0071 |
+| WGeo-Ensemble  |      0.0017 |           0.0002 |
+
+**Regime-conditional DM** (WGeo-Ensemble vs Static, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
+
+| regime   |   n |   mean_a |   mean_b |   delta_pct |       dm |       p |
+|:---------|----:|---------:|---------:|------------:|---------:|--------:|
+| crash    | 378 |  0.05152 |  0.0524  |    -1.68204 | -1.30781 | 0.19094 |
+| high-vol | 136 |  0.06125 |  0.06282 |    -2.49221 | -1.22017 | 0.2224  |
+| neutral  | 743 |  0.04482 |  0.04531 |    -1.09079 | -1.92642 | 0.05405 |
+| low-vol  | 486 |  0.05148 |  0.05163 |    -0.2962  | -0.44751 | 0.65451 |
+| rally    | 463 |  0.07789 |  0.07962 |    -2.17094 | -2.22159 | 0.02631 |
+
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
+
+![cumulative CRPS](../results/long_cum_crps_xrpusdt_h5.png)
+
+### Horizon h = 21 day(s)
+
+**Overall mean CRPS on the full test span (bootstrap 95% CI):**
+
+| method         |    n |   mean_crps |    ci_lo |    ci_hi |   garch_fallback |
+|:---------------|-----:|------------:|---------:|---------:|-----------------:|
+| Static         | 2190 |    0.132709 | 0.106804 | 0.165088 |              nan |
+| RW-Drift       | 2190 |    0.132709 | 0.106804 | 0.165088 |              nan |
+| HS-Bootstrap   | 2190 |    0.133278 | 0.109201 | 0.164393 |              nan |
+| GARCH-N        | 2190 |    0.136474 | 0.113003 | 0.166851 |              nan |
+| GARCH-t        | 2190 |    0.144387 | 0.121768 | 0.173588 |              nan |
+| GJR-GARCH-t    | 2190 |    0.1435   | 0.121068 | 0.172517 |              nan |
+| WGeo           | 2190 |    0.129218 | 0.104175 | 0.161939 |              nan |
+| WGeo-Gated     | 2190 |    0.130502 | 0.105251 | 0.163191 |              nan |
+| WGeo-TheilSen  | 2190 |    0.12915  | 0.104117 | 0.16187  |              nan |
+| WGeo-EWMA      | 2190 |    0.129136 | 0.104168 | 0.161779 |              nan |
+| WGeo-Hetero    | 2190 |    0.132881 | 0.107674 | 0.166101 |                0 |
+| WGeo-GARCH-Ens | 2190 |    0.132174 | 0.107331 | 0.164368 |              nan |
+| WGeo-Adaptive  | 2190 |    0.129569 | 0.105074 | 0.1612   |              nan |
+| WGeo-Ensemble  | 2190 |    0.129103 | 0.104059 | 0.161764 |              nan |
+
+**Per-year mean CRPS:**
+
+|   year |   n |   Static |   RW-Drift |   HS-Bootstrap |   GARCH-N |   GARCH-t |   GJR-GARCH-t |    WGeo |   WGeo-Gated |   WGeo-TheilSen |   WGeo-EWMA |   WGeo-Hetero |   WGeo-GARCH-Ens |   WGeo-Adaptive |   WGeo-Ensemble |
+|-------:|----:|---------:|-----------:|---------------:|----------:|----------:|--------------:|--------:|-------------:|----------------:|------------:|--------------:|-----------------:|----------------:|----------------:|
+|   2020 | 242 |  0.19597 |    0.19597 |        0.19492 |   0.19362 |   0.20976 |       0.21002 | 0.19707 |      0.19566 |         0.197   |     0.1969  |       0.19724 |          0.1961  |         0.19224 |         0.19622 |
+|   2021 | 365 |  0.20278 |    0.20278 |        0.19652 |   0.20553 |   0.20879 |       0.20797 | 0.19125 |      0.19691 |         0.19118 |     0.19122 |       0.20444 |          0.19637 |         0.19466 |         0.19229 |
+|   2022 | 365 |  0.11119 |    0.11119 |        0.11784 |   0.12414 |   0.12506 |       0.12547 | 0.10644 |      0.10819 |         0.10632 |     0.10637 |       0.1123  |          0.11326 |         0.1084  |         0.10646 |
+|   2023 | 365 |  0.09319 |    0.09319 |        0.09655 |   0.10161 |   0.10399 |       0.10407 | 0.09426 |      0.09269 |         0.09417 |     0.09418 |       0.09505 |          0.09514 |         0.09505 |         0.09311 |
+|   2024 | 366 |  0.14017 |    0.14017 |        0.13908 |   0.14017 |   0.14398 |       0.1427  | 0.14287 |      0.14095 |         0.14282 |     0.1427  |       0.14268 |          0.14458 |         0.14114 |         0.14201 |
+|   2025 | 365 |  0.09011 |    0.09011 |        0.08999 |   0.09005 |   0.11232 |       0.10848 | 0.08376 |      0.08679 |         0.08375 |     0.08373 |       0.08562 |          0.08606 |         0.08411 |         0.08414 |
+|   2026 | 122 |  0.08525 |    0.08525 |        0.08997 |   0.08551 |   0.09789 |       0.09774 | 0.07684 |      0.08192 |         0.07674 |     0.07685 |       0.07787 |          0.08145 |         0.07846 |         0.07814 |
+
+**Per-regime mean CRPS (regime tagged from 60d trailing return + vol):**
+
+| regime   |   n |   Static |   RW-Drift |   HS-Bootstrap |   GARCH-N |   GARCH-t |   GJR-GARCH-t |    WGeo |   WGeo-Gated |   WGeo-TheilSen |   WGeo-EWMA |   WGeo-Hetero |   WGeo-GARCH-Ens |   WGeo-Adaptive |   WGeo-Ensemble |
+|:---------|----:|---------:|-----------:|---------------:|----------:|----------:|--------------:|--------:|-------------:|----------------:|------------:|--------------:|-----------------:|----------------:|----------------:|
+| crash    | 378 |  0.10809 |    0.10809 |        0.11149 |   0.11921 |   0.12727 |       0.12545 | 0.10385 |      0.10496 |         0.10375 |     0.10376 |       0.10896 |          0.10982 |         0.10466 |         0.1035  |
+| high-vol | 136 |  0.10947 |    0.10947 |        0.10818 |   0.11595 |   0.14647 |       0.14535 | 0.10725 |      0.10522 |         0.1072  |     0.10714 |       0.11706 |          0.11627 |         0.10838 |         0.10578 |
+| neutral  | 743 |  0.09674 |    0.09674 |        0.09977 |   0.10316 |   0.11026 |       0.10975 | 0.09133 |      0.09439 |         0.09127 |     0.09135 |       0.09394 |          0.09469 |         0.09232 |         0.09206 |
+| low-vol  | 470 |  0.16579 |    0.16579 |        0.16512 |   0.16647 |   0.16768 |       0.16749 | 0.17072 |      0.16711 |         0.17053 |     0.17053 |       0.17215 |          0.17105 |         0.17037 |         0.16894 |
+| rally    | 463 |  0.18377 |    0.18377 |        0.17988 |   0.17961 |   0.18887 |       0.18751 | 0.17505 |      0.17958 |         0.17511 |     0.17494 |       0.17969 |          0.17579 |         0.17449 |         0.17586 |
+
+**Diebold-Mariano vs Static** (headline best WGeo-family variant is **WGeo-Ensemble**; both vanilla and residualised tests reported — residualised uses |y|, y², y plus 4 peer losses as controls to project out shared volatility-clustering noise):
+
+|                |   p_vanilla |   p_residualised |
+|:---------------|------------:|-----------------:|
+| Static         |      1      |           1      |
+| RW-Drift       |      1      |           1      |
+| HS-Bootstrap   |      0.6241 |           0.258  |
+| GARCH-N        |      0.117  |           0.0108 |
+| GARCH-t        |      0.0001 |           0      |
+| GJR-GARCH-t    |      0.0003 |           0      |
+| WGeo           |      0.0142 |           0.0008 |
+| WGeo-Gated     |      0.0007 |           0.0001 |
+| WGeo-TheilSen  |      0.0119 |           0.0006 |
+| WGeo-EWMA      |      0.0115 |           0.0006 |
+| WGeo-Hetero    |      0.9302 |           0.8949 |
+| WGeo-GARCH-Ens |      0.7518 |           0.611  |
+| WGeo-Adaptive  |      0.0501 |           0.0027 |
+| WGeo-Ensemble  |      0.0015 |           0      |
+
+**Regime-conditional DM** (WGeo-Ensemble vs Static, per-regime CRPS gap and DM statistic; the aggregate panel DM hides large WGeo-family wins in non-neutral regimes):
+
+| regime   |   n |   mean_a |   mean_b |   delta_pct |       dm |       p |
+|:---------|----:|---------:|---------:|------------:|---------:|--------:|
+| crash    | 378 |  0.1035  |  0.10809 |    -4.23919 | -2.02079 | 0.0433  |
+| high-vol | 136 |  0.10578 |  0.10947 |    -3.37557 | -0.95564 | 0.33925 |
+| neutral  | 743 |  0.09206 |  0.09674 |    -4.83702 | -3.41754 | 0.00063 |
+| low-vol  | 470 |  0.16894 |  0.16579 |     1.8972  |  1.65696 | 0.09753 |
+| rally    | 463 |  0.17586 |  0.18377 |    -4.30521 | -2.81976 | 0.00481 |
+
+**GARCH-fallback rate** (fraction of walk-forward steps where the GARCH fit raised or produced degenerate variances, forcing the WGeo-Hetero / CondShape variants back onto the unconditional √h scaling). The §4 falsification floor for Hetero is conditional on this rate being small — otherwise the headline is measuring √h scaling, not the GARCH contribution:
+
+| method      |   fallback_rate |
+|:------------|----------------:|
+| WGeo-Hetero |               0 |
+
+![cumulative CRPS](../results/long_cum_crps_xrpusdt_h21.png)

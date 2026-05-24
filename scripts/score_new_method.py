@@ -233,7 +233,7 @@ def main():
     parser.add_argument(
         "--symbols",
         nargs="*",
-        default=["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"],
+        default=["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT"],
     )
     parser.add_argument("--horizons", nargs="*", type=int, default=[1, 5, 21])
     parser.add_argument("--K", type=int, default=30)
