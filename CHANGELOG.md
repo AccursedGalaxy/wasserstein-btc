@@ -6,6 +6,23 @@ All notable changes to this project will be documented here. Dates ISO-8601.
 
 ### Added
 
+- **XRP/USDT in the headline long-horizon panel.** Added to `SYMBOLS` in
+  `scripts/run_long_horizon.py` (and the parallel constants in
+  `scripts/summarize_v03.py`, `scripts/score_new_method.py`,
+  `viewer/build_data.py`, `scripts/fetch_data.py`). Five-asset cross-asset
+  generalisation is more convincing than four. XRP turns out to be the
+  cleanest cell in the panel: all 6/6 (h × baseline) cells beat both
+  `Static` and `GARCH-N` with vanilla DM p<0.05; largest single-cell
+  result is **WGeo-Ensemble vs GARCH-N at h=21 on XRP: −5.4% CRPS,
+  residualised DM p≈2×10⁻⁶**. Aggregate `vol_only` cells with `dm_p_r<0.05`
+  and `WGeo-Ensemble` lower CRPS moves from 8/12 → **12/15** against
+  `Static` and 8/12 → **12/15** against `GARCH-N`. Existing four-asset
+  CRPS and vanilla DM statistics are byte-identical (per-asset forecasts
+  are unchanged); the residualised statistics drift by ≤2% in the last
+  digit because XRP's loss series is now in the peer-loss control
+  universe. **PREREGISTRATION.md is not modified** — the v0.5 frozen
+  holdout is locked to the original four assets; XRP enters as an
+  in-sample cross-asset replication only.
 - **Pre-registration document (`PREREGISTRATION.md`).** Locks the v0.5
   headline forecaster (`WGeo-Ensemble` with exact components and
   hyperparameters), reference baselines (`Static`, `GARCH-N`), 12 cells

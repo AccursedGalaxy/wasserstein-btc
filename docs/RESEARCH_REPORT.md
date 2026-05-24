@@ -2,7 +2,7 @@
 
 **Version:** 0.3.0
 **Date:** 2026-05-23
-**Author:** AccursedGalaxy (driven by Claude)
+**Author:** Robin Bohrer ([AccursedGalaxy](https://github.com/AccursedGalaxy))
 **Code:** [`src/wbtc/forecasters.py`](../src/wbtc/forecasters.py),
 methods `WassersteinGeodesicEWMA`, `WassersteinGeodesicHetero`,
 `WGeoGarchEnsemble`. Reproducible via `uv run wbtc backtest-long`.
@@ -170,8 +170,8 @@ reported in §5.
 
 | | |
 |---|---|
-| **Assets** | BTC/USDT, ETH/USDT, SOL/USDT, BNB/USDT (Binance daily) |
-| **Window** | 2017-08-17 → 2026-05-23 (SOL: 2020-08-11, BNB: 2017-11-06) |
+| **Assets** | BTC/USDT, ETH/USDT, SOL/USDT, BNB/USDT, XRP/USDT (Binance daily) |
+| **Window** | 2017-08-17 → 2026-05-23 (SOL: 2020-08-11, BNB: 2017-11-06, XRP: 2018-05-04) |
 | **Train** | Rolling 730-day fit window |
 | **Test** | Every day after burn-in; 2400+ walk-forward steps per (asset, h) |
 | **Horizons** | h ∈ {1, 5, 21} |
@@ -483,6 +483,22 @@ nulls.
 3. Multivariate joint distribution via Sliced-Wasserstein.
 4. Conformal calibration layer.
 5. Live paper-trading on the next 6 months.
+
+## Acknowledgements
+
+This work was developed by the author with substantial assistance from
+Anthropic's Claude (Opus 4 family) used as a pair-programming and
+drafting collaborator. Literature search, code implementation, prose
+drafting, and bibliography assembly were AI-assisted; methodology
+choices, falsification-criteria design, hyperparameter discipline (the
+2019–2022 / 2022-onward split, the *a priori* parameter freeze in
+§3, the pre-registered 2026–2027 holdout), and the editorial decision
+to surface negative findings (the `WGeo-Hetero` dead end in §4.4, the
+2020 COVID weak regime) were directed by the author. All numerical
+results in §4–§5 were produced by the code in this repository and are
+reproducible from `uv run wbtc backtest-long`; the author has
+independently verified the headline panel, the GW-DM implementation,
+and the falsification verdict against `THEORY.md §4`.
 
 ## References
 

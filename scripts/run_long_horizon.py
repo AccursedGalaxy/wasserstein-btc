@@ -85,7 +85,7 @@ METHODS = {
     "WGeo-Ensemble": lambda: WGeoEnsemble(),
 }
 
-SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"]
+SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT"]
 HORIZONS = [1, 5, 21]
 BURN_IN = 730
 

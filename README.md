@@ -98,7 +98,7 @@ and ships on the next signed tag — see [`ROADMAP.md`](ROADMAP.md).
 
 ```bash
 uv run wbtc info                              # what data do I have?
-uv run wbtc fetch BTC/USDT ETH/USDT SOL/USDT  # fetch / update from Binance
+uv run wbtc fetch                             # fetch / update default panel from Binance
 uv run wbtc forecast BTC/USDT -H 5 --plot     # forecast & fan-chart PNG
 uv run wbtc forecast BTC/USDT -H 5 --json     # JSON for scripting
 uv run wbtc backtest --quick                  # fast single-symbol backtest
