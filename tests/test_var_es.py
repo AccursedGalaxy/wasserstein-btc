@@ -39,6 +39,22 @@ def test_extract_var_es_matches_normal_closed_form():
     assert abs(es_r - expected_es) < 0.02, f"ES off: {es_r} vs {expected_es}"
 
 
+def test_extract_var_es_at_grid_knot():
+    """Regression: K=50 → u[0]=0.01 hits α=0.01 exactly. Prior implementation
+    produced a 0/0 slope and NaN ES; AS Z1/Z2 then clipped to 1e-12 and
+    exploded to ~1e+11. ES must be finite and reasonable."""
+    u = make_grid(50)
+    # quantile vector for a N(0, 0.02) — α=1% quantile is at q[0]
+    sigma = 0.02
+    q = sigma * norm.ppf(u)
+    var_r, es_r = extract_var_es(q, u, alpha=0.01)
+    assert np.isfinite(var_r) and np.isfinite(es_r)
+    # closed form (linear extrap from q[0], q[1] back to 0 then trapezoid;
+    # under N(0, σ) ES_α is around -σ · φ(z_α)/α ≈ -0.053)
+    assert -0.10 < es_r < -0.02, f"ES = {es_r} out of plausible range"
+    assert es_r < var_r, "ES must be at or below VaR"
+
+
 def test_extract_var_es_es_below_var():
     """For any non-degenerate left tail, ES is more negative than VaR."""
     rng = np.random.default_rng(0)
@@ -198,6 +214,33 @@ def test_mc_pvalue_high_when_well_specified():
     # MC p-value should not be tiny
     assert out["p_z1"] > 0.05, f"false positive Z1: p={out['p_z1']}"
     assert out["p_z2"] > 0.05, f"false positive Z2: p={out['p_z2']}"
+
+
+def test_mc_sampler_recovers_predictive_tail():
+    """Regression: prior implementation used np.interp default flat extrap
+    beyond the quantile grid, truncating the synthetic tail and biasing
+    Z1/Z2 MC nulls. The linear extrapolation should now recover the true
+    predictive tail moments to within MC noise."""
+    from wbtc.var_es import _sample_from_quantile_grid
+
+    rng = np.random.default_rng(42)
+    n_steps = 100
+    K = 50
+    u = make_grid(K)
+    sigma = 0.02
+    q_template = sigma * norm.ppf(u)
+    Q = np.tile(q_template, (n_steps, 1))
+    samples = _sample_from_quantile_grid(Q, u, n_samples=5000, rng=rng)
+    flat = samples.flatten()
+    # mean ~ 0, std ~ sigma — with truncation std would be materially smaller
+    assert abs(np.mean(flat)) < 0.002, f"mean off: {np.mean(flat)}"
+    assert 0.0185 < np.std(flat) < 0.0215, f"std={np.std(flat)} not near σ={sigma}"
+    # tail-quantile check: 1% sample quantile ≈ σ·Φ⁻¹(0.01) ≈ -0.0465
+    q01 = float(np.quantile(flat, 0.01))
+    expected_q01 = sigma * float(norm.ppf(0.01))
+    assert abs(q01 - expected_q01) < 0.003, (
+        f"1% empirical quantile {q01} far from predicted {expected_q01}"
+    )
 
 
 def test_mc_pvalue_low_when_es_underestimated():

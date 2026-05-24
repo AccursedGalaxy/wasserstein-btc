@@ -168,7 +168,12 @@ def main():
         "  function (1000 draws per cell).",
         "",
         "**A method passes a test at level 0.05 when p > 0.05** (we fail to "
-        "reject the null of correct calibration).",
+        "reject the null of correct calibration). **AS Z1/Z2 p-values are "
+        "one-sided** — they ask *is the model underestimating the tail?* "
+        "A very high p-value with negative Z indicates an *over*-conservative "
+        "model (predicted ES bigger than realised), which is also a "
+        "calibration failure, just on the regulator-friendly side; check the "
+        "raw Z value alongside Kupiec to diagnose this.",
         "",
         "**Headline question.** Do WGeo's tails match GARCH-t's tails? CRPS "
         "says they're close; this panel asks the sharper question.",

@@ -87,26 +87,23 @@ def extract_var_es(
     u = u[order]
     q = q[order]
     var_return = float(np.interp(alpha, u, q))
-    mask = u <= alpha
-    if not mask.any():
-        # Grid does not reach alpha at all; fall back to the smallest-u
-        # grid point as the only tail observation.
-        return var_return, float(q[0])
-    u_int = np.concatenate([u[mask], [alpha]])
-    q_int = np.concatenate([q[mask], [var_return]])
-    # Anchor the integral at u=0 by reflecting the first segment slope —
-    # i.e. assume the quantile function is locally linear between 0 and
-    # the smallest grid point. This is the same convention used by
-    # numpy.trapz on a left-padded grid.
-    if u_int[0] > 0.0:
-        # linear extrapolation back to 0 using first two points
-        if len(u_int) >= 2:
-            slope = (q_int[1] - q_int[0]) / (u_int[1] - u_int[0])
-            q0 = q_int[0] - slope * u_int[0]
-        else:
-            q0 = q_int[0]
-        u_int = np.concatenate([[0.0], u_int])
-        q_int = np.concatenate([[q0], q_int])
+    # Build the integration grid on [0, α] with **strict** u < α, then append
+    # the endpoint (α, VaR). The strict inequality avoids a duplicate endpoint
+    # when α coincides with a grid knot (e.g., make_grid(50) puts u[0] = 0.01
+    # exactly at α = 1%, and a non-strict mask would generate (0.01, 0.01)
+    # making the segment-slope 0/0 = NaN, which propagates through the ES
+    # ratio in AS Z1/Z2 as a clipped explosion).
+    mask = u < alpha
+    # Linear extrapolation of Q back to u = 0 using the two leftmost grid
+    # points. If the grid has only one point in [0, α] the slope is undefined
+    # — fall back to a flat extrapolation Q(0) = Q(u[0]).
+    if len(u) >= 2 and u[1] > u[0]:
+        slope = (q[1] - q[0]) / (u[1] - u[0])
+        q_at_zero = q[0] - slope * u[0]
+    else:
+        q_at_zero = float(q[0])
+    u_int = np.concatenate([[0.0], u[mask], [alpha]])
+    q_int = np.concatenate([[q_at_zero], q[mask], [var_return]])
     es_return = float(np.trapezoid(q_int, u_int) / alpha)
     return var_return, es_return
 
@@ -365,14 +362,33 @@ def _sample_from_quantile_grid(
     ``q_matrix`` has shape (T, K). Returns array shape (n_samples, T) where
     row b column t is a single draw r*_{b,t} ~ Q_t (the inverse CDF
     transform of u ~ Uniform(0,1)).
+
+    Beyond the grid endpoints we **linearly extrapolate** the quantile
+    function using the two outermost grid points on each side. ``np.interp``
+    would flat-extrapolate, which truncates the synthetic tail and biases
+    the MC null distribution toward over-conservative Z1/Z2 (so an over-
+    conservative observed model gets an artificially high p-value because
+    the null shares its bias). The linear extrapolation matches what
+    :func:`extract_var_es` does for the ES integral.
     """
     T = q_matrix.shape[0]
-    # draw uniforms then interpolate per t
     us = rng.uniform(0.0, 1.0, size=(n_samples, T))
     out = np.empty_like(us, dtype=float)
-    # vectorised interp per timestep; T loop is cheap vs. per-call numpy.interp
+    u_min, u_max = float(u[0]), float(u[-1])
     for t in range(T):
-        out[:, t] = np.interp(us[:, t], u, q_matrix[t])
+        q_t = q_matrix[t]
+        # interior: regular linear interpolation
+        out[:, t] = np.interp(us[:, t], u, q_t)
+        # left-tail extrapolation
+        left = us[:, t] < u_min
+        if left.any():
+            slope_lo = (q_t[1] - q_t[0]) / (u[1] - u[0])
+            out[left, t] = q_t[0] + slope_lo * (us[left, t] - u_min)
+        # right-tail extrapolation
+        right = us[:, t] > u_max
+        if right.any():
+            slope_hi = (q_t[-1] - q_t[-2]) / (u[-1] - u[-2])
+            out[right, t] = q_t[-1] + slope_hi * (us[right, t] - u_max)
     return out
 
 
