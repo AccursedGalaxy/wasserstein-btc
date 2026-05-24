@@ -224,6 +224,12 @@ def cmd_backtest_long(args: argparse.Namespace) -> int:
     return int(mod.main() or 0)
 
 
+def cmd_var_es(args: argparse.Namespace) -> int:
+    """VaR / Expected-Shortfall multi-asset panel (Kupiec, Christoffersen, AS)."""
+    mod = _load_script("run_var_es_backtest")
+    return int(mod.main() or 0)
+
+
 def cmd_extended_baselines(args: argparse.Namespace) -> int:
     """Extended econometric baselines (HAR-RV, CAViaR, MS, FIGARCH, SV, BVAR)."""
     mod = _load_script("run_extended_baselines")
@@ -304,6 +310,12 @@ def build_parser() -> argparse.ArgumentParser:
         "backtest-long", help="Run the full long-horizon multi-asset backtest."
     )
     p_btl.set_defaults(fn=cmd_backtest_long)
+
+    p_vares = sub.add_parser(
+        "var-es",
+        help="VaR / ES tail-calibration backtest panel (Kupiec, Christoffersen, AS).",
+    )
+    p_vares.set_defaults(fn=cmd_var_es)
 
     p_ext = sub.add_parser(
         "extended-baselines",

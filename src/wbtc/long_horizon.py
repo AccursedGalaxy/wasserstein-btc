@@ -37,6 +37,7 @@ __all__ = [
     "regime_conditional_dm",
     "overall_summary",
     "garch_fallback_rate",
+    "aligned_quantile_matrices",
 ]
 
 
@@ -57,6 +58,7 @@ def run_long_horizon(
     K: int = 30,
     n_jobs: int = 1,
     stride: int = 1,
+    record_quantiles: bool = False,
 ) -> LongRunResult:
     u = make_grid(K)
     if n_jobs == 1:
@@ -70,6 +72,7 @@ def run_long_horizon(
                 stride=stride,
                 show_progress=True,
                 label=name,
+                record_quantiles=record_quantiles,
             )
             for name, fac in method_factories.items()
         }
@@ -86,6 +89,7 @@ def run_long_horizon(
                 stride=stride,
                 show_progress=False,
                 label=name,
+                record_quantiles=record_quantiles,
             )
             for name, fac in method_factories.items()
         )
@@ -392,6 +396,29 @@ def overall_summary(result: LongRunResult, horizon: int) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows).set_index("method")
+
+
+def aligned_quantile_matrices(
+    result: LongRunResult,
+) -> dict[str, np.ndarray]:
+    """Per-method (T, K) quantile matrices aligned to ``result.aligned_idx``.
+
+    Requires the run to have been produced with ``record_quantiles=True``;
+    raises ``KeyError`` otherwise. The matrices are sliced from each
+    method's per-step frame at the common timesteps used for the loss
+    panel, so they line up exactly with :attr:`LongRunResult.realised`
+    for VaR/ES extraction.
+    """
+    out: dict[str, np.ndarray] = {}
+    for name, df in result.per_step.items():
+        if "q" not in df.columns:
+            raise KeyError(
+                f"method {name!r} has no 'q' column — "
+                "rerun run_long_horizon(..., record_quantiles=True)"
+            )
+        sub = df.set_index("t").loc[result.aligned_idx, "q"]
+        out[name] = np.stack([np.asarray(q, dtype=float) for q in sub.to_numpy()])
+    return out
 
 
 def garch_fallback_rate(result: LongRunResult) -> dict[str, float]:

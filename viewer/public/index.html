@@ -231,6 +231,13 @@
             </div>
             <div class="control-group grow">
               <label>Methods</label>
+              <div class="preset-row" id="cum-method-presets">
+                <button data-p="headline" class="preset active" title="Static + GARCH-N + all WGeo variants">Headline</button>
+                <button data-p="wgeo" class="preset" title="WGeo family only">WGeo only</button>
+                <button data-p="baselines" class="preset" title="Classical baselines only">Baselines</button>
+                <button data-p="all" class="preset" title="Toggle every method">All</button>
+                <button data-p="clear" class="preset" title="Clear selection">Clear</button>
+              </div>
               <div class="chip-row" id="cum-methods"></div>
             </div>
             <div class="control-group">
@@ -241,6 +248,9 @@
               </div>
             </div>
           </div>
+          <p class="reading-guide" id="cum-reading-guide">
+            Cumulative CRPS over the walk-forward — lower is better. A method that stays beneath another for years is genuinely better.
+          </p>
           <div id="cum-chart" class="chart-host"></div>
         </div>
 
@@ -248,14 +258,20 @@
           <div class="card chart-card">
             <header class="chart-head">
               <h3>Mean CRPS by method</h3>
-              <p class="sub">Same (asset, h) as above. Lower is better.</p>
+              <p class="sub">Same (asset, h) as above — sorted best→worst. Use Δ-vs-Static to see the differences that look identical at four decimal places.</p>
             </header>
+            <div class="controls-mini">
+              <div class="seg" id="bar-view-seg">
+                <button data-v="abs" class="active">absolute</button>
+                <button data-v="delta">Δ vs Static</button>
+              </div>
+            </div>
             <div id="bar-chart" class="chart-host small"></div>
           </div>
           <div class="card chart-card">
             <header class="chart-head">
               <h3>DM significance vs Static</h3>
-              <p class="sub">Two-sided p-value (Newey-West). Bars left of the dotted line favour the WGeo variant.</p>
+              <p class="sub">Diebold-Mariano (Newey-West HAC) — each WGeo variant vs Static. Green = WGeo significantly better, red = significantly worse, grey = tie. Dashed lines mark the two-sided 5% / 10% critical values.</p>
             </header>
             <div id="dm-chart" class="chart-host small"></div>
           </div>
@@ -281,14 +297,21 @@
                 <button data-h="21">h = 21</button>
               </div>
             </div>
+            <div class="control-group">
+              <label>Cumulative view</label>
+              <div class="seg" id="ext-view-seg">
+                <button data-v="cum">cumulative</button>
+                <button data-v="delta" class="active">Δ vs WGeo-GARCH-Ens</button>
+              </div>
+            </div>
           </div>
           <div class="grid-2">
             <div>
-              <h3 class="chart-mini-head">Mean CRPS</h3>
+              <h3 class="chart-mini-head">Mean CRPS · sorted best→worst</h3>
               <div id="ext-bar" class="chart-host small"></div>
             </div>
             <div>
-              <h3 class="chart-mini-head">Cumulative CRPS</h3>
+              <h3 class="chart-mini-head">Cumulative CRPS · differences become visible in Δ mode</h3>
               <div id="ext-cum" class="chart-host small"></div>
             </div>
           </div>

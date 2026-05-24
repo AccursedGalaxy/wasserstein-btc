@@ -35,6 +35,7 @@ src/wbtc/
   data.py            data discovery + parquet loader + provenance hashes
   quantiles.py       1D W2 geometry (make_grid, empirical_quantiles, isotonic_project)
   scoring.py         CRPS, log-score, Diebold-Mariano, stationary bootstrap
+  var_es.py          VaR/ES tail tests: Kupiec, Christoffersen, Acerbi-Szekely
   forecasters.py     all baselines + 3 WGeo variants; every class has fit/predict
   backtest.py        single-horizon walk-forward (compare_methods)
   long_horizon.py    multi-year walk-forward + per-year + per-regime breakdowns
@@ -44,6 +45,7 @@ scripts/
   run_backtest.py           365-day-holdout report (legacy, produces RESULTS_AUTO.md)
   run_long_horizon.py       full multi-year multi-asset (the one we trust)
   run_extended_baselines.py v0.4 extended econometric panel (HAR-RV/CAViaR/MS/FIGARCH/SV/BVAR) on BTC
+  run_var_es_backtest.py    VaR/ES tail-calibration panel (Kupiec, Christoffersen, Acerbi-Szekely)
   hyperparam_sweep.py       4x4 grid on early epoch, verified on late epoch
   coverage_check.py         Kupiec LR test of forecast-quantile calibration
 docs/
@@ -122,6 +124,16 @@ Then it appears automatically in `wbtc info` and in
 ```
 uv run wbtc backtest-long
 ```
+
+### Run the VaR/ES tail-calibration panel (~30 min)
+```
+uv run wbtc var-es
+```
+Output: `docs/RESULTS_VAR_ES.md` + `results/var_es_*.json`. Tests
+Kupiec/Christoffersen/Acerbi-Szekely at α ∈ {1%, 5%} on every method
+in the panel — the natural sharpening of the CRPS headline because
+CRPS averages over the whole distribution and tail mis-calibration can
+be hidden by good body fit.
 
 ### Run the hyperparameter sweep (~5 min)
 ```

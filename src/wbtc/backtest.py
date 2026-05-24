@@ -61,6 +61,7 @@ def _walk_forward_one(
     stride: int = 1,
     show_progress: bool = False,
     label: str = "",
+    record_quantiles: bool = False,
 ) -> pd.DataFrame:
     """Canonical walk-forward loop for one method.
 
@@ -76,7 +77,9 @@ def _walk_forward_one(
     DataFrame with columns ``t``, ``crps``, ``y``; rows where fit or
     predict raised carry NaN losses and an ``err`` field with the first 80
     chars of the exception. Rows where the h-step realised return is
-    unavailable (end-of-series) are skipped.
+    unavailable (end-of-series) are skipped. When ``record_quantiles=True``
+    an additional ``q`` column stores the full forecast quantile vector
+    per step (needed for VaR/ES backtests in :mod:`wbtc.var_es`).
     """
     rows: list[dict] = []
     steps = range(train_window, len(returns) - horizon)
@@ -103,6 +106,8 @@ def _walk_forward_one(
         if y is None:
             continue
         row = {"t": t, "crps": crps_from_quantiles(q, u, y), "y": y}
+        if record_quantiles:
+            row["q"] = np.asarray(q, dtype=float).copy()
         # Forecasters that use GARCH conditioning set _garch_fallback on each
         # predict (None when GARCH is disabled). Surface the flag so the
         # long-horizon harness can report the fallback rate per method.

@@ -52,6 +52,17 @@ from .forecasters import (
 )
 from .quantiles import make_grid
 from .scoring import crps_from_quantiles, diebold_mariano
+from .var_es import (
+    VarEsBacktest,
+    acerbi_szekely_mc_pvalues,
+    acerbi_szekely_z1,
+    acerbi_szekely_z2,
+    christoffersen_cc_test,
+    christoffersen_independence_test,
+    extract_var_es,
+    kupiec_pof_test,
+    var_es_panel,
+)
 
 __version__ = "0.4.1"
 
@@ -85,6 +96,16 @@ __all__ = [
     "make_grid",
     "crps_from_quantiles",
     "diebold_mariano",
+    # var/es tail tests
+    "VarEsBacktest",
+    "extract_var_es",
+    "kupiec_pof_test",
+    "christoffersen_independence_test",
+    "christoffersen_cc_test",
+    "acerbi_szekely_z1",
+    "acerbi_szekely_z2",
+    "acerbi_szekely_mc_pvalues",
+    "var_es_panel",
     "__version__",
 ]
 

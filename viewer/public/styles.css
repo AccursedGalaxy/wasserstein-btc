@@ -314,6 +314,41 @@ code, .num, .mono { font-family: var(--font-mono); font-feature-settings: "zero"
 }
 
 .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* preset row above method chips */
+.preset-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.preset-row .preset {
+  background: transparent;
+  color: var(--fg-dim);
+  border: 1px solid var(--border-soft);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.preset-row .preset:hover { color: var(--fg); border-color: var(--border); }
+.preset-row .preset.active {
+  color: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--border));
+  background: color-mix(in oklab, var(--accent) 10%, transparent);
+}
+
+/* tiny in-card control row (e.g. mean-CRPS abs/Δ toggle) */
+.controls-mini { display: flex; gap: 8px; margin: -2px 0 8px; }
+
+/* short reading-guide caption that lives inside a chart card */
+.reading-guide {
+  margin: 4px 2px 12px;
+  color: var(--fg-dim);
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.45;
+}
+.reading-guide strong { color: var(--fg-mute); font-style: normal; font-weight: 600; }
 .chip-toggle {
   background: var(--bg-card-2);
   color: var(--fg-mute);
