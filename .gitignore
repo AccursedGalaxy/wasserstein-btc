@@ -32,3 +32,6 @@ outreach/
 
 # private live-trading forecasts (wbtc forecast-all): local only
 results/live/
+
+# personal trading tooling (brief, journal) — never commit
+private/
