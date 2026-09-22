@@ -6,7 +6,7 @@ would move the project from "beats textbook baselines on daily crypto"
 to "competitive against production risk systems."
 
 The single most important thing this roadmap acknowledges: **we have
-only benchmarked against textbook baselines (Static, RW-Drift,
+only benchmarked against textbook baselines (Static,
 HS-Bootstrap, GARCH-N, GARCH-t, GJR-GARCH-t).** That is enough to
 publish a clean methods paper. It is not enough to claim the model
 would compete with state-of-the-art realised-volatility or
@@ -23,7 +23,7 @@ single PR and each strengthens the paper.
   Normal (Hamilton 1989) — *plus* AR(1) Stochastic Volatility (Taylor
   1982 / Harvey-Ruiz-Shephard 1994) and a bivariate VAR+GARCH
   (BTC+ETH) — added to the comparator panel. See
-  [`docs/RESULTS_EXTENDED.md`](docs/RESULTS_EXTENDED.md). Run via
+  [`docs/archive/RESULTS_EXTENDED.md`](docs/archive/RESULTS_EXTENDED.md). Run via
   `uv run wbtc extended-baselines`.
 - [x] **CAViaR (Engle-Manganelli 2004) as a quantile-regression
   baseline.** Implemented as `CAViaRSAV` (Symmetric Absolute Value)

@@ -1,3 +1,5 @@
+> **Archived 2026-09-22 (per `../PREREG.md`, v1.0 deprecations).** Retained for provenance only; not a load-bearing claim. Known defect: the `RW-Drift` baseline in these tables is byte-identical to `Static` (same code path), so every comparison against both is one comparison counted twice. Single-year holdout, superseded by [`../RESULTS_LONG.md`](../RESULTS_LONG.md).
+
 # Results — Wasserstein-Geodesic BTC Forecasting
 
 Backtest run on 3201 daily BTC/USDT log-returns (2017-08-18 → 2026-05-23).
@@ -40,7 +42,7 @@ Scoring rule: **CRPS** (lower is better, strictly proper).
 | WGeo             |             0.3557 |     0.3557 |    0.5177 |    0.0003 | 1      |       0.1395 |
 | WGeo-Gated       |             0.7281 |     0.7281 |    0.0591 |    0      | 0.1395 |       1      |
 
-![cumulative CRPS h=1d](../results/cum_crps_h1.png)
+![cumulative CRPS h=1d](../../results/cum_crps_h1.png)
 
 ## Horizon h = 5 day(s)
 
@@ -77,7 +79,7 @@ Scoring rule: **CRPS** (lower is better, strictly proper).
 | WGeo             |             0.2308 |     0.2308 |    0.0454 |    0.0001 | 1      |       0.4837 |
 | WGeo-Gated       |             0.1354 |     0.1354 |    0.0156 |    0.0001 | 0.4837 |       1      |
 
-![cumulative CRPS h=5d](../results/cum_crps_h5.png)
+![cumulative CRPS h=5d](../../results/cum_crps_h5.png)
 
 ## Horizon h = 21 day(s)
 
@@ -114,7 +116,7 @@ Scoring rule: **CRPS** (lower is better, strictly proper).
 | WGeo             |             0.0389 |     0.0389 |    0.0117 |    0      | 1      |       0.0516 |
 | WGeo-Gated       |             0.047  |     0.047  |    0.006  |    0.0021 | 0.0516 |       1      |
 
-![cumulative CRPS h=21d](../results/cum_crps_h21.png)
+![cumulative CRPS h=21d](../../results/cum_crps_h21.png)
 
 ## Quantile Coverage (Kupiec LR test, h=1)
 
@@ -152,7 +154,7 @@ conservative on the right tail of return distributions.
 
 ## Verdict
 
-Against the four falsification criteria in [`THEORY.md §4`](THEORY.md):
+Against the four falsification criteria in [`THEORY.md §4`](../THEORY.md):
 
 | Criterion (failure if true) | h=1 | h=5 | h=21 |
 |---|:---:|:---:|:---:|

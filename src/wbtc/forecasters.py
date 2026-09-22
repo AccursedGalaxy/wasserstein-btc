@@ -14,6 +14,7 @@ intentionally do not maintain state across calls.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
@@ -121,20 +122,25 @@ class StaticEmpirical:
         return mu * h + (q1 - mu) * np.sqrt(h)
 
 
-@dataclass
-class RandomWalkDrift:
-    """B2: empirical 1-day distribution, mean shifted by h * drift."""
+class RandomWalkDrift(StaticEmpirical):
+    """Deprecated alias of :class:`StaticEmpirical`.
 
-    _returns: np.ndarray | None = None
+    Historically listed as baseline "B2 — Random-Walk-Drift", but its
+    ``predict`` was byte-identical to ``StaticEmpirical`` (mean shifted by
+    ``h * drift``, deviations scaled by ``sqrt(h)``), so every panel that
+    reported "beats Static *and* RW-Drift" was counting one comparison twice
+    (see ``docs/PREREG.md``, credibility failure 1). Removed from all result
+    panels on 2026-09-22; kept as a warning alias for API compatibility.
+    """
 
-    def fit(self, returns: np.ndarray) -> None:
-        self._returns = np.asarray(returns, dtype=float)
-
-    def predict(self, h: int, u: np.ndarray) -> np.ndarray:
-        assert self._returns is not None
-        q1 = empirical_quantiles(self._returns, u)
-        mu = self._returns.mean()
-        return mu * h + (q1 - mu) * np.sqrt(h)
+    def __init__(self) -> None:
+        warnings.warn(
+            "RandomWalkDrift is byte-identical to StaticEmpirical and is "
+            "deprecated; use StaticEmpirical.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__()
 
 
 @dataclass
@@ -775,7 +781,7 @@ class WGeoGarchEnsemble:
 # These six forecasters round out the comparison panel against named methods
 # from the financial-econometrics canon. They follow the same fit/predict
 # protocol as the original baselines. None of them is intended to be the
-# default forecaster — they exist so that RESULTS_EXTENDED.md can compare
+# default forecaster — they exist so that docs/archive/RESULTS_EXTENDED.md can compare
 # WGeo-* against vol-only, quantile-direct, regime-switching, long-memory,
 # stochastic-volatility, and multivariate-mean families on the same data.
 #

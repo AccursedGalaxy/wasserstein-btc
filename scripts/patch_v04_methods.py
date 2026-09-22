@@ -180,7 +180,6 @@ def regenerate_results_long():
             ]
             baseline_variants = [
                 "Static",
-                "RW-Drift",
                 "HS-Bootstrap",
                 "GARCH-N",
                 "GARCH-t",

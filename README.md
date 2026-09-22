@@ -29,8 +29,8 @@ pairs at horizons of 1, 5 and 21 days. The market is modelled as a
 trajectory on the 2-Wasserstein manifold of probability measures, the
 forecast is the tangent-space extrapolation of recent quantile vectors,
 and the result is scored with strictly proper rules (CRPS) against an
-explicit panel of baselines (Static, RW-Drift, Historical-Simulation
-Bootstrap, GARCH-N, GARCH-t, GJR-GARCH-t).
+explicit panel of baselines (Static, Historical-Simulation Bootstrap,
+GARCH-N, GARCH-t, GJR-GARCH-t).
 
 > **What it is:** a small, falsifiable, interpretable distributional
 > forecaster — ~4 hyperparameters, no learned weights, no neural net.
@@ -55,8 +55,8 @@ Bootstrap, GARCH-N, GARCH-t, GJR-GARCH-t).
 
 On the v0.4 panel (BTC + ETH + SOL + BNB × h ∈ {1, 5, 21} × 6.75 years
 walk-forward; 1380–2470 test days per cell), the WGeo family beats the
-best non-WGeo baseline (best of Static / RW-Drift / HS-Bootstrap /
-GARCH-N / GARCH-t / GJR-GARCH-t) in **12 / 12 cells** by 0.1% to 3.2%
+best non-WGeo baseline (best of Static / HS-Bootstrap / GARCH-N /
+GARCH-t / GJR-GARCH-t) in **12 / 12 cells** by 0.1% to 3.2%
 mean CRPS.
 
 The v0.4 cycle adds (a) `WGeoEnsemble`, the W₂ barycentre of the v0.3
@@ -154,7 +154,9 @@ docs/
                       explicit falsification criteria)
   RESEARCH_REPORT.md  paper-style writeup of the v0.3 contributions
   RESULTS_LONG.md     auto-regenerated 4-asset × 3-horizon evidence
-  RESULTS.md          legacy v0.1 single-year report (superseded)
+  RESULTS_VAR_ES.md   VaR / Expected-Shortfall tail-calibration panel
+  PREREG.md           pre-reg v1.0: kill conditions for the intraday track
+  archive/            superseded reports (v0.1 RESULTS.md, v0.4 RESULTS_EXTENDED.md)
   INDEX.md            one-paragraph orientation to every doc
 ROADMAP.md            v0.4 + v0.5 priorities (what would make it
                       competitive vs. production risk systems)
@@ -165,10 +167,11 @@ CHANGELOG.md          v0.1 → v0.2 → v0.3 history
 ## Honest limitations
 
 - We have benchmarked against **textbook baselines** as headline (Static
-  / RW / HS / GARCH-N / GARCH-t / GJR-GARCH-t across 4 assets × 3
+  / HS / GARCH-N / GARCH-t / GJR-GARCH-t across 4 assets × 3
   horizons in [`docs/RESULTS_LONG.md`](docs/RESULTS_LONG.md)) and against
   a broader **named-econometric panel** on BTC in
-  [`docs/RESULTS_EXTENDED.md`](docs/RESULTS_EXTENDED.md): HAR-RV (Corsi
+  [`docs/archive/RESULTS_EXTENDED.md`](docs/archive/RESULTS_EXTENDED.md)
+  (archived, provenance only): HAR-RV (Corsi
   2009), CAViaR-SAV (Engle-Manganelli 2004), 2-state Markov-switching
   Normal (Hamilton 1989), FIGARCH(1,d,0) (Baillie-Bollerslev-Mikkelsen
   1996), AR(1) Stochastic Volatility (Taylor 1982 / Harvey-Ruiz-Shephard

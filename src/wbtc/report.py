@@ -62,7 +62,7 @@ def plot_cumulative_crps(
 
     One line per method, oldest-step on the left, legend top-left, 2 columns.
     Identical visual style to the figures embedded in both ``RESULTS_LONG.md``
-    and ``RESULTS_EXTENDED.md`` so a reader scanning across documents sees a
+    and ``archive/RESULTS_EXTENDED.md`` so a reader scanning across documents sees a
     consistent treatment.
     """
     import matplotlib

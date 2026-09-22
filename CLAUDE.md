@@ -51,9 +51,10 @@ scripts/
 docs/
   THEORY.md            math (§1-5 + falsification §4). READ THIS. v0.3.
   RESEARCH_REPORT.md   paper-style writeup of the v0.3 contributions.
-  RESULTS.md           the v0.1 365-day report. Superseded but kept.
+  RESULTS_VAR_ES.md    VaR/ES tail-calibration panel (Kupiec, Christoffersen, Acerbi-Szekely).
+  PREREG.md            pre-reg v1.0 kill conditions for the intraday-density track (locked).
   RESULTS_LONG.md      v0.3 long-horizon report. The current source of truth.
-  RESULTS_EXTENDED.md  v0.4 named-econometric baseline panel (BTC-only).
+  archive/             superseded reports: v0.1 RESULTS.md, v0.4 RESULTS_EXTENDED.md. Provenance only.
   INDEX.md             one-paragraph overview of every doc + repo-root files.
 ROADMAP.md           v0.4 + v0.5 priorities — the prioritised work list.
 CONTRIBUTING.md      conventions PRs must follow.

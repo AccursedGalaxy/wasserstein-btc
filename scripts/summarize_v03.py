@@ -32,7 +32,6 @@ WGEO_VARIANTS = [
 ]
 BASELINE_VARIANTS = [
     "Static",
-    "RW-Drift",
     "HS-Bootstrap",
     "GARCH-N",
     "GARCH-t",

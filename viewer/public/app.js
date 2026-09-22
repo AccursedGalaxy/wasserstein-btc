@@ -37,7 +37,6 @@ const FAMILY_BY_METHOD = new Map();
 const METHOD_DESC = {
   // baselines
   "Static": ["baseline", "Unconditional empirical quantiles of the training window — the constant predictor that's surprisingly hard to beat."],
-  "RW-Drift": ["baseline", "Random walk with drift: same empirical quantiles, shifted by the windowed mean return."],
   "HS-Bootstrap": ["baseline", "Historical simulation via stationary bootstrap on the training tail."],
   "GARCH-N": ["baseline", "GARCH(1,1) with Gaussian innovations — the workhorse volatility model."],
   "GARCH-t": ["baseline", "GARCH(1,1) with Student-t innovations, fit per step."],

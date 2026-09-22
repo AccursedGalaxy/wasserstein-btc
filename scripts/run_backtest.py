@@ -1,5 +1,5 @@
 """Run the full walk-forward backtest across all forecasters & horizons,
-write results to results/ and docs/RESULTS.md."""
+write results to results/ and docs/RESULTS_AUTO.md."""
 
 from __future__ import annotations
 
@@ -17,7 +17,6 @@ from wbtc.backtest import BacktestConfig, compare_methods, load_returns
 from wbtc.forecasters import (
     GarchNormal,
     GarchStudentT,
-    RandomWalkDrift,
     StaticEmpirical,
     WassersteinGeodesic,
     WassersteinGeodesicGated,
@@ -37,7 +36,6 @@ TAU = 5
 
 METHODS = {
     "Static-Empirical": StaticEmpirical,
-    "RW-Drift": RandomWalkDrift,
     "GARCH-N": GarchNormal,
     "GARCH-t": GarchStudentT,
     "WGeo": lambda: WassersteinGeodesic(window=WGEO_WINDOW, lookback=WGEO_LOOKBACK),
@@ -159,7 +157,7 @@ def main():
         )
     md_lines += ["```json", json.dumps(verdicts, indent=2), "```", ""]
     md_lines += [
-        "_(The interpretive verdict + coverage table in `docs/RESULTS.md` is "
+        "_(The interpretive verdict + coverage table in `docs/archive/RESULTS.md` is "
         "hand-written and must be re-edited after each run.)_"
     ]
 

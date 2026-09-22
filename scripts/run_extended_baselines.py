@@ -3,7 +3,7 @@
 Runs the v0.4 extended baselines (HAR-RV, CAViaR-SAV, MS-2-state,
 FIGARCH(1,d,0), SV-AR1, Bivariate VAR-GARCH(BTC+ETH)) alongside the v0.3
 WGeo-GARCH-Ens anchor on BTC at horizons {1, 5, 21}. Writes a per-symbol
-comparison table to `docs/RESULTS_EXTENDED.md`.
+comparison table to `docs/archive/RESULTS_EXTENDED.md`.
 
 The headline `docs/RESULTS_LONG.md` panel (Static/RW/HS/GARCH/WGeo
 families across BTC/ETH/SOL/BNB) remains the production result of record.
@@ -53,7 +53,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 RESULTS = ROOT / "results"
 RESULTS.mkdir(exist_ok=True)
-DOC = ROOT / "docs" / "RESULTS_EXTENDED.md"
+DOC = ROOT / "docs" / "archive" / "RESULTS_EXTENDED.md"
 
 SYMBOL = "BTC/USDT"
 EXOG_SYMBOL = "ETH/USDT"

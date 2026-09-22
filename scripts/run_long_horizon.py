@@ -18,7 +18,6 @@ from wbtc.forecasters import (
     GarchNormal,
     GarchStudentT,
     HistoricalSimulationBootstrap,
-    RandomWalkDrift,
     StaticEmpirical,
     WassersteinGeodesic,
     WassersteinGeodesicAdaptive,
@@ -56,7 +55,6 @@ TAU = 5
 
 METHODS = {
     "Static": StaticEmpirical,
-    "RW-Drift": RandomWalkDrift,
     "HS-Bootstrap": lambda: HistoricalSimulationBootstrap(n_paths=3000, rng_seed=0),
     "GARCH-N": GarchNormal,
     "GARCH-t": GarchStudentT,
@@ -195,7 +193,6 @@ def main():
             ]
             baseline_variants = [
                 "Static",
-                "RW-Drift",
                 "HS-Bootstrap",
                 "GARCH-N",
                 "GARCH-t",

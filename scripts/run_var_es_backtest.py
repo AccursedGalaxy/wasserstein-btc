@@ -54,7 +54,7 @@ RESULTS.mkdir(exist_ok=True)
 DOC = ROOT / "docs" / "RESULTS_VAR_ES.md"
 
 # The method panel mirrors run_long_horizon.py but drops methods whose
-# left-tail quantile is not the model's primary output (RW-Drift, Adaptive)
+# left-tail quantile is not the model's primary output (Adaptive)
 # to keep the panel readable. GARCH-t and GJR-GARCH-t are the headline
 # baselines because they are the standard fat-tailed parametric VaR/ES
 # models in the econometric canon — beating them on these tests is the

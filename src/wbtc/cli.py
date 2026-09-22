@@ -336,7 +336,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_ext.add_argument(
         "--out",
         default=None,
-        help="Override output markdown path (default: docs/RESULTS_EXTENDED.md).",
+        help="Override output markdown path (default: docs/archive/RESULTS_EXTENDED.md).",
     )
     p_ext.set_defaults(fn=cmd_extended_baselines)
 

@@ -4,6 +4,23 @@ All notable changes to this project will be documented here. Dates ISO-8601.
 
 ## [Unreleased]
 
+### Changed
+
+- **2026-09-22 — `RW-Drift` removed from every result panel.** `RandomWalkDrift.predict`
+  was byte-identical to `StaticEmpirical.predict` (both shift by `h * mean` and
+  scale deviations by `sqrt(h)`), so any "beats Static *and* RW-Drift" cell counted
+  one comparison twice (`docs/PREREG.md`, credibility failure 1). Dropped from
+  `METHODS` / baseline lists in `run_long_horizon.py`, `run_backtest.py`,
+  `score_new_method.py`, `summarize_v03.py`, `patch_v04_methods.py`, and
+  `viewer/build_data.py`. The class is kept as a `DeprecationWarning` alias of
+  `StaticEmpirical` for API compatibility. Existing tables in `RESULTS_LONG.md`
+  carry an erratum note and drop the rows on next regeneration. Not a deviation
+  from `PREREGISTRATION.md`: the v0.5 reference baselines are `Static` and
+  `GARCH-N`, neither of which changes.
+- **`docs/RESULTS.md` and `docs/RESULTS_EXTENDED.md` moved to `docs/archive/`**
+  with provenance-only headers, executing the deprecation listed in
+  `docs/PREREG.md`. `wbtc extended-baselines` now writes to the archive path.
+
 ### Added
 
 - **XRP/USDT in the headline long-horizon panel.** Added to `SYMBOLS` in

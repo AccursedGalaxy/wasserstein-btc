@@ -4,6 +4,8 @@ Goal: prove the Wasserstein-Geodesic forecaster works over a *long* time horizon
 Train: rolling 730-day window. Test: every day after burn-in (no separate holdout).
 Scoring: CRPS (lower better, strictly proper).
 
+> **Erratum 2026-09-22 — duplicate baseline.** The `RW-Drift` rows and columns in the per-asset tables below are byte-identical to `Static` (same code path; see `PREREG.md` credibility failure 1). They are not an independent comparator. `RW-Drift` has been removed from `METHODS` in `scripts/run_long_horizon.py` and will disappear from these tables on the next regeneration. The pre-registered headlines (vs `Static`, vs `GARCH-N`) are unaffected.
+
 ## Pre-registration
 
 **Pre-registered headline forecaster:** `WGeo-Ensemble` (the equal-weight W₂ barycentre of `WGeo-TheilSen`, `WGeo-EWMA`, `WGeo-Gated` — see `THEORY.md §2.9`). All headline DM tests below are `WGeo-Ensemble` against a fixed reference baseline. The previous reporting style — *best-of-family vs best-of-baseline* — is retained as a robustness appendix because the implicit max-over-comparators inflates type-I error and is not a valid pre-committed test.

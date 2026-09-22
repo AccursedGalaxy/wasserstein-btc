@@ -376,8 +376,11 @@ Headline panel (BTC + ETH + SOL + BNB, in `RESULTS_LONG.md`):
 - **B1 — Static-Empirical.** $\hat F_{t+h}^{-1} = \hat F_t^{-1}$. The "the
   next window looks like the last window" hypothesis. Trivial but
   surprisingly hard to beat over short horizons.
-- **B2 — Random-Walk-Drift.** Empirical quantiles shifted by the empirical
-  mean return: $\hat F_{t+h}^{-1}(u) = \hat F_t^{-1}(u) + h \bar r_t$.
+- **B2 — Random-Walk-Drift.** *Removed 2026-09-22.* Was intended as
+  $\hat F_{t+h}^{-1}(u) = \hat F_t^{-1}(u) + h \bar r_t$, but the
+  implementation was byte-identical to B1 (both shift by $h\bar r_t$ and
+  scale deviations by $\sqrt h$), so it double-counted one comparison.
+  `RandomWalkDrift` survives only as a deprecated alias of `StaticEmpirical`.
 - **B3 — GARCH(1,1)-Gaussian.** Standard volatility model with Gaussian
   innovations; closed-form quantile forecast.
 - **B4 — GARCH(1,1)-Student-t.** Same but heavy-tailed innovations.
@@ -386,7 +389,7 @@ Headline panel (BTC + ETH + SOL + BNB, in `RESULTS_LONG.md`):
 - **B6 — Historical-Simulation Bootstrap.** Industry-standard non-
   parametric quantile forecast via i.i.d. bootstrap of past returns.
 
-Extended panel (BTC-only, in `RESULTS_EXTENDED.md`) — named methods
+Extended panel (BTC-only, in `archive/RESULTS_EXTENDED.md`, archived) — named methods
 from adjacent families requested in the v0.4 baseline-coverage item:
 
 - **C1 — HAR-RV** (Corsi 2009). Heterogeneous Autoregressive of

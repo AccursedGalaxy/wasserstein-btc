@@ -51,7 +51,6 @@ BURN_IN = 730
 
 NON_WGEO_NAMES = {
     "Static",
-    "RW-Drift",
     "HS-Bootstrap",
     "GARCH-N",
     "GARCH-t",

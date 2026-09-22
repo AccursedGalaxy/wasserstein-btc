@@ -4,6 +4,7 @@ import pytest
 from wbtc.forecasters import (
     Forecaster,
     GarchNormal,
+    RandomWalkDrift,
     StaticEmpirical,
     WassersteinGeodesic,
     WassersteinGeodesicGated,
@@ -23,6 +24,19 @@ def test_static_empirical_predict_returns_monotone_grid():
     f.fit(r)
     q = f.predict(h=1, u=u)
     assert (np.diff(q) >= -1e-9).all()
+
+
+def test_random_walk_drift_is_deprecated_alias_of_static():
+    rng = np.random.default_rng(3)
+    r = rng.standard_t(4, size=300) * 0.02
+    u = make_grid(64)
+    with pytest.warns(DeprecationWarning):
+        rw = RandomWalkDrift()
+    st = StaticEmpirical()
+    rw.fit(r)
+    st.fit(r)
+    for h in (1, 5, 21):
+        np.testing.assert_array_equal(rw.predict(h, u), st.predict(h, u))
 
 
 def test_garch_normal_runs_and_widens_with_horizon():
@@ -752,7 +766,6 @@ def _forecaster_factories():
     zeros = np.zeros(n, dtype=float)
     return [
         ("StaticEmpirical", fc.StaticEmpirical),
-        ("RandomWalkDrift", fc.RandomWalkDrift),
         ("GarchNormal", fc.GarchNormal),
         ("GarchStudentT", fc.GarchStudentT),
         ("GJRGarchStudentT", fc.GJRGarchStudentT),
