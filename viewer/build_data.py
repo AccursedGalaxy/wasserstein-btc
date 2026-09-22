@@ -335,15 +335,54 @@ def build_headline(symbol: str, h: int) -> dict | None:
     }
 
 
+_OHLCV_CACHE_PATH = Path(__file__).resolve().parent / "cache" / "ohlcv.json"
+_OHLCV_CACHE: dict[str, dict[str, list]] | None = None
+
+
+def _load_ohlcv_cache() -> dict[str, dict[str, list]]:
+    """Lazy-load the committed columnar OHLCV cache (~750 KB).
+
+    Same role as ``_load_returns_cache`` but for the markets section:
+    CI runners cannot reach Binance, so without this the candlestick and
+    return charts on the deployed site render empty.
+    """
+    global _OHLCV_CACHE
+    if _OHLCV_CACHE is None:
+        _OHLCV_CACHE = json.loads(_OHLCV_CACHE_PATH.read_text()) if _OHLCV_CACHE_PATH.exists() else {}
+    return _OHLCV_CACHE
+
+
+def _ohlcv_frame(symbol: str) -> pd.DataFrame | None:
+    """Daily OHLCV for ``symbol`` as a frame with columns ts/open/high/low/close/volume.
+
+    Prefers the parquet in ``data/``; falls back to ``viewer/cache/ohlcv.json``.
+    """
+    pq = DATA / f"{_slug(symbol)}_1d.parquet"
+    if pq.exists():
+        return pd.read_parquet(pq).sort_values("ts").reset_index(drop=True)
+    c = _load_ohlcv_cache().get(symbol)
+    if not c:
+        return None
+    return pd.DataFrame(
+        {
+            "ts": pd.to_datetime(c["t"], utc=True),
+            "open": c["o"],
+            "high": c["h"],
+            "low": c["l"],
+            "close": c["c"],
+            "volume": c["v"],
+        }
+    )
+
+
 def build_prices() -> dict[str, list]:
     """Full daily OHLC per asset — no downsampling, so the candlestick chart
     has no visible gaps. dataZoom handles in-browser navigation."""
     out: dict[str, list] = {}
     for sym in SYMBOLS + ["XRP/USDT"]:
-        pq = DATA / f"{_slug(sym)}_1d.parquet"
-        if not pq.exists():
+        df = _ohlcv_frame(sym)
+        if df is None:
             continue
-        df = pd.read_parquet(pq).sort_values("ts").reset_index(drop=True)
         out[sym] = [
             {
                 "t": str(pd.to_datetime(r["ts"]).date()),
@@ -362,10 +401,9 @@ def build_returns_overlay() -> dict[str, dict]:
     """Full daily log-returns — no downsampling for the same reason as build_prices."""
     out = {}
     for sym in SYMBOLS + ["XRP/USDT"]:
-        pq = DATA / f"{_slug(sym)}_1d.parquet"
-        if not pq.exists():
+        df = _ohlcv_frame(sym)
+        if df is None:
             continue
-        df = pd.read_parquet(pq).sort_values("ts").reset_index(drop=True)
         df["r"] = np.log(df["close"].astype(float)).diff()
         df = df.dropna(subset=["r"]).reset_index(drop=True)
         out[sym] = {

@@ -1339,7 +1339,16 @@ const mktState = { symbol: null };
 
 function initMktControls() {
   const seg = document.getElementById("mkt-symbol-seg");
-  const symbols = Object.keys(DATA.prices);
+  const symbols = Object.keys(DATA.prices || {});
+  if (symbols.length === 0) {
+    // No OHLCV in the bundle (build ran without data/ parquets and without
+    // viewer/cache/ohlcv.json). Say so instead of drawing empty axes.
+    const panel = seg.closest(".card");
+    panel.innerHTML =
+      '<p class="empty-note">Market data was not available when this page was built. ' +
+      "Run <code>uv run wbtc fetch</code> and <code>uv run python viewer/build_data.py</code> to populate it.</p>";
+    return;
+  }
   seg.innerHTML = symbols
     .map((s, i) => `<button data-s="${s}" class="${i === 0 ? "active" : ""}">${s.replace("/USDT", "")}</button>`)
     .join("");
@@ -1355,6 +1364,7 @@ function initMktControls() {
 }
 
 function drawMarket() {
+  if (!mktState.symbol) return;
   const theme = baseChartTheme();
   const price = getChart("price-chart");
   const ret = getChart("return-chart");

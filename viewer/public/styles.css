@@ -497,3 +497,16 @@ footer { padding: 36px 28px 56px; border-top: 1px solid var(--border-soft); }
   .hero-inner { grid-template-columns: 1fr; gap: 36px; }
   .nav { display: none; }
 }
+
+/* Empty state for a chart card whose data was absent at build time */
+.empty-note {
+  margin: 0;
+  padding: 2rem 0.5rem;
+  color: var(--fg-mute);
+  font-size: 0.95rem;
+  text-align: center;
+}
+.empty-note code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+}
