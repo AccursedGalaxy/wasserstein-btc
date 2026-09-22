@@ -40,6 +40,7 @@ src/wbtc/
   forecasters.py     all baselines + WGeo variants + WassersteinAR benchmark; every class has fit/predict
   conformal.py       split-conformal layer: conformalize_path (offline) + ConformalCalibrator (online wrapper)
   live.py            private daily forecasts (wbtc forecast-all) -> results/live/ (gitignored, NOT for the website)
+  brief.py           private trading brief (wbtc trade-brief): market context, tail probs, analogues, Bitget funding, sizing, sealed-log scorecard
   backtest.py        single-horizon walk-forward (compare_methods)
   long_horizon.py    multi-year walk-forward + per-year + per-regime breakdowns
   cli.py             `wbtc` CLI; dispatches to library / scripts/
@@ -160,7 +161,10 @@ frozen; changing either needs a dated amendment in that document.
 uv run wbtc forecast-all              # fetches, then writes results/live/{latest.json,log.jsonl,forecasts.html}
 uv run wbtc forecast-all --no-fetch   # offline
 ```
-`results/live/` is gitignored and must stay private; Robin uses it for his
+`uv run wbtc trade-brief` builds `results/live/brief.md` for a trading session
+(config in `results/live/trading.json`; decisions via `wbtc journal`). The
+`/trade` command and `crypto-trader` agent in `.claude/` (local, gitignored)
+drive that loop. `results/live/` is gitignored and must stay private; Robin uses it for his
 own trading. Do not wire it into `viewer/` or CI. The sealed log is
 append-only (same-day reruns are no-ops for the log).
 
