@@ -67,6 +67,16 @@ h=21 on a single test year (2025-2026), DM p=0.006. Kept for the Christoffersen
 quantile-coverage table; the headline numbers should be read against the
 larger and more honest `RESULTS_LONG.md` instead.
 
+## [PREREG.md](PREREG.md) — intraday-density track kill conditions (locked)
+
+Pre-registration v1.0 (2026-05-24) plus the v1.1 density-construction
+amendment (2026-09-22). Names four credibility failures of the daily
+rolling-window track, restates the thesis around a curvature statistic κ
+that should detect where Wasserstein Autoregression breaks, and freezes
+three sequential kill gates. Gate 1 is `scripts/gate_1_intraday_kappa.py`
+(`wbtc gate-1`). Distinct from `../PREREGISTRATION.md`, which locks the v0.5
+out-of-sample window for the daily track.
+
 ## Repo-root files
 
 - [`../README.md`](../README.md) — public-facing project description,

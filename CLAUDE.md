@@ -36,12 +36,15 @@ src/wbtc/
   quantiles.py       1D W2 geometry (make_grid, empirical_quantiles, isotonic_project)
   scoring.py         CRPS, log-score, Diebold-Mariano, stationary bootstrap
   var_es.py          VaR/ES tail tests: Kupiec, Christoffersen, Acerbi-Szekely
+  density.py         intraday-density data object (per-day KDE -> K quantiles); no forecasters
   forecasters.py     all baselines + 3 WGeo variants; every class has fit/predict
   backtest.py        single-horizon walk-forward (compare_methods)
   long_horizon.py    multi-year walk-forward + per-year + per-regime breakdowns
   cli.py             `wbtc` CLI; dispatches to library / scripts/
 scripts/
-  fetch_data.py             downloads OHLCV from Binance via ccxt -> data/*.parquet
+  fetch_data.py             downloads OHLCV from Binance via ccxt -> data/*.parquet (--timeframe 5m for intraday)
+  build_intraday_density.py 5m BTC -> data/btcusdt_intraday_density.parquet + results/intraday_density_manifest.json
+  gate_1_intraday_kappa.py  FROZEN pre-reg v1.0 Gate 1 kill test; exit 0=PASS 1=FAIL 2=setup
   run_backtest.py           365-day-holdout report (legacy, produces RESULTS_AUTO.md)
   run_long_horizon.py       full multi-year multi-asset (the one we trust)
   run_extended_baselines.py v0.4 extended econometric panel (HAR-RV/CAViaR/MS/FIGARCH/SV/BVAR) on BTC
@@ -135,6 +138,15 @@ Kupiec/Christoffersen/Acerbi-Szekely at α ∈ {1%, 5%} on every method
 in the panel — the natural sharpening of the CRPS headline because
 CRPS averages over the whole distribution and tail mis-calibration can
 be hidden by good body fit.
+
+### Run Gate 1 of the intraday-density track (pre-reg v1.0 / v1.1)
+```
+uv run wbtc fetch --timeframe 5m BTC/USDT   # ~10 min, ~1M candles, gitignored
+uv run wbtc build-density                   # ~1 min
+uv run wbtc gate-1                          # seconds; exit code is the verdict
+```
+Read `docs/PREREG.md` first. The gate script and the density constants are
+frozen; changing either needs a dated amendment in that document.
 
 ### Run the hyperparameter sweep (~5 min)
 ```

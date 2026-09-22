@@ -1,9 +1,10 @@
-"""Fetch daily OHLCV for one or more USDT pairs from Binance via ccxt.
+"""Fetch OHLCV for one or more USDT pairs from Binance via ccxt.
 
 Idempotent: re-runs only fetch missing tail bars.
 Usage:
-    python scripts/fetch_data.py                  # default: BTC, ETH, SOL
+    python scripts/fetch_data.py                        # default: 1d, all panel symbols
     python scripts/fetch_data.py BTC/USDT ADA/USDT
+    python scripts/fetch_data.py --timeframe 5m BTC/USDT   # intraday (data/btcusdt_5m.parquet)
 """
 
 from __future__ import annotations
@@ -19,8 +20,17 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT"]
-TIMEFRAME = "1d"
-LIMIT = 1000  # Binance daily cap per call
+DEFAULT_TIMEFRAME = "1d"
+LIMIT = 1000  # Binance cap per call
+
+TIMEFRAME_MS = {
+    "1m": 60_000,
+    "5m": 5 * 60_000,
+    "15m": 15 * 60_000,
+    "1h": 3_600_000,
+    "4h": 4 * 3_600_000,
+    "1d": 86_400_000,
+}
 
 # When each symbol was listed on Binance (give plenty of cushion).
 LISTED_SINCE = {
@@ -37,22 +47,29 @@ def slug(symbol: str) -> str:
     return symbol.lower().replace("/", "")
 
 
-def parquet_for(symbol: str) -> Path:
-    return DATA_DIR / f"{slug(symbol)}_1d.parquet"
+def parquet_for(symbol: str, timeframe: str = DEFAULT_TIMEFRAME) -> Path:
+    return DATA_DIR / f"{slug(symbol)}_{timeframe}.parquet"
 
 
-def fetch_all(exchange: ccxt.Exchange, symbol: str, since_ms: int) -> pd.DataFrame:
+def fetch_all(
+    exchange: ccxt.Exchange, symbol: str, since_ms: int, timeframe: str = DEFAULT_TIMEFRAME
+) -> pd.DataFrame:
+    step_ms = TIMEFRAME_MS[timeframe]
     rows: list[list[float]] = []
     cursor = since_ms
+    n_calls = 0
     while True:
-        batch = exchange.fetch_ohlcv(symbol, TIMEFRAME, since=cursor, limit=LIMIT)
+        batch = exchange.fetch_ohlcv(symbol, timeframe, since=cursor, limit=LIMIT)
+        n_calls += 1
+        if n_calls % 100 == 0:
+            print(f"[fetch] {symbol} {timeframe}: {n_calls} calls, {len(rows)} rows", flush=True)
         if not batch:
             break
         rows.extend(batch)
         last_ts = batch[-1][0]
         if last_ts <= cursor:
             break
-        cursor = last_ts + 24 * 60 * 60 * 1000  # next day in ms
+        cursor = last_ts + step_ms  # next bar in ms
         time.sleep(exchange.rateLimit / 1000.0)
         if cursor > exchange.milliseconds():
             break
@@ -62,14 +79,16 @@ def fetch_all(exchange: ccxt.Exchange, symbol: str, since_ms: int) -> pd.DataFra
     return df
 
 
-def fetch_one(exchange: ccxt.Exchange, symbol: str) -> None:
-    pq = parquet_for(symbol)
+def fetch_one(
+    exchange: ccxt.Exchange, symbol: str, timeframe: str = DEFAULT_TIMEFRAME
+) -> None:
+    pq = parquet_for(symbol, timeframe)
     if pq.exists():
         existing = pd.read_parquet(pq)
         last_ts = existing["ts"].max()
         since_ms = int(last_ts.timestamp() * 1000) + 1
         print(f"[fetch] {symbol}: resuming from {last_ts.isoformat()}")
-        new = fetch_all(exchange, symbol, since_ms)
+        new = fetch_all(exchange, symbol, since_ms, timeframe)
         if not new.empty:
             df = (
                 pd.concat([existing, new], ignore_index=True)
@@ -83,7 +102,7 @@ def fetch_one(exchange: ccxt.Exchange, symbol: str) -> None:
         listed = LISTED_SINCE.get(symbol, "2017-08-17T00:00:00Z")
         print(f"[fetch] {symbol}: cold start from {listed}")
         since_ms = exchange.parse8601(listed)
-        df = fetch_all(exchange, symbol, since_ms)
+        df = fetch_all(exchange, symbol, since_ms, timeframe)
 
     df.to_parquet(pq, index=False)
     print(
@@ -93,10 +112,19 @@ def fetch_one(exchange: ccxt.Exchange, symbol: str) -> None:
 
 
 def main(argv: list[str]) -> int:
-    symbols = argv if argv else DEFAULT_SYMBOLS
+    timeframe = DEFAULT_TIMEFRAME
+    args = list(argv)
+    if "--timeframe" in args:
+        i = args.index("--timeframe")
+        timeframe = args[i + 1]
+        del args[i : i + 2]
+    if timeframe not in TIMEFRAME_MS:
+        print(f"unsupported timeframe {timeframe!r}; choose from {sorted(TIMEFRAME_MS)}")
+        return 2
+    symbols = args if args else DEFAULT_SYMBOLS
     exchange = ccxt.binance({"enableRateLimit": True})
     for s in symbols:
-        fetch_one(exchange, s)
+        fetch_one(exchange, s, timeframe)
     return 0
 
 

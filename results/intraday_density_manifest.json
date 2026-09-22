@@ -1,0 +1,72 @@
+{
+  "built_at": "2026-09-22T09:37:19+00:00",
+  "source": "btcusdt_5m.parquet",
+  "source_sha256": "b0d8e9724c217dfa75466e78c74e976f0d83eccf77fb9f25c2b8732c0cc7f244",
+  "source_rows": 955261,
+  "source_span": [
+    "2017-08-17",
+    "2026-09-21"
+  ],
+  "output": "btcusdt_intraday_density.parquet",
+  "output_sha256": "28b1db9c0b0a913d094cfa6af62f9418d2b6ec39fc88aead6490c1080cacbdc3",
+  "n_days": 3323,
+  "n_excluded": 10,
+  "excluded_days": [
+    {
+      "day": "2017-09-06",
+      "reason": "short_day:204<230"
+    },
+    {
+      "day": "2018-02-08",
+      "reason": "short_day:5<230"
+    },
+    {
+      "day": "2018-02-09",
+      "reason": "short_day:167<230"
+    },
+    {
+      "day": "2018-06-26",
+      "reason": "short_day:167<230"
+    },
+    {
+      "day": "2018-07-04",
+      "reason": "short_day:196<230"
+    },
+    {
+      "day": "2018-11-14",
+      "reason": "short_day:203<230"
+    },
+    {
+      "day": "2019-03-12",
+      "reason": "short_day:215<230"
+    },
+    {
+      "day": "2019-05-15",
+      "reason": "short_day:167<230"
+    },
+    {
+      "day": "2019-08-15",
+      "reason": "short_day:191<230"
+    },
+    {
+      "day": "2020-02-19",
+      "reason": "short_day:217<230"
+    }
+  ],
+  "n_obs_median": 287.0,
+  "bandwidth_median": 0.0003363951876215156,
+  "spec": {
+    "k": 100,
+    "support": [
+      -0.2,
+      0.2
+    ],
+    "grid_points": 8001,
+    "min_obs_per_day": 230,
+    "min_bandwidth": 1e-06,
+    "bandwidth_rule": "silverman: 0.9 * min(sd, IQR/1.34) * n^(-1/5)",
+    "kernel": "gaussian",
+    "u_grid": "(k - 0.5) / K, k = 1..K"
+  },
+  "calendar_exclusions": []
+}

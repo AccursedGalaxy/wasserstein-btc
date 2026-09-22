@@ -99,7 +99,10 @@ def cmd_info(args: argparse.Namespace) -> int:
 def cmd_fetch(args: argparse.Namespace) -> int:
     """Delegate to scripts/fetch_data.py — it already does the right thing."""
     mod = _load_script("fetch_data")
-    return int(mod.main(args.symbols) or 0)
+    argv = list(args.symbols)
+    if args.timeframe != "1d":
+        argv = ["--timeframe", args.timeframe, *argv]
+    return int(mod.main(argv) or 0)
 
 
 def _fan_chart_png(
@@ -230,6 +233,18 @@ def cmd_var_es(args: argparse.Namespace) -> int:
     return int(mod.main() or 0)
 
 
+def cmd_build_density(args: argparse.Namespace) -> int:
+    """Build data/btcusdt_intraday_density.parquet from the 5-min cache."""
+    mod = _load_script("build_intraday_density")
+    return int(mod.main() or 0)
+
+
+def cmd_gate_1(args: argparse.Namespace) -> int:
+    """Run the frozen Gate 1 κ test (docs/PREREG.md). Exit 0=PASS 1=FAIL 2=setup."""
+    mod = _load_script("gate_1_intraday_kappa")
+    return int(mod.main() or 0)
+
+
 def cmd_extended_baselines(args: argparse.Namespace) -> int:
     """Extended econometric baselines (HAR-RV, CAViaR, MS, FIGARCH, SV, BVAR)."""
     mod = _load_script("run_extended_baselines")
@@ -274,6 +289,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_fetch.add_argument(
         "symbols", nargs="*", help="e.g. BTC/USDT ETH/USDT (default: BTC, ETH, SOL)"
     )
+    p_fetch.add_argument(
+        "--timeframe",
+        default="1d",
+        help="Candle timeframe (1m/5m/15m/1h/4h/1d; default 1d). Writes data/<slug>_<tf>.parquet.",
+    )
     p_fetch.set_defaults(fn=cmd_fetch)
 
     p_fc = sub.add_parser("forecast", help="Produce today's distributional forecast.")
@@ -316,6 +336,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="VaR / ES tail-calibration backtest panel (Kupiec, Christoffersen, AS).",
     )
     p_vares.set_defaults(fn=cmd_var_es)
+
+    p_dens = sub.add_parser(
+        "build-density",
+        help="Build the BTC intraday-density parquet for Gate 1 (needs `wbtc fetch --timeframe 5m BTC/USDT`).",
+    )
+    p_dens.set_defaults(fn=cmd_build_density)
+
+    p_g1 = sub.add_parser(
+        "gate-1",
+        help="Run the frozen pre-reg v1.0 Gate 1 intraday-κ test (exit 0=PASS, 1=FAIL, 2=setup error).",
+    )
+    p_g1.set_defaults(fn=cmd_gate_1)
 
     p_ext = sub.add_parser(
         "extended-baselines",
