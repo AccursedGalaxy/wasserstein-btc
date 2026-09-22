@@ -1,0 +1,47 @@
+{
+  "gate_1_pass": false,
+  "data_sha256": "28b1db9c0b0a913d094cfa6af62f9418d2b6ec39fc88aead6490c1080cacbdc3",
+  "n_days_used": 2318,
+  "early_epoch_end": "2023-12-31",
+  "constants": {
+    "tau": 2,
+    "n_surrogate": 200,
+    "block_mean_length": 10,
+    "surrogate_ratio_threshold": 1.25,
+    "event_percentile": 95,
+    "event_hits_required": 2,
+    "event_window_days": 3
+  },
+  "real_kappa": {
+    "p95": 1.9787089772912687,
+    "p99": 1.9938660576302998
+  },
+  "1A_shuffle": {
+    "surrogate_median_p99": 1.9993430727061143,
+    "ratio": 0.9972605926663695,
+    "threshold": 1.25,
+    "pass": false
+  },
+  "1A_block": {
+    "surrogate_median_p99": 1.9952100077832298,
+    "ratio": 0.9993264116821351,
+    "threshold": 1.25,
+    "pass": false
+  },
+  "1B_events": {
+    "2020-03-12": {
+      "hit": false,
+      "max_kappa": 1.9671598753804234
+    },
+    "2021-05-19": {
+      "hit": true,
+      "max_kappa": 1.9942939622703322
+    },
+    "2022-11-08": {
+      "hit": false,
+      "max_kappa": 1.8609003529721222
+    },
+    "total_hits": 1,
+    "pass": false
+  }
+}

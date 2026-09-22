@@ -1,6 +1,11 @@
 # Pre-registration v1.0 — Intraday-density track kill conditions
 
 **Status.** Locked. Tag: `prereg-v1.0`. Commit: see `git rev-parse prereg-v1.0`.
+Amended v1.1 on 2026-09-22 (density-construction lock; see the amendment section before the signatories).
+
+**Outcome.** **Gate 1 FAILED on 2026-09-22.** The intraday-density track is
+abandoned per §"If Gate 1 fails". See the *Gate 1 outcome* section at the
+end of this document. No Gate 2 or Gate 3 will be run.
 
 **Lock date.** 2026-05-24
 
@@ -207,6 +212,85 @@ methodology by which v2.0 is reached.
 - `docs/RESULTS_LONG.md` and `docs/RESULTS_VAR_ES.md` remain operational
   as the appendix-track headline if Gate 1 fails, or as supporting
   evidence on the daily-rolling-window object if Gate 1 passes.
+
+## Amendment v1.1 — 2026-09-22 — intraday-density construction lock
+
+**Scope.** Freezes the "not frozen in v1.0" construction choices for the
+BTC intraday-density data object, *before* Gate 1 is run. Kill conditions
+and gate constants from v1.0 are untouched. Values are the v1.0 "current
+candidate" values wherever one was named; the two v1.0 left open entirely
+(cleaning thresholds, depeg calendar) are set here for the first time.
+
+| Choice | v1.0 status | v1.1 value | Where |
+|---|---|---|---|
+| Kernel / bandwidth | candidate: Silverman | Gaussian kernel, Silverman `0.9·min(sd, IQR/1.34)·n^(-1/5)`; floor 1e-6 | `wbtc.density.silverman_bandwidth` |
+| Common support | candidate: [-0.20, 0.20] | [-0.20, 0.20]; KDE CDF renormalised to the support | `wbtc.density.SUPPORT_LO/HI` |
+| Quantile grid K | candidate: 100 | K = 100 at `u_k = (k-0.5)/K` | `wbtc.density.K_QUANTILES` |
+| CDF inversion grid | open | 8001 points (step 5e-5), linear interpolation | `wbtc.density.GRID_POINTS` |
+| Return definition | open | within-UTC-day log-close differences of consecutive 5-min candles; no overnight gap | `wbtc.density.intraday_log_returns` |
+| Short-day exclusion | open | `is_excluded` if fewer than 230 returns (80% of 287) | `wbtc.density.MIN_OBS_PER_DAY` |
+| Depeg / calendar exclusion | open | empty for BTC/USDT | `scripts/build_intraday_density.py::EXCLUDE_DAYS` |
+| Partial current day | open | dropped at build time | `scripts/build_intraday_density.py` |
+| Source data | open | Binance BTC/USDT 5m via ccxt (`wbtc fetch --timeframe 5m BTC/USDT`) | `scripts/fetch_data.py` |
+
+**Rationale for the two new choices.** 80% coverage keeps exchange-outage
+days (Binance had several multi-hour halts in 2018–2021) out of the
+trajectory without discarding days that lost a handful of candles; a
+stricter rule would punch more holes into the ordered sequence κ is
+computed on, which is the quantity Gate 1 measures. The empty calendar
+records that no BTC-specific event exclusion was applied; the three Gate 1
+event days are *in* the sample by construction.
+
+**Provenance.** `wbtc build-density` writes
+`results/intraday_density_manifest.json` (source SHA-256, output SHA-256,
+day count, excluded days with reasons, spec dict). Gate 1's JSON output
+records the input SHA-256; the two must match for a reported Gate 1 result
+to count.
+
+Holdout boundary remains open (candidate 2024-01-01; Gate 3 may revise).
+
+## Gate 1 outcome — 2026-09-22 — FAIL
+
+Run with `wbtc gate-1` on the v1.1 data object (`results/intraday_density_manifest.json`,
+output SHA-256 `28b1db9c…cbdc3`, matched by the gate JSON). 2318 usable
+early-epoch days (10 short days excluded, all 2017–2020 exchange halts).
+
+| Sub-test | Real | Surrogate median | Ratio / hits | Threshold | Verdict |
+|---|---|---|---|---|---|
+| 1A day-shuffle | κ p99 = 1.994 | 1.999 | 0.997 | ≥ 1.25 | FAIL |
+| 1A block-bootstrap (L=10) | κ p99 = 1.994 | 1.995 | 0.999 | ≥ 1.25 | FAIL |
+| 1B event elevation (p95 = 1.979) | 2020-03-12: 1.967 · 2021-05-19: 1.994 · 2022-11-08: 1.861 | — | 1 / 3 | ≥ 2 / 3 | FAIL |
+
+**Reading.** All three sub-tests fail by a wide margin, and they fail in the
+way the v1.0 text anticipated ("independent draws have no trajectory").
+For a sequence of exchangeable quantile vectors, the two tangent vectors
+`v₁ = Q[t] − Q[t−τ]` and `v₂ = Q[t−τ] − Q[t−2τ]` share the `−Q[t−τ]` term,
+so their cosine is centred near −0.5 and κ near 1.5 with a hard ceiling
+at 2. The real series has median κ = 1.58 and a p99 of 1.994; every
+surrogate lands at the same ceiling. κ does not measure curvature of a
+trajectory here because there is no trajectory to measure: consecutive
+intraday densities are close to independent draws, which is exactly the
+property that made them the right data object for benchmarking against
+Wasserstein Autoregression.
+
+The data object itself is sound: the three event days sit at the 99.5th,
+99.8th and 95.2nd percentiles of intraday 5–95 quantile width. The
+densities saw the crises; the curvature statistic could not.
+
+**Consequence (per v1.0 §"If Gate 1 fails").** The intraday-density track
+is abandoned. `docs/RESULTS_LONG.md` (daily rolling-window track) is the
+paper headline. The four credibility failures listed in *Why this exists*
+are acknowledged in `docs/archive/CREDIBILITY_FAILURES.md`. No further
+intraday work. The density module (`wbtc.density`) and the 5-min fetch
+stay in the tree because they are the reproducibility path for this
+result, not because the track continues.
+
+**Not pursued, deliberately.** Rescuing κ by redefining it (e.g. using
+non-overlapping tangents, smoothing Q over a window first, or replacing
+cosine with a W₂ second difference) would be a post-hoc revision of a
+pre-registered kill condition after seeing the data. Any such statistic
+belongs in a new pre-registration with its own nulls, not in an amendment
+to this one.
 
 ## Lock signatories
 

@@ -70,6 +70,10 @@ risk team would actually use."
 - [ ] **Realised-volatility features.** Add the (5-min) intraday RV as
   a regressor on the tangent slope. Expected meaningful CRPS gain,
   especially at h=21 where the v0.3 edge is weakest.
+- [x] ~~**Intraday-density track (pre-reg v1.0).**~~ **Killed at Gate 1 on
+  2026-09-22** (`docs/PREREG.md` §Gate 1 outcome, `results/gate_1_intraday_kappa.json`).
+  The κ-curvature statistic is uninformative on near-independent daily
+  densities. Any successor needs a fresh pre-registration.
 - [ ] **Intraday resolution.** Daily is too slow to be decision-relevant
   for most production use. Repeat the v0.3 panel at 4-hour and 1-hour
   resolutions with HAR-RV-style aggregation.

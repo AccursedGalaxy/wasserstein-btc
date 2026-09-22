@@ -21,8 +21,27 @@ All notable changes to this project will be documented here. Dates ISO-8601.
   with provenance-only headers, executing the deprecation listed in
   `docs/PREREG.md`. `wbtc extended-baselines` now writes to the archive path.
 
+### Gate 1 result
+
+- **2026-09-22 — pre-reg v1.0 Gate 1: FAIL. Intraday-density track abandoned.**
+  Ratios 0.997 (shuffle) and 0.999 (block) against a 1.25 threshold; 1/3 event
+  hits against 2/3. κ saturates at its ceiling of 2 for real data and every
+  surrogate, the "independent draws have no trajectory" failure mode the
+  pre-reg named in advance. Full table and reading in `docs/PREREG.md`
+  §Gate 1 outcome; artefacts in `results/gate_1_intraday_kappa.{json,png}`.
+  Consequence: `RESULTS_LONG.md` is the headline; the four credibility
+  failures are acknowledged in `docs/archive/CREDIBILITY_FAILURES.md`.
+
 ### Added
 
+- **2026-09-22 — intraday-density data object + Gate 1 wiring.** New module
+  `wbtc.density` (Gaussian KDE with Silverman bandwidth on each UTC day's
+  within-day 5-min log-returns, common support [-0.20, 0.20], K=100 quantiles)
+  and `scripts/build_intraday_density.py`, which writes the parquet Gate 1 reads
+  plus a provenance manifest in `results/`. `wbtc fetch` gains `--timeframe`;
+  new CLI commands `wbtc build-density` and `wbtc gate-1`. Construction
+  constants are frozen by the v1.1 amendment in `docs/PREREG.md`. Six new
+  tests in `tests/test_density.py`.
 - **XRP/USDT in the headline long-horizon panel.** Added to `SYMBOLS` in
   `scripts/run_long_horizon.py` (and the parallel constants in
   `scripts/summarize_v03.py`, `scripts/score_new_method.py`,
