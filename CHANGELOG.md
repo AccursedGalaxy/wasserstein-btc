@@ -6,6 +6,17 @@ All notable changes to this project will be documented here. Dates ISO-8601.
 
 ### Changed
 
+- **2026-09-22 — panel data end pinned.** `wbtc.backtest.PANEL_DATA_END =
+  "2026-05-23"`; `load_returns(..., end=PANEL_DATA_END)` is used by every panel
+  script (long-horizon, VaR/ES, `score_new_method`, sweep). Reason: the parquet
+  cache had been refreshed to 2026-09-22, and an unpinned regeneration scored
+  2026-06-01 → 2026-09-22, which lies inside the pre-registered v0.5 holdout.
+  That run was discarded, not published. The holdout is scored only by the
+  2027-06-01 procedure in `PREREGISTRATION.md`.
+- **2026-09-22 — `RESULTS_LONG.md` regenerated** on the pinned sample with the
+  WAR benchmarks and without `RW-Drift`; Headline 3 added. Residualised
+  statistics drift slightly because the peer-loss control universe now
+  contains the WAR series.
 - **2026-09-22 — `RW-Drift` removed from every result panel.** `RandomWalkDrift.predict`
   was byte-identical to `StaticEmpirical.predict` (both shift by `h * mean` and
   scale deviations by `sqrt(h)`), so any "beats Static *and* RW-Drift" cell counted
@@ -34,6 +45,32 @@ All notable changes to this project will be documented here. Dates ISO-8601.
 
 ### Added
 
+- **2026-09-22 — Wasserstein Autoregression benchmark (`WAR-1`, `WAR-1-last`,
+  `WAR-Select`).** Closes credibility failure 2 of `docs/PREREG.md`: the
+  closest published competitor (Zhang, Kokoszka & Petersen 2022, JTSA,
+  arXiv:2006.12640) is now implemented (`wbtc.forecasters.WassersteinAR`,
+  `WassersteinARSelect`), cited, and in every panel. Scalar-coefficient
+  Yule-Walker AR(p) on tangent vectors at the quantile-function barycentre,
+  exponential map by monotone rearrangement on a uniform internal grid,
+  causal by construction (biased autocovariance estimator) with counted
+  guards. Applied to the same rolling-90-day densities as WGeo ("WAR on
+  rolling-ECDF densities"; `THEORY.md §2.11` states why the lag-1 Wasserstein
+  autocorrelation ≈0.98 is partly mechanical). Three h-day location rules
+  (`sum`, `last`, `conv`) because the h-day conversion is the panel's
+  convention, not WAR's. New §4 falsification bullet: `WGeo-Ensemble` must
+  beat the best WAR variant per cell with p_r<0.05 in ≥8/15 cells, counted
+  automatically as Headline 3 of `RESULTS_LONG.md`. Findings
+  (`docs/RESULTS_WAR.md`): WAR ≈ Static at h=1 and 1–3% worse than GARCH-N at
+  h=21 under the pre-committed `sum` rule; with WGeo's `last` rule WAR-1
+  beats GARCH-N at h=21 by 2.4–3.5% (p_r<0.05 on BTC/ETH), close to
+  `WGeo-Ensemble`. **§4 verdict: FAIL, 6/15** — `WGeo-Ensemble` beats
+  `WAR-1-last` in all five h=1 cells, ties at h=5, and loses four of five
+  h=21 cells (p_r ≤ 0.047). Mean reversion beats extrapolation at 21 days on
+  this data object. Tails: `WAR-1`/`WAR-1-last` pass Kupiec in 6/20 and 8/20
+  VaR/ES cells (`RESULTS_VAR_ES.md`, regenerated with both). Order/window
+  selection is inert. Eight new tests; per-step
+  cost 1.5 ms (`WAR-1`) / 49 ms (`WAR-Select`) / 97 ms (`WAR-Paper`).
+  Design reviewed by council (8 objections, all forced revisions).
 - **2026-09-22 — intraday-density data object + Gate 1 wiring.** New module
   `wbtc.density` (Gaussian KDE with Silverman bandwidth on each UTC day's
   within-day 5-min log-returns, common support [-0.20, 0.20], K=100 quantiles)

@@ -28,7 +28,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from wbtc.backtest import h_step_log_return, load_returns
+from wbtc.backtest import h_step_log_return, PANEL_DATA_END, load_returns
 from wbtc.forecasters import (
     WassersteinGeodesic,
     WassersteinGeodesicEWMA,
@@ -50,6 +50,9 @@ WGEO_LOOKBACK = 20
 BURN_IN = 730
 
 NON_WGEO_NAMES = {
+    "WAR-1",
+    "WAR-1-last",
+    "WAR-Select",
     "Static",
     "HS-Bootstrap",
     "GARCH-N",
@@ -97,6 +100,18 @@ def _make_ensemble():
     return WGeoEnsemble()
 
 
+def _war(**kw):
+    from wbtc.forecasters import WassersteinAR
+
+    return lambda: WassersteinAR(**{"window": WGEO_WINDOW, **kw})
+
+
+def _war_select(**kw):
+    from wbtc.forecasters import WassersteinARSelect
+
+    return lambda: WassersteinARSelect(window=WGEO_WINDOW, **kw)
+
+
 _BUILTIN_FACTORIES = {
     # sanity-checking baselines
     "WGeo": lambda: WassersteinGeodesic(window=WGEO_WINDOW, lookback=WGEO_LOOKBACK),
@@ -110,6 +125,15 @@ _BUILTIN_FACTORIES = {
     "WGeo-Adaptive": _make_adaptive,
     "WGeo-CondShape": _make_condshape,
     "WGeo-Ensemble": _make_ensemble,
+    # Wasserstein Autoregression benchmark (Zhang-Kokoszka-Petersen 2022) and
+    # its sensitivity knobs (docs/THEORY.md §2.11)
+    "WAR-1": _war(),
+    "WAR-Paper": _war_select(k_grid=(20, 62), p_grid=tuple(range(1, 11))),
+    "WAR-Select": _war_select(k_grid=(20, 62, 250, None), p_grid=tuple(range(1, 6))),
+    "WAR-1-last": _war(location="last"),
+    "WAR-1-conv": _war(location="conv"),
+    "WAR-1-w30": _war(window=30),
+    "WAR-1-stride10": _war(stride=10),
 }
 
 
@@ -152,7 +176,7 @@ def score_cell(method_name: str, symbol: str, horizon: int, K: int = 30) -> dict
     saved = json.loads(saved_path.read_text())
     t_indices = list(saved["t_idx"])
 
-    df = load_returns(DATA / f"{sym_slug}_1d.parquet")
+    df = load_returns(DATA / f"{sym_slug}_1d.parquet", end=PANEL_DATA_END)
     returns = df["r"].to_numpy()
 
     factory = _resolve_factory(method_name)
@@ -188,7 +212,7 @@ def score_cell(method_name: str, symbol: str, horizon: int, K: int = 30) -> dict
     # Residualised DM: control for shared volatility noise via |y|, y², y plus
     # a panel of NON-best non-WGeo losses (each captures its own volatility-
     # tracking error; the regression projects out their common component).
-    df_full = load_returns(DATA / f"{slug(symbol)}_1d.parquet")
+    df_full = load_returns(DATA / f"{slug(symbol)}_1d.parquet", end=PANEL_DATA_END)
     rfull = df_full["r"].to_numpy()
     y_arr = np.array(
         [h_step_log_return(rfull, t, horizon) for t in t_indices], dtype=float

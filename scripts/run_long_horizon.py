@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from wbtc.backtest import load_returns
+from wbtc.backtest import PANEL_DATA_END, load_returns
 from wbtc.forecasters import (
     GJRGarchStudentT,
     GarchNormal,
@@ -27,6 +27,8 @@ from wbtc.forecasters import (
     WassersteinGeodesicTheilSen,
     WGeoEnsemble,
     WGeoGarchEnsemble,
+    WassersteinAR,
+    WassersteinARSelect,
 )
 from wbtc.long_horizon import (
     by_regime,
@@ -81,11 +83,46 @@ METHODS = {
         window=WGEO_WINDOW, lookback=WGEO_LOOKBACK, decay=0.85, decay_quantile=0.97
     ),
     "WGeo-Ensemble": lambda: WGeoEnsemble(),
+    # --- published-competitor benchmark (2026-09-22): Wasserstein Autoregression
+    # on the same rolling-ECDF densities; see docs/THEORY.md §2.11 ---
+    "WAR-1": lambda: WassersteinAR(window=WGEO_WINDOW),
+    "WAR-1-last": lambda: WassersteinAR(window=WGEO_WINDOW, location="last"),
+    "WAR-Select": lambda: WassersteinARSelect(
+        window=WGEO_WINDOW, k_grid=(20, 62, 250, None), p_grid=tuple(range(1, 6))
+    ),
 }
 
 SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT"]
 HORIZONS = [1, 5, 21]
 BURN_IN = 730
+
+
+def _war_verdict_line(war_rows: list[dict], refs: tuple, head: str) -> str:
+    """Cells where ``head`` beats the *best* WAR variant (min CRPS per cell)
+    with residualised DM p<0.05 — the THEORY §4 falsification count."""
+    cells: dict[tuple, list[dict]] = {}
+    for r in war_rows:
+        cells.setdefault((r["symbol"], r["h"]), []).append(r)
+    n_cells = len(cells)
+    if n_cells == 0:
+        return "_No WAR benchmark rows in this run._"
+    wins = 0
+    for rows in cells.values():
+        best = min(rows, key=lambda r: r["baseline_crps"])
+        if best["ensemble_crps"] < best["baseline_crps"] and best["dm_p_r"] < 0.05:
+            wins += 1
+    per_ref = ", ".join(
+        f"vs `{ref}`: "
+        + str(sum(1 for r in war_rows if r["baseline"] == ref and r["ensemble_crps"] < r["baseline_crps"] and r["dm_p_r"] < 0.05))
+        + f"/{sum(1 for r in war_rows if r['baseline'] == ref)}"
+        for ref in refs
+    )
+    verdict = "PASS" if wins >= 8 else "FAIL"
+    return (
+        f"**Falsification count:** `{head}` beats the best WAR variant per cell with "
+        f"dm_p_r<0.05 in **{wins}/{n_cells}** cells (bar: ≥ 8/15 → **{verdict}**). "
+        f"Per variant (lower CRPS and dm_p_r<0.05): {per_ref}."
+    )
 
 
 def main():
@@ -106,6 +143,10 @@ def main():
     # appendix because the implicit max-over-comparators inflates type-I error.
     PREREG_HEADLINE = "WGeo-Ensemble"
     PREREG_BASELINES = ("Static", "GARCH-N")
+    # Published-competitor benchmark (THEORY.md §2.11). NOT pre-registered;
+    # reported as Headline 3 with the same two DM statistics.
+    WAR_BENCHMARKS = ("WAR-1", "WAR-1-last", "WAR-Select")
+    war_rows: list[dict] = []
 
     headline_ensemble_rows: list[dict] = []  # WGeo-Ensemble vs Static + GARCH-N
     # Per-cell residualised-DM p-values under {none, vol, full} controls. The
@@ -117,7 +158,7 @@ def main():
 
     for symbol in SYMBOLS:
         sym_slug = slug(symbol)
-        df = load_returns(DATA / f"{sym_slug}_1d.parquet")
+        df = load_returns(DATA / f"{sym_slug}_1d.parquet", end=PANEL_DATA_END)
         returns = df["r"].to_numpy()
         timestamps = df["ts"]
         regime_tags = tag_regimes(returns, lookback=60)
@@ -179,6 +220,25 @@ def main():
                         "dm_stat_full": float(sensitivity.loc[ref, "dm_stat_full"]),
                     }
                 )
+            for ref in WAR_BENCHMARKS:
+                if ref not in summary.index:
+                    continue
+                ref_crps = float(summary.loc[ref, "mean_crps"])
+                war_rows.append(
+                    {
+                        "symbol": symbol,
+                        "h": h,
+                        "n_test": int(summary["n"].iloc[0]),
+                        "baseline": ref,
+                        "ensemble_crps": wgeo_crps,
+                        "baseline_crps": ref_crps,
+                        "improvement": fmt_pct_diff(wgeo_crps, ref_crps),
+                        "dm_stat": float(dm_stat.loc[PREREG_HEADLINE, ref]),
+                        "dm_p": float(dm_p.loc[PREREG_HEADLINE, ref]),
+                        "dm_stat_r": float(dm_stat_r.loc[PREREG_HEADLINE, ref]),
+                        "dm_p_r": float(dm_p_r.loc[PREREG_HEADLINE, ref]),
+                    }
+                )
 
             # ---- robustness: best WGeo-family vs best non-WGeo baseline (legacy)
             wgeo_variants = [
@@ -193,6 +253,9 @@ def main():
             ]
             baseline_variants = [
                 "Static",
+                "WAR-1",
+                "WAR-1-last",
+                "WAR-Select",
                 "HS-Bootstrap",
                 "GARCH-N",
                 "GARCH-t",
@@ -374,6 +437,36 @@ def main():
         f"## Headline 2 — {PREREG_HEADLINE} vs GARCH-N (pre-registered)",
         "",
         _fmt_ensemble_table(rows_vs_garchn),
+        "",
+        f"## Headline 3 — {PREREG_HEADLINE} vs Wasserstein Autoregression (benchmark, not pre-registered)",
+        "",
+        "`WAR-*` is the Wasserstein autoregressive model of Zhang, Kokoszka & "
+        "Petersen (2022) applied to the same rolling-90-day quantile vectors "
+        "(\"WAR on rolling-ECDF densities\", `THEORY.md §2.11`). Consecutive "
+        "densities share 89/90 observations, so the fitted lag-1 Wasserstein "
+        "autocorrelation is ≈0.98 partly for mechanical reasons; WAR here is "
+        "shrinkage of today's density toward the training-window barycentre. "
+        "`WAR-1`: p=1, all densities, h-day location = sum of forecast daily "
+        "medians. `WAR-1-last`: same dynamics with WGeo's location rule "
+        "(terminal daily median only). `WAR-Select`: the paper's in-sample "
+        "selection of (K, p) over K ∈ {20, 62, 250, all}, p ∈ {1..5}. The h-day "
+        "conversion is the panel convention shared by every quantile-based "
+        "method, not part of WAR. Falsification bar (`THEORY.md §4`): "
+        f"`{PREREG_HEADLINE}` must beat the *best* WAR variant with dm_p_r<0.05 "
+        "in ≥ 8 of 15 cells for tangent-space extrapolation to be claimed to add "
+        "anything over tangent-space mean reversion.",
+        "",
+        *[
+            block
+            for ref in WAR_BENCHMARKS
+            for block in (
+                f"**{PREREG_HEADLINE} vs {ref}**",
+                "",
+                _fmt_ensemble_table([r for r in war_rows if r["baseline"] == ref]),
+                "",
+            )
+        ],
+        _war_verdict_line(war_rows, WAR_BENCHMARKS, PREREG_HEADLINE),
         "",
         "*`dm_p` is the classic Diebold-Mariano (1995) p-value; `dm_p_r` is "
         "the variance-reduced residualised DM with the `full` control set "

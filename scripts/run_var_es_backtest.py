@@ -30,7 +30,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from wbtc.backtest import load_returns
+from wbtc.backtest import PANEL_DATA_END, load_returns
 from wbtc.forecasters import (
     GarchNormal,
     GarchStudentT,
@@ -42,6 +42,7 @@ from wbtc.forecasters import (
     WassersteinGeodesicHetero,
     WassersteinGeodesicTheilSen,
     WGeoEnsemble,
+    WassersteinAR,
 )
 from wbtc.long_horizon import aligned_quantile_matrices, run_long_horizon
 from wbtc.report import slug
@@ -70,6 +71,8 @@ METHODS = {
     "GARCH-N": GarchNormal,
     "GARCH-t": GarchStudentT,
     "GJR-GARCH-t": GJRGarchStudentT,
+    "WAR-1": lambda: WassersteinAR(window=WGEO_WINDOW),
+    "WAR-1-last": lambda: WassersteinAR(window=WGEO_WINDOW, location="last"),
     "WGeo-Gated": lambda: WassersteinGeodesicGated(
         window=WGEO_WINDOW, lookback=WGEO_LOOKBACK, kappa_star=KAPPA_STAR, tau=TAU
     ),
@@ -187,7 +190,7 @@ def main():
 
     for symbol in SYMBOLS:
         sym_slug = slug(symbol)
-        df = load_returns(DATA / f"{sym_slug}_1d.parquet")
+        df = load_returns(DATA / f"{sym_slug}_1d.parquet", end=PANEL_DATA_END)
         returns = df["r"].to_numpy()
         timestamps = df["ts"]
         md += [f"## {symbol}", ""]

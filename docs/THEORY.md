@@ -334,6 +334,122 @@ gap between the two and judge for themselves; cells where residualised
 gives $p < 0.05$ but vanilla does not are exactly the cells where shared
 volatility noise was masking a real, mean-preserved CRPS edge.
 
+### 2.11 Wasserstein Autoregression benchmark (2026-09-22, `WAR-1`, `WAR-Select`)
+
+The closest published method to the WGeo family is the Wasserstein
+autoregressive model of Zhang, Kokoszka & Petersen (2022). It was named as
+credibility failure 2 in `PREREG.md` (not implemented, benchmarked or
+cited). This section fixes that. **It is a benchmark, not a WGeo variant**;
+it is listed with the baselines everywhere.
+
+**The model.** For a stationary density time series $\{f_t\}$ with
+Wasserstein mean $f_\oplus$ (quantile function $Q_\oplus$), the log map at
+$f_\oplus$ sends $f_t$ to the tangent vector $V_t = T_t - \mathrm{id}$,
+where $T_t$ is the optimal transport map from $f_\oplus$ to $f_t$. In one
+dimension $T_t = Q_t \circ F_\oplus$, so in the coordinate $s = F_\oplus(x)$
+the tangent vector is simply $V_t(s) = Q_t(s) - Q_\oplus(s)$. WAR($p$) is
+the scalar-coefficient autoregression
+
+$$V_t = \sum_{j=1}^{p} \beta_j\, V_{t-j} + \varepsilon_t ,$$
+
+with $\varepsilon_t$ i.i.d. mean-zero elements of the tangent space (their
+assumption A2) and the usual causality condition on
+$1 - \beta_1 z - \dots - \beta_p z^p$ (A1$'$). The coefficients are
+identified by Yule-Walker equations on the $s$-integrated autocovariances
+
+$$\lambda_h = \frac{1}{n}\sum_{t=1}^{n-h} \int_0^1 V_t(s)\,V_{t+h}(s)\,ds ,
+\qquad H_p\,\beta = \eta_p,\quad (H_p)_{jk} = \lambda_{|j-k|},\ (\eta_p)_j = \lambda_j ,$$
+
+so $\beta = \lambda_1/\lambda_0$ for $p=1$ — a lag-1 *Wasserstein
+autocorrelation*. The forecast $\hat V_{n+1} = \sum_j \beta_j V_{n+1-j}$ is
+mapped back by the exponential map, which pushes Lebesgue measure on
+$[0,1]$ forward through $s \mapsto Q_\oplus(s) + \hat V_{n+1}(s)$. When
+that map is monotone the result is a valid quantile function; when it is
+not, its quantile function is the **monotone rearrangement** (the sorted
+vector on a uniform $s$-grid). This is the paper's Algorithm 1, steps 7–9,
+and differs from WGeo's isotonic ($L^2$) projection of §2.4.
+
+**Implementation.** `WassersteinAR(window, p, n_densities, stride,
+location)`. Everything is computed on an internal uniform mid-point grid
+$s_i = (i - \tfrac12)/200$, so an unweighted mean over $i$ is the
+$\int ds$ quadrature and an unweighted sort is the rearrangement; the
+result is interpolated to the caller's grid $u$ at the end. Yule-Walker
+uses the biased $1/n$ autocovariance estimator, so $H_p$ is positive
+semi-definite and the solution is causal by construction
+(Brockwell & Davis 1991, Prop. 5.1.1). Guards, each counted in a
+per-method fallback rate: degenerate tangent variance ($\lambda_0$ below
+$10^{-10}$ of the barycentre's squared spread → all $\beta_j = 0$, forecast
+the barycentre); a scale-relative ridge $10^{-8}\lambda_0 I$;
+ill-conditioning ($\kappa(H_p) > 10^{10}$) or a companion root on or
+outside the unit circle → drop to $p=1$ with $|\beta_1| \le 0.999$.
+
+**Adaptation to the rolling-window object — read this before comparing.**
+The paper's density series are cross-sectional (one density per month
+from ~500 stocks) or intraday (one per day from 5-minute returns):
+approximately independent draws, which is what A2 needs. This repo's
+density series is the trailing 90-day empirical quantile vector of daily
+returns, the same object WGeo is fitted on. Consecutive vectors share
+89 of 90 observations, so tangent-vector persistence near one is partly
+**mechanical**: on i.i.d. Gaussian returns the fitted $\beta_1$ already
+exceeds 0.9 (`test_war_stride_reduces_mechanical_persistence_on_iid_data`),
+and on BTC it is ≈0.98. WAR on this object therefore behaves as
+*shrinkage of today's quantile vector toward the training-window
+barycentre*, and its 21-step iterate shrinks by $\beta^{21}$. We call the
+method **WAR on rolling-ECDF densities** to keep this distinction visible.
+It is the fair comparison (same information set as WGeo, same protocol),
+not a replication of the paper's experiments. The `stride` knob (use every
+`stride`-th density) and a `window=30` variant are reported as
+sensitivities.
+
+**The $h$-day conversion is the panel's convention, not part of WAR.**
+WAR forecasts the *daily* law at $n+1,\dots,n+h$; the harness scores an
+$h$-day return. Every quantile-based method in the panel (Static, HS, all
+WGeo variants) uses the same location + $\sqrt h$-scaled-centred-shape
+rule, so WAR uses it too. It is a location-scale approximation that
+ignores cross-day dependence and shape changes along the path. Three
+location rules are implemented and reported:
+
+- `"sum"` (default): location $= \sum_{k=1}^{h} \mathrm{median}(\hat Q_{n+k})$,
+  shape $= (\hat Q_{n+h} - \mathrm{median})\sqrt h$ — the aggregated AR
+  path;
+- `"last"`: location $= \mathrm{median}(\hat Q_{n+h})$ — WGeo's rule
+  exactly;
+- `"conv"`: independent convolution of the $h$ forecast daily laws
+  (3 000 seeded inverse-CDF paths, summed) — the only rule that uses all
+  $h$ laws and drops the $\sqrt h$ shortcut.
+
+**Order and window selection.** `WassersteinARSelect` implements the
+paper's §5.3 sequential in-sample procedure: choose the training window
+$K$ with $p=1$, then $p$ at that $K$, each by the mean one-step $W_2$
+error over the last 60 in-window one-step forecasts (a repo choice; the
+paper does not state the count). `WAR-Paper` uses the paper's intraday
+grids $K \in \{20, 62\}$, $p \in \{1,\dots,10\}$; `WAR-Select` uses the
+repo grid $K \in \{20, 62, 250, \text{all}\}$, $p \in \{1,\dots,5\}$.
+Selection is re-run at every walk-forward step (the harness constructs a
+fresh forecaster each step), with the autocovariances of all 60 origins
+obtained from prefix sums so a step costs ≈50 ms (`WAR-Select`) / ≈100 ms
+(`WAR-Paper`). The criterion is unpenalised, and on a synthetic WAR(1)
+series it cannot separate orders (all one-step errors within 2 %), so the
+selected $p$ should be read as "any order in the grid fits equally".
+
+**Falsification criterion (added to §4).** If `WGeo-Ensemble` does not
+beat `WAR-1` on CRPS with $p_r < 0.05$ in at least 8 of 15 cells, the
+claim that tangent-space *extrapolation* adds anything over tangent-space
+*mean reversion* on this data object is unsupported, and the paper's
+headline must be restated as a tie with the published method.
+
+**Outcome of the §4 test (2026-09-22, `RESULTS_LONG.md` Headline 3): FAIL, 6/15.**
+`WGeo-Ensemble` beats the best WAR variant per cell with p_r<0.05 in 6 of
+15 cells, below the pre-committed bar of 8. The pattern is sharp: against
+`WAR-1-last` it wins all five h=1 cells (p_r ≤ 0.007), ties at h=5, and
+**loses four of five h=21 cells** (WAR-1-last lower CRPS by 0.4–1.1%,
+p_r ≤ 0.047; BNB is the tie). So on this data object tangent-space mean
+reversion toward the training-window barycentre is *better* than
+tangent-space extrapolation at 21 days, and the two are equivalent to the
+econometric baselines' disadvantage at 1 day. The pre-registered v0.5
+headline (vs `Static`, vs `GARCH-N`) is untouched by this; what changes is
+the interpretation: the long-horizon edge is not evidence for extrapolation.
+
 ### 2.4 Monotonicity enforcement
 
 A quantile function must be non-decreasing. After extrapolation we apply
@@ -477,6 +593,19 @@ We declare the method **a failure** and report it as such if any of:
   ensembling cannot lift the statistical evidence past chance level on
   half the panel, the geometric framing is not adding what we claimed.
 
+**Published-competitor benchmark (2026-09-22, §2.11)** — declare the
+extrapolation claim unsupported if:
+
+- `WGeo-Ensemble` does not beat the *best* WAR variant in each cell
+  (minimum CRPS over `WAR-1`, `WAR-1-last`, `WAR-Select`) with
+  $p_r < 0.05$ in **at least 8 of the 15 panel cells**. Taking the best
+  WAR variant per cell inflates the benchmark's side of the comparison,
+  which is the conservative direction for this test. If WAR with WGeo's
+  own location rule matches `WGeo-Ensemble`, then tangent-space *mean
+  reversion* explains the result as well as tangent-space *extrapolation*
+  does, and the headline is a tie with the published method. Counted
+  automatically in `RESULTS_LONG.md` Headline 3.
+
 If we hit any of those, the results report says so plainly. No spinning.
 
 ## 5. What this is NOT
@@ -524,6 +653,12 @@ document are reproducible from `uv run wbtc backtest-long`.
 - Saluzzi, L. & Soize, C. (2025). *Functional Time Series Forecasting of
   Distributions: A Koopman-Wasserstein Approach*. arXiv:2507.07570.
 - Villani, C. (2009). *Optimal Transport: Old and New*. Springer.
+- Zhang, C., Kokoszka, P., & Petersen, A. (2022). *Wasserstein
+  autoregressive models for density time series*. Journal of Time Series
+  Analysis, 43(4), 524–547. arXiv:2006.12640. [the `WAR-1` / `WAR-Select`
+  benchmark, §2.11]
+- Brockwell, P. J., & Davis, R. A. (1991). *Time Series: Theory and
+  Methods* (2nd ed.). Springer. [causality of Yule-Walker AR fits, §2.11]
 
 ### Extended baselines (v0.4 panel)
 

@@ -25,6 +25,9 @@ OUT = Path(__file__).resolve().parent / "public" / "data.json"
 # methods grouped so the frontend can present families consistently
 BASELINE_METHODS = [
     "Static",
+    "WAR-1",
+    "WAR-1-last",
+    "WAR-Select",
     "HS-Bootstrap",
     "GARCH-N",
     "GARCH-t",

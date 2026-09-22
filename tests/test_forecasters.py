@@ -779,6 +779,8 @@ def _forecaster_factories():
         ("WassersteinGeodesicCondShape", fc.WassersteinGeodesicCondShape),
         ("WGeoEnsemble", fc.WGeoEnsemble),
         ("WGeoGarchEnsemble", fc.WGeoGarchEnsemble),
+        ("WassersteinAR", fc.WassersteinAR),
+        ("WassersteinARSelect", fc.WassersteinARSelect),
         ("HARRV", fc.HARRV),
         ("CAViaRSAV", fc.CAViaRSAV),
         ("MarkovSwitching2", fc.MarkovSwitching2),
@@ -808,3 +810,169 @@ def test_forecaster_protocol_conformance(name, factory):
     assert isinstance(instance, Forecaster), (
         f"{name} does not satisfy the Forecaster Protocol"
     )
+
+
+# ---------------------------------------------------------------------------
+# Wasserstein Autoregression benchmark (docs/THEORY.md §2.11)
+# ---------------------------------------------------------------------------
+
+
+def _war1_synthetic(beta: float, n: int, seed: int, window: int = 30):
+    """Returns whose rolling-window quantile vectors follow a WAR(1) with pure
+    location innovations (paper Example 3.1): each block of ``window`` returns
+    is a fixed Student-t shape shifted by a scalar AR(1) location m_t."""
+    from wbtc.forecasters import _rolling_quantile_matrix
+
+    rng = np.random.default_rng(seed)
+    m = np.zeros(n)
+    for t in range(1, n):
+        m[t] = beta * m[t - 1] + rng.normal(0.0, 0.01)
+    base = np.sort(rng.standard_t(4, size=window)) * 0.01
+    r = np.concatenate([base + m[t] for t in range(n)])
+    return r, m, base
+
+
+def test_war_recovers_ar1_coefficient_and_mean_reverts():
+    from wbtc.forecasters import WassersteinAR
+
+    window = 30
+    r, m, base = _war1_synthetic(beta=0.6, n=600, seed=11, window=window)
+    f = WassersteinAR(window=window, stride=window, p=1)
+    f.fit(r)
+    assert 0.5 <= f.beta[0] <= 0.7, f.beta
+    assert f._war_fallback is False
+    u = make_grid(40)
+    q = f.predict(1, u)
+    assert np.all(np.diff(q) >= 0)
+    med_last = float(np.median(base + m[-1]))
+    med_bary = float(np.median(base + m.mean()))
+    med_fc = float(np.interp(0.5, u, q))
+    lo, hi = sorted([med_last, med_bary])
+    assert lo - 1e-3 <= med_fc <= hi + 1e-3
+
+
+def test_war_beta_zero_forecast_is_barycentre_then_sum_rule():
+    from wbtc.forecasters import WassersteinAR, _rolling_quantile_matrix
+
+    rng = np.random.default_rng(5)
+    r = rng.standard_t(4, size=500) * 0.02
+    f = WassersteinAR(window=60, p=1)
+    f.fit(r)
+    f._beta = np.zeros(1)  # force β = 0 → every forecast is the barycentre
+    s = f._s_grid()
+    Qb = f._Q.mean(axis=0)
+    u = make_grid(25)
+    np.testing.assert_allclose(f.predict(1, u), np.interp(u, s, Qb))
+    h = 5
+    med = float(np.median(Qb))
+    expected = np.interp(u, s, h * med + (Qb - med) * np.sqrt(h))
+    np.testing.assert_allclose(f.predict(h, u), expected)
+
+
+def test_war_p3_is_stable_and_monotone_on_heavy_tails():
+    from wbtc.forecasters import WassersteinAR
+
+    rng = np.random.default_rng(3)
+    r = rng.standard_t(3, size=730) * 0.03
+    f = WassersteinAR(window=90, p=3)
+    f.fit(r)
+    roots = np.roots(np.r_[1.0, -f.beta])
+    assert np.max(np.abs(roots)) < 1.0
+    u = make_grid(30)
+    for h in (1, 5, 21):
+        q = f.predict(h, u)
+        assert np.all(np.isfinite(q)) and np.all(np.diff(q) >= 0)
+
+
+def test_war_rearrangement_sorts_and_interpolates_monotone():
+    from wbtc.forecasters import _war_forecast_path, _war_h_day_quantiles
+
+    s = (np.arange(50) + 0.5) / 50
+    Q = np.vstack([np.sort(np.linspace(-1, 1, 50)), np.sort(np.linspace(-2, 2, 50))])
+    # a β large enough that Qb + β·V is non-monotone on part of the grid
+    Qb, Qhat = _war_forecast_path(Q, np.array([-3.0]), 1)
+    raw = Qb - 3.0 * (Q[-1] - Qb)
+    assert np.any(np.diff(raw) < 0)
+    np.testing.assert_array_equal(Qhat[0], np.sort(raw))
+    u = np.array([0.01, 0.05, 0.2, 0.5, 0.9, 0.99])  # non-uniform grid
+    q = _war_h_day_quantiles(Qhat, s, u, "sum", 100, 0)
+    assert np.all(np.diff(q) >= 0)
+
+
+def test_war_select_recovers_lead_coefficient_and_cv_is_flat_in_p():
+    """The paper's unpenalised in-sample CV cannot separate orders on a
+    WAR(1) synthetic (all one-step errors within a few % of each other), so
+    we assert what the procedure actually guarantees: the selected order's
+    CV error is within 3% of p=1, the lead coefficient is recovered, and the
+    extra coefficients it adds are small."""
+    from wbtc.forecasters import (
+        WassersteinARSelect,
+        _rolling_quantile_matrix,
+        _war_cv_error,
+    )
+
+    window = 30
+    for seed in range(5):
+        r, _, _ = _war1_synthetic(beta=0.6, n=400, seed=100 + seed, window=window)
+        f = WassersteinARSelect(
+            window=window, stride=window, k_grid=(62, None), p_grid=(1, 2, 3, 4, 5), n_cv=60
+        )
+        f.fit(r)
+        Q = _rolling_quantile_matrix(r, window, 400, window, f._s_grid())
+        k = min(f.selected_k, 400 - 60)
+        e1 = _war_cv_error(Q, k, 1, 60)
+        e_sel = _war_cv_error(Q, k, f.selected_p, 60)
+        assert e_sel <= e1 * 1.03
+        assert 0.45 <= f.beta[0] <= 0.75, f.beta
+        assert np.all(np.abs(f.beta[1:]) < 0.25), f.beta
+
+
+def test_war_cv_error_matches_brute_force_refit():
+    from wbtc.forecasters import (
+        _rolling_quantile_matrix,
+        _war_cv_error,
+        _war_forecast_path,
+        _war_yule_walker,
+    )
+
+    rng = np.random.default_rng(9)
+    r = rng.standard_t(4, size=500) * 0.02
+    s = (np.arange(50) + 0.5) / 50
+    Q = _rolling_quantile_matrix(r, 60, 441, 1, s)
+    for k, p in [(40, 1), (100, 3)]:
+        brute = 0.0
+        n_cv = 30
+        for o in range(Q.shape[0] - n_cv, Q.shape[0]):
+            Qtr = Q[o - k : o]
+            Qb = Qtr.mean(axis=0)
+            beta, _ = _war_yule_walker(Qtr - Qb, Qb, p)
+            _, Qh = _war_forecast_path(Qtr, beta, 1)
+            brute += np.sqrt(np.mean((Qh[0] - Q[o]) ** 2))
+        np.testing.assert_allclose(_war_cv_error(Q, k, p, n_cv), brute / n_cv, rtol=1e-9)
+
+
+def test_war_stride_reduces_mechanical_persistence_on_iid_data():
+    from wbtc.forecasters import WassersteinAR
+
+    rng = np.random.default_rng(21)
+    r = rng.normal(0.0, 0.02, size=2000)
+    f1 = WassersteinAR(window=90, stride=1)
+    f10 = WassersteinAR(window=90, stride=10)
+    f1.fit(r)
+    f10.fit(r)
+    assert f1.beta[0] > 0.9  # 89/90 overlap → persistence near 1 even for iid data
+    assert f10.beta[0] < f1.beta[0] - 0.05
+
+
+def test_war_constant_returns_fall_back_to_barycentre():
+    from wbtc.forecasters import WassersteinAR
+
+    r = np.full(400, 0.001)
+    f = WassersteinAR(window=60, p=2)
+    f.fit(r)
+    assert f._war_fallback is True
+    np.testing.assert_array_equal(f.beta, np.zeros(2))
+    u = make_grid(10)
+    q = f.predict(5, u)
+    assert np.all(np.isfinite(q))
+    np.testing.assert_allclose(q, 5 * 0.001, atol=1e-12)

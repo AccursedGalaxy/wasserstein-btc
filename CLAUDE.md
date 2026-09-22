@@ -37,7 +37,7 @@ src/wbtc/
   scoring.py         CRPS, log-score, Diebold-Mariano, stationary bootstrap
   var_es.py          VaR/ES tail tests: Kupiec, Christoffersen, Acerbi-Szekely
   density.py         intraday-density data object (per-day KDE -> K quantiles); no forecasters
-  forecasters.py     all baselines + 3 WGeo variants; every class has fit/predict
+  forecasters.py     all baselines + WGeo variants + WassersteinAR benchmark; every class has fit/predict
   backtest.py        single-horizon walk-forward (compare_methods)
   long_horizon.py    multi-year walk-forward + per-year + per-regime breakdowns
   cli.py             `wbtc` CLI; dispatches to library / scripts/
@@ -49,12 +49,15 @@ scripts/
   run_long_horizon.py       full multi-year multi-asset (the one we trust)
   run_extended_baselines.py v0.4 extended econometric panel (HAR-RV/CAViaR/MS/FIGARCH/SV/BVAR) on BTC
   run_var_es_backtest.py    VaR/ES tail-calibration panel (Kupiec, Christoffersen, Acerbi-Szekely)
+  score_new_method.py       score ONE method against saved per-step losses (fast; no panel rerun)
+  summarize_war.py          results/war_sensitivity.json -> docs/RESULTS_WAR.md
   hyperparam_sweep.py       4x4 grid on early epoch, verified on late epoch
   coverage_check.py         Kupiec LR test of forecast-quantile calibration
 docs/
   THEORY.md            math (§1-5 + falsification §4). READ THIS. v0.3.
   RESEARCH_REPORT.md   paper-style writeup of the v0.3 contributions.
   RESULTS_VAR_ES.md    VaR/ES tail-calibration panel (Kupiec, Christoffersen, Acerbi-Szekely).
+  RESULTS_WAR.md       Wasserstein-Autoregression benchmark scoring + sensitivities (summarize_war.py).
   PREREG.md            pre-reg v1.0 kill conditions for the intraday-density track (locked).
   RESULTS_LONG.md      v0.3 long-horizon report. The current source of truth.
   archive/             superseded reports: v0.1 RESULTS.md, v0.4 RESULTS_EXTENDED.md. Provenance only.
@@ -155,6 +158,12 @@ uv run wbtc sweep
 
 ## Gotchas
 
+- **The panel stops at `PANEL_DATA_END = "2026-05-23"`** (`wbtc.backtest`).
+  Every panel script passes it to `load_returns(..., end=...)`. Refreshing
+  the parquet cache does NOT extend the reported sample, on purpose: the
+  v0.5 holdout (2026-06-01 → 2027-05-31) is scored only by the procedure in
+  `PREREGISTRATION.md` on 2027-06-01. If you write a new scoring script, use
+  the same cutoff.
 - **The arch GARCH library expects percent returns.** Existing code multiplies
   by 100 before fit and divides by 100 in predict. Preserve this in any new
   GARCH variant.

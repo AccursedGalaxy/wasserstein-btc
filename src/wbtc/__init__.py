@@ -49,6 +49,8 @@ from .forecasters import (
     WassersteinGeodesicHetero,
     WassersteinGeodesicTheilSen,
     WGeoGarchEnsemble,
+    WassersteinAR,
+    WassersteinARSelect,
 )
 from .quantiles import make_grid
 from .scoring import crps_from_quantiles, diebold_mariano
@@ -88,6 +90,8 @@ __all__ = [
     "WassersteinGeodesicEWMA",
     "WassersteinGeodesicHetero",
     "WGeoGarchEnsemble",
+    "WassersteinAR",
+    "WassersteinARSelect",
     # high-level API
     "ForecastResult",
     "default_forecaster",

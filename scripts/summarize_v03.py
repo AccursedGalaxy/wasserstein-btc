@@ -32,6 +32,9 @@ WGEO_VARIANTS = [
 ]
 BASELINE_VARIANTS = [
     "Static",
+    "WAR-1",
+    "WAR-1-last",
+    "WAR-Select",
     "HS-Bootstrap",
     "GARCH-N",
     "GARCH-t",

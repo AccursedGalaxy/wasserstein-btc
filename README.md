@@ -30,7 +30,8 @@ trajectory on the 2-Wasserstein manifold of probability measures, the
 forecast is the tangent-space extrapolation of recent quantile vectors,
 and the result is scored with strictly proper rules (CRPS) against an
 explicit panel of baselines (Static, Historical-Simulation Bootstrap,
-GARCH-N, GARCH-t, GJR-GARCH-t).
+GARCH-N, GARCH-t, GJR-GARCH-t) and against the closest published
+competitor, Wasserstein Autoregression (Zhang, Kokoszka & Petersen 2022).
 
 > **What it is:** a small, falsifiable, interpretable distributional
 > forecaster — ~4 hyperparameters, no learned weights, no neural net.
@@ -155,6 +156,7 @@ docs/
   RESEARCH_REPORT.md  paper-style writeup of the v0.3 contributions
   RESULTS_LONG.md     auto-regenerated 4-asset × 3-horizon evidence
   RESULTS_VAR_ES.md   VaR / Expected-Shortfall tail-calibration panel
+  RESULTS_WAR.md      Wasserstein-Autoregression benchmark: scoring + sensitivity
   PREREG.md           pre-reg v1.0: kill conditions for the intraday track
   archive/            superseded reports (v0.1 RESULTS.md, v0.4 RESULTS_EXTENDED.md)
   INDEX.md            one-paragraph orientation to every doc
@@ -178,6 +180,13 @@ CHANGELOG.md          v0.1 → v0.2 → v0.3 history
   1994 via Kalman QML), and a bivariate VAR+GARCH using BTC + ETH
   jointly. Any *production*-risk-system claim is still unsupported —
   this rounds out the academic panel.
+- **Wasserstein Autoregression beats WGeo at 21 days.** The published
+  tangent-space AR model of Zhang-Kokoszka-Petersen (2022), run on the same
+  densities with WGeo's h-day rule (`WAR-1-last`), loses to `WGeo-Ensemble`
+  at h=1 in every cell but has lower CRPS at h=21 in 4 of 5 assets
+  (residualised p<0.05). The §4 test "extrapolation adds something over
+  mean reversion" **fails** (6/15 vs a bar of 8). See `RESULTS_LONG.md`
+  Headline 3 and [`docs/RESULTS_WAR.md`](docs/RESULTS_WAR.md).
 - **Daily-only.** Intraday volatility dynamics are different.
 - **Univariate only.** The 1D-W₂ isometry doesn't extend cleanly to
   higher dimensions; multivariate is a v0.5 research item.

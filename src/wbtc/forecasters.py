@@ -41,6 +41,8 @@ __all__ = [
     "WassersteinGeodesicCondShape",
     "WGeoEnsemble",
     "WGeoGarchEnsemble",
+    "WassersteinAR",
+    "WassersteinARSelect",
     # extended baselines (v0.4)
     "HARRV",
     "CAViaRSAV",
@@ -1551,3 +1553,309 @@ class BivariateVARGarch:
         sigma_h = np.sqrt(var_h_pct) / 100.0
         q = mu_h + sigma_h * student_t.ppf(u, df=self._df)
         return isotonic_project(q)
+
+
+# ---------------------------------------------------------------------------
+# Wasserstein Autoregression (Zhang, Kokoszka & Petersen 2022) — the closest
+# published competitor, applied to the repo's rolling-ECDF density series.
+# ---------------------------------------------------------------------------
+#
+# WAR(p) models the tangent vectors V_t = Q_t − Q⊕ (log map at the Wasserstein
+# mean Q⊕ = mean of quantile functions) as a scalar-coefficient AR(p):
+#
+#     V_t = Σ_j β_j V_{t−j} + ε_t,   β from Yule-Walker on the s-integrated
+#                                     autocovariances λ_h = (1/n) Σ_t ∫ V_t V_{t+h} ds
+#
+# and maps a forecast back with the exponential map, which in 1D is the
+# monotone rearrangement of Q⊕ + V̂. See docs/THEORY.md §2.11 for the
+# adaptation to rolling-window densities and the h-day conversion.
+
+
+def _rolling_quantile_matrix(
+    r: np.ndarray, window: int, k: int, stride: int, s: np.ndarray
+) -> np.ndarray:
+    """(k, len(s)) rows of trailing-``window`` empirical quantiles, oldest first.
+
+    Row ``j`` spans the ``window`` returns ending ``stride * (k - 1 - j)``
+    observations before the end of ``r``; the last row ends at ``len(r)``.
+    Vectorised Hyndman-Fan type-7 quantiles (identical to
+    :func:`empirical_quantiles` / ``np.quantile(method="linear")``).
+    """
+    n = len(r)
+    ends = n - stride * (k - 1 - np.arange(k))
+    idx = ends[:, None] - window + np.arange(window)[None, :]
+    W = np.sort(r[idx], axis=1)  # (k, window)
+    pos = s * (window - 1)
+    lo = np.floor(pos).astype(int)
+    hi = np.minimum(lo + 1, window - 1)
+    frac = pos - lo
+    return W[:, lo] * (1.0 - frac) + W[:, hi] * frac
+
+
+def _war_autocov(V: np.ndarray, p: int) -> np.ndarray:
+    """Biased (1/n) s-integrated autocovariances λ_0..λ_p of the tangent rows."""
+    n = V.shape[0]
+    lam = np.empty(p + 1, dtype=float)
+    for h in range(p + 1):
+        lam[h] = float(np.mean(V[: n - h] * V[h:])) * (n - h) / n if n - h > 0 else 0.0
+    return lam
+
+
+def _war_yule_walker(
+    V: np.ndarray, Qb: np.ndarray, p: int
+) -> tuple[np.ndarray, bool]:
+    """Yule-Walker AR(p) coefficients for the tangent series.
+
+    Returns ``(beta, fallback)``. ``fallback`` is True when a guard fired:
+    degenerate tangent variance (all β = 0), ill-conditioned Toeplitz system
+    or an unstable root (both drop to p=1).
+    """
+    return _war_yule_walker_from_lam(_war_autocov(V, p), Qb, p)
+
+
+def _war_yule_walker_from_lam(
+    lam: np.ndarray, Qb: np.ndarray, p: int
+) -> tuple[np.ndarray, bool]:
+    scale2 = float(np.mean((Qb - np.median(Qb)) ** 2)) + 1e-18
+    if lam[0] <= 1e-10 * scale2:
+        return np.zeros(p), True
+    if p == 1:
+        return np.array([float(np.clip(lam[1] / lam[0], -0.999, 0.999))]), False
+    H = np.empty((p, p))
+    for i in range(p):
+        for j in range(p):
+            H[i, j] = lam[abs(i - j)]
+    H += (1e-8 * lam[0] + 1e-18) * np.eye(p)
+    fallback = False
+    ev = np.linalg.eigvalsh(H)
+    if ev[0] <= 0 or ev[-1] / ev[0] > 1e10:
+        fallback = True
+    else:
+        beta = np.linalg.solve(H, lam[1 : p + 1])
+        roots = np.roots(np.r_[1.0, -beta])
+        if roots.size and np.max(np.abs(roots)) >= 1.0:
+            fallback = True
+        else:
+            return beta, False
+    beta1 = float(np.clip(lam[1] / lam[0], -0.999, 0.999))
+    return np.r_[beta1, np.zeros(p - 1)], fallback
+
+
+def _war_forecast_path(
+    Q: np.ndarray, beta: np.ndarray, h: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """Iterate the tangent AR ``h`` steps. Returns ``(Qb, Qhat)`` with
+    ``Qhat`` of shape ``(h, n_s)``: rearranged (sorted) daily quantile forecasts
+    for steps 1..h."""
+    Qb = Q.mean(axis=0)
+    V = Q - Qb
+    p = len(beta)
+    hist = [V[-j] for j in range(1, p + 1)]  # hist[0] = most recent
+    out = np.empty((h, Q.shape[1]))
+    for k in range(h):
+        v = np.zeros(Q.shape[1])
+        for j in range(p):
+            v += beta[j] * hist[j]
+        hist = [v] + hist[:-1]
+        out[k] = np.sort(Qb + v)
+    return Qb, out
+
+
+def _war_h_day_quantiles(
+    Qhat: np.ndarray,
+    s: np.ndarray,
+    u: np.ndarray,
+    location: str,
+    n_paths: int,
+    rng_seed: int,
+) -> np.ndarray:
+    """Convert the h daily quantile forecasts to an h-day return quantile
+    vector on ``u`` under the panel's location + √h convention (``"sum"`` or
+    ``"last"``) or by independent convolution (``"conv"``)."""
+    h = Qhat.shape[0]
+    if location == "conv":
+        rng = np.random.default_rng(rng_seed)
+        total = np.zeros(n_paths)
+        for k in range(h):
+            total += np.interp(rng.uniform(size=n_paths), s, Qhat[k])
+        return empirical_quantiles(total, u)
+    last = Qhat[-1]
+    med_last = float(np.median(last))
+    if location == "sum":
+        loc = float(np.sum(np.median(Qhat, axis=1)))
+    elif location == "last":
+        loc = med_last
+    else:
+        raise ValueError(f"location must be 'sum' | 'last' | 'conv', got {location!r}")
+    q_s = loc + (last - med_last) * np.sqrt(h)
+    return np.interp(u, s, q_s)
+
+
+@dataclass
+class WassersteinAR:
+    """WAR(p) on rolling-ECDF densities (Zhang, Kokoszka & Petersen 2022).
+
+    Parameters
+    ----------
+    window
+        Length of the rolling window defining each daily density (same object
+        as the WGeo family).
+    p
+        Autoregressive order (scalar coefficients, Yule-Walker).
+    n_densities
+        Number of most recent densities (the paper's training window K) used
+        for the Wasserstein mean and the autocovariances. ``None`` uses every
+        density available in the fitted returns.
+    stride
+        Use every ``stride``-th density (sensitivity knob for the mechanical
+        persistence induced by overlapping windows).
+    location
+        h-day conversion rule: ``"sum"`` (default; sum of forecast daily
+        medians, √h-scaled terminal shape), ``"last"`` (terminal median only —
+        WGeo's rule), ``"conv"`` (independent convolution of the h daily laws).
+    n_s
+        Size of the internal uniform quantile grid on which fitting, iteration
+        and rearrangement are performed; output is interpolated to ``u``.
+    """
+
+    window: int = 90
+    p: int = 1
+    n_densities: int | None = None
+    stride: int = 1
+    location: str = "sum"
+    n_s: int = 200
+    n_paths: int = 3000
+    rng_seed: int = 0
+
+    _Q: np.ndarray | None = None
+    _beta: np.ndarray | None = None
+    # True when a Yule-Walker guard fired on the last fit (reported as a rate).
+    _war_fallback: bool | None = None
+
+    def _s_grid(self) -> np.ndarray:
+        return (np.arange(self.n_s) + 0.5) / self.n_s
+
+    def fit(self, returns: np.ndarray) -> None:
+        r = np.asarray(returns, dtype=float)
+        need = self.window + self.stride * (self.p + 2)
+        if len(r) < need:
+            raise ValueError(f"need >= {need} returns, got {len(r)}")
+        n_avail = (len(r) - self.window) // self.stride + 1
+        k = n_avail if self.n_densities is None else min(self.n_densities, n_avail)
+        if k < self.p + 2:
+            raise ValueError(f"need >= {self.p + 2} densities, got {k}")
+        self._Q = _rolling_quantile_matrix(r, self.window, k, self.stride, self._s_grid())
+        self._fit_from_Q()
+
+    def _fit_from_Q(self) -> None:
+        assert self._Q is not None
+        Qb = self._Q.mean(axis=0)
+        self._beta, self._war_fallback = _war_yule_walker(self._Q - Qb, Qb, self.p)
+
+    @property
+    def beta(self) -> np.ndarray:
+        assert self._beta is not None, "call fit() first"
+        return self._beta
+
+    def predict(self, h: int, u: np.ndarray) -> np.ndarray:
+        assert self._Q is not None and self._beta is not None, "call fit() first"
+        _, Qhat = _war_forecast_path(self._Q, self._beta, h)
+        return _war_h_day_quantiles(
+            Qhat, self._s_grid(), np.asarray(u, dtype=float),
+            self.location, self.n_paths, self.rng_seed,
+        )
+
+
+def _war_cv_error(Q: np.ndarray, k: int, p: int, n_cv: int) -> float:
+    """Mean one-step W2 error (L2 on the s-grid) of WAR(p) fitted on the ``k``
+    densities preceding each of the last ``n_cv`` rows of ``Q``.
+
+    Autocovariances for every origin come from prefix sums, so the cost per
+    origin is O(p · n_s) rather than O(k · n_s). Equivalent to refitting
+    :class:`WassersteinAR` on ``Q[o-k:o]`` for each origin ``o``.
+    """
+    n, n_s = Q.shape
+    n_cv = min(n_cv, n - k)
+    if n_cv < 1:
+        return float("inf")
+    C = np.vstack([np.zeros((1, n_s)), np.cumsum(Q, axis=0)])  # C[i] = sum of rows < i
+    # G[h][i] = sum_{t < i} <Q_t, Q_{t+h}>, for h = 0..p
+    G = []
+    for h in range(p + 1):
+        g = np.sum(Q[: n - h] * Q[h:], axis=1)
+        G.append(np.r_[0.0, np.cumsum(g)])
+    err = 0.0
+    for o in range(n - n_cv, n):
+        a = o - k
+        Qb = (C[o] - C[a]) / k
+        bb = float(Qb @ Qb)
+        lam = np.empty(p + 1)
+        for h in range(p + 1):
+            m = k - h  # number of lag-h pairs
+            sum_qq = G[h][o - h] - G[h][a]  # t in [a, o-h)
+            sum_t = C[o - h] - C[a]  # sum of Q_t, t in [a, o-h)
+            sum_th = C[o] - C[a + h]  # sum of Q_{t+h}
+            lam[h] = (sum_qq - Qb @ sum_th - sum_t @ Qb + m * bb) / k
+        beta = _war_yule_walker_from_lam(lam, Qb, p)[0]
+        v = np.zeros(n_s)
+        for j in range(p):
+            v += beta[j] * (Q[o - 1 - j] - Qb)
+        Qhat = np.sort(Qb + v)
+        err += float(np.sqrt(np.mean((Qhat - Q[o]) ** 2)))
+    return err / n_cv
+
+
+@dataclass
+class WassersteinARSelect(WassersteinAR):
+    """WAR with the paper's in-sample sequential selection of (K, p).
+
+    First choose the training window ``K`` from ``k_grid`` with ``p = 1``,
+    then the order ``p`` from ``p_grid`` at that ``K``, each by the mean
+    one-step W2 error over the last ``n_cv`` in-window forecasts (paper §5.3).
+    ``k_grid`` entries of ``None`` mean "all available densities".
+
+    ``WAR-Paper``: ``k_grid=(20, 62)``, ``p_grid=range(1, 11)`` (the paper's
+    intraday grids). ``WAR-Select``: ``k_grid=(20, 62, 250, None)``,
+    ``p_grid=range(1, 6)`` (repo grid).
+    """
+
+    k_grid: tuple = (20, 62)
+    p_grid: tuple = tuple(range(1, 11))
+    n_cv: int = 60
+    selected_k: int | None = None
+    selected_p: int | None = None
+
+    def fit(self, returns: np.ndarray) -> None:
+        r = np.asarray(returns, dtype=float)
+        p_max = max(self.p_grid)
+        need = self.window + self.stride * (p_max + 2)
+        if len(r) < need:
+            raise ValueError(f"need >= {need} returns, got {len(r)}")
+        n_avail = (len(r) - self.window) // self.stride + 1
+        Q = _rolling_quantile_matrix(r, self.window, n_avail, self.stride, self._s_grid())
+        ks = [n_avail if k is None else min(int(k), n_avail) for k in self.k_grid]
+        ks = sorted({k for k in ks if k >= p_max + 2 and k < n_avail} | ({n_avail} if any(k is None for k in self.k_grid) else set()))
+        if not ks:
+            raise ValueError("no admissible K in k_grid for this training window")
+        # CV uses the largest K that still leaves n_cv origins; the final fit
+        # uses the selected K itself (K = "all" is CV-ed at n_avail - n_cv).
+        def k_cv(k: int) -> int:
+            return max(min(k, n_avail - self.n_cv), p_max + 2)
+
+        # step 1: K with p = 1
+        best_k, best_e = None, float("inf")
+        for k in ks:
+            e = _war_cv_error(Q, k_cv(k), 1, self.n_cv)
+            if e < best_e:
+                best_k, best_e = k, e
+        assert best_k is not None
+        # step 2: p at the chosen K
+        best_p, best_e = 1, float("inf")
+        for p in self.p_grid:
+            e = _war_cv_error(Q, k_cv(best_k), int(p), self.n_cv)
+            if e < best_e:
+                best_p, best_e = int(p), e
+        self.selected_k, self.selected_p = best_k, best_p
+        self.p = best_p
+        self._Q = Q[-best_k:]
+        self._fit_from_Q()

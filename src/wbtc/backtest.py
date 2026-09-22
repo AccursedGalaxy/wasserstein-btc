@@ -32,8 +32,22 @@ class BacktestConfig:
     test_holdout: int = 365  # last N days are STRICT test set
 
 
-def load_returns(parquet_path: str | Path) -> pd.DataFrame:
+# Last calendar day of the in-sample research panel. Every panel script
+# (long-horizon, VaR/ES, score_new_method, sweep) truncates the return series
+# here so that (a) regenerated reports stay comparable with the 2026-05-24
+# lock and (b) the pre-registered v0.5 holdout (2026-06-01 → 2027-05-31,
+# PREREGISTRATION.md) is never scored before the 2027-06-01 procedure, even
+# when the parquet cache has been refreshed past it.
+PANEL_DATA_END = "2026-05-23"
+
+
+def load_returns(parquet_path: str | Path, end: str | None = None) -> pd.DataFrame:
+    """Daily log-returns from a parquet cache, optionally truncated at ``end``
+    (inclusive, UTC date string). Panel scripts pass ``PANEL_DATA_END``."""
     df = pd.read_parquet(parquet_path).sort_values("ts").reset_index(drop=True)
+    if end is not None:
+        df = df[pd.to_datetime(df["ts"], utc=True) <= pd.Timestamp(end, tz="UTC") + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)]
+        df = df.reset_index(drop=True)
     df["log_close"] = np.log(df["close"].astype(float))
     df["r"] = df["log_close"].diff()
     return df.dropna(subset=["r"]).reset_index(drop=True)

@@ -18,15 +18,33 @@ regression test asserting identical output. `RESULTS_LONG.md` carries an
 erratum until its tables are regenerated. The pre-registered v0.5
 headline (vs `Static`, vs `GARCH-N`) never used RW-Drift and is unaffected.
 
-## 2. Missing real benchmark — open
+## 2. Missing real benchmark — fixed 2026-09-22 (same day, later)
 
 Wasserstein Autoregression (Zhang, Kokoszka, Petersen 2022, *J. Time
-Series Analysis*, arXiv:2006.12640) is the closest published method and is
-neither implemented, benchmarked, nor cited. The WGeo family is a less
-elaborated cousin of WAR. Any claim that WGeo is competitive with the
-literature is unsupported until WAR is in the panel on the same
-walk-forward harness. This is now the first item a paper submission
-would need.
+Series Analysis*, arXiv:2006.12640) is now implemented
+(`wbtc.forecasters.WassersteinAR`), cited (`THEORY.md §2.11`), and in every
+panel as `WAR-1`, `WAR-1-last` and `WAR-Select`, on the same walk-forward
+harness and the same rolling-90-day density object as WGeo. What the
+benchmark shows (`docs/RESULTS_WAR.md`, `RESULTS_LONG.md` Headline 3):
+WGeo-Ensemble beats WAR at h=1 in every cell; at h=21, WAR with WGeo's own
+h-day location rule lands within about a percent of WGeo-Ensemble. So the
+honest statement is: on this data object, tangent-space *extrapolation*
+(WGeo) and tangent-space *mean reversion* (WAR) are close at long horizons,
+and both beat the econometric baselines by a similar margin. The §4
+falsification count in `RESULTS_LONG.md` decides whether "extrapolation
+adds something" can be claimed; whatever it says stands.
+
+**Outcome of the §4 test (2026-09-22, `RESULTS_LONG.md` Headline 3): FAIL, 6/15.**
+`WGeo-Ensemble` beats the best WAR variant per cell with p_r<0.05 in 6 of
+15 cells, below the pre-committed bar of 8. The pattern is sharp: against
+`WAR-1-last` it wins all five h=1 cells (p_r ≤ 0.007), ties at h=5, and
+**loses four of five h=21 cells** (WAR-1-last lower CRPS by 0.4–1.1%,
+p_r ≤ 0.047; BNB is the tie). So on this data object tangent-space mean
+reversion toward the training-window barycentre is *better* than
+tangent-space extrapolation at 21 days, and the two are equivalent to the
+econometric baselines' disadvantage at 1 day. The pre-registered v0.5
+headline (vs `Static`, vs `GARCH-N`) is untouched by this; what changes is
+the interpretation: the long-horizon edge is not evidence for extrapolation.
 
 ## 3. Manifold framing is computationally inert in 1D — acknowledged
 

@@ -1,0 +1,259 @@
+[score] WAR-Select BTC/USDT h=1 ...
+  mean_crps=0.016208  best_non_wgeo=Static (0.016236)  Δ=-0.18%  DM=-0.60 p=0.5494  | DM_r=-0.62 p_r=0.5330
+    vs Static        : Δmean=-0.000029 DM=-0.60  p=0.5494
+    vs RW-Drift      : Δmean=-0.000029 DM=-0.60  p=0.5494
+    vs HS-Bootstrap  : Δmean=-0.000031 DM=-0.65  p=0.5168
+    vs GARCH-N       : Δmean=-0.000256 DM=-4.05  p=0.0001
+    vs GARCH-t       : Δmean=-0.000970 DM=-11.09  p=0.0000
+    vs GJR-GARCH-t   : Δmean=-0.000968 DM=-11.14  p=0.0000
+    vs WGeo          : Δmean=-0.000004 DM=-2.37  p=0.0179
+    vs WGeo-Gated    : Δmean=+0.000005 DM=+0.14  p=0.8864
+    vs WGeo-TheilSen : Δmean=-0.000004 DM=-2.61  p=0.0090
+    vs WGeo-EWMA     : Δmean=-0.000005 DM=-2.62  p=0.0088
+    vs WGeo-Hetero   : Δmean=-0.000013 DM=-0.47  p=0.6355
+    vs WGeo-GARCH-Ens: Δmean=-0.000045 DM=-1.03  p=0.3052
+    vs WGeo-Adaptive : Δmean=-0.000030 DM=-0.99  p=0.3210
+    vs WGeo-Ensemble : Δmean=+0.000039 DM=+3.51  p=0.0004
+[score] WAR-Select BTC/USDT h=5 ...
+  mean_crps=0.037512  best_non_wgeo=Static (0.037367)  Δ=+0.39%  DM=+0.47 p=0.6407  | DM_r=+0.48 p_r=0.6309
+    vs Static        : Δmean=+0.000145 DM=+0.47  p=0.6407
+    vs RW-Drift      : Δmean=+0.000145 DM=+0.47  p=0.6407
+    vs HS-Bootstrap  : Δmean=-0.000053 DM=-0.17  p=0.8656
+    vs GARCH-N       : Δmean=-0.000295 DM=-0.91  p=0.3604
+    vs GARCH-t       : Δmean=-0.002032 DM=-5.27  p=0.0000
+    vs GJR-GARCH-t   : Δmean=-0.002035 DM=-5.31  p=0.0000
+    vs WGeo          : Δmean=+0.000375 DM=+1.39  p=0.1654
+    vs WGeo-Gated    : Δmean=+0.000284 DM=+0.99  p=0.3241
+    vs WGeo-TheilSen : Δmean=+0.000377 DM=+1.39  p=0.1641
+    vs WGeo-EWMA     : Δmean=+0.000372 DM=+1.37  p=0.1697
+    vs WGeo-Hetero   : Δmean=+0.000179 DM=+0.63  p=0.5280
+    vs WGeo-GARCH-Ens: Δmean=+0.000149 DM=+0.54  p=0.5871
+    vs WGeo-Adaptive : Δmean=+0.000284 DM=+1.02  p=0.3096
+    vs WGeo-Ensemble : Δmean=+0.000451 DM=+1.68  p=0.0938
+[score] WAR-Select BTC/USDT h=21 ...
+  mean_crps=0.085858  best_non_wgeo=GARCH-N (0.084848)  Δ=+1.19%  DM=+0.47 p=0.6416  | DM_r=+0.50 p_r=0.6137
+    vs Static        : Δmean=+0.000510 DM=+0.23  p=0.8142
+    vs RW-Drift      : Δmean=+0.000510 DM=+0.23  p=0.8142
+    vs HS-Bootstrap  : Δmean=+0.000800 DM=+0.39  p=0.6998
+    vs GARCH-N       : Δmean=+0.001010 DM=+0.47  p=0.6416
+    vs GARCH-t       : Δmean=-0.003555 DM=-1.67  p=0.0945
+    vs GJR-GARCH-t   : Δmean=-0.003739 DM=-1.76  p=0.0781
+    vs WGeo          : Δmean=+0.002545 DM=+1.02  p=0.3098
+    vs WGeo-Gated    : Δmean=+0.001825 DM=+0.84  p=0.3989
+    vs WGeo-TheilSen : Δmean=+0.002562 DM=+1.02  p=0.3077
+    vs WGeo-EWMA     : Δmean=+0.002540 DM=+1.01  p=0.3107
+    vs WGeo-Hetero   : Δmean=+0.002174 DM=+0.89  p=0.3730
+    vs WGeo-GARCH-Ens: Δmean=+0.002464 DM=+1.08  p=0.2782
+    vs WGeo-Adaptive : Δmean=+0.001949 DM=+0.79  p=0.4287
+    vs WGeo-Ensemble : Δmean=+0.002699 DM=+1.15  p=0.2494
+[score] WAR-Select ETH/USDT h=1 ...
+  mean_crps=0.021786  best_non_wgeo=HS-Bootstrap (0.021893)  Δ=-0.49%  DM=-1.72 p=0.0858  | DM_r=-1.85 p_r=0.0648
+    vs Static        : Δmean=-0.000111 DM=-1.77  p=0.0772
+    vs RW-Drift      : Δmean=-0.000111 DM=-1.77  p=0.0772
+    vs HS-Bootstrap  : Δmean=-0.000107 DM=-1.72  p=0.0858
+    vs GARCH-N       : Δmean=-0.000161 DM=-2.04  p=0.0416
+    vs GARCH-t       : Δmean=-0.001091 DM=-9.53  p=0.0000
+    vs GJR-GARCH-t   : Δmean=-0.001092 DM=-9.52  p=0.0000
+    vs WGeo          : Δmean=-0.000007 DM=-3.02  p=0.0025
+    vs WGeo-Gated    : Δmean=-0.000008 DM=-0.18  p=0.8608
+    vs WGeo-TheilSen : Δmean=-0.000007 DM=-3.21  p=0.0013
+    vs WGeo-EWMA     : Δmean=-0.000006 DM=-2.64  p=0.0082
+    vs WGeo-Hetero   : Δmean=-0.000098 DM=-2.09  p=0.0363
+    vs WGeo-GARCH-Ens: Δmean=-0.000016 DM=-0.28  p=0.7803
+    vs WGeo-Adaptive : Δmean=-0.000060 DM=-1.39  p=0.1654
+    vs WGeo-Ensemble : Δmean=+0.000046 DM=+3.29  p=0.0010
+[score] WAR-Select ETH/USDT h=5 ...
+  mean_crps=0.049968  best_non_wgeo=Static (0.049834)  Δ=+0.27%  DM=+0.34 p=0.7329  | DM_r=+0.36 p_r=0.7160
+    vs Static        : Δmean=+0.000134 DM=+0.34  p=0.7329
+    vs RW-Drift      : Δmean=+0.000134 DM=+0.34  p=0.7329
+    vs HS-Bootstrap  : Δmean=-0.000077 DM=-0.19  p=0.8461
+    vs GARCH-N       : Δmean=-0.000399 DM=-1.01  p=0.3114
+    vs GARCH-t       : Δmean=-0.002545 DM=-4.65  p=0.0000
+    vs GJR-GARCH-t   : Δmean=-0.002549 DM=-4.70  p=0.0000
+    vs WGeo          : Δmean=+0.000654 DM=+1.95  p=0.0510
+    vs WGeo-Gated    : Δmean=+0.000422 DM=+1.21  p=0.2261
+    vs WGeo-TheilSen : Δmean=+0.000664 DM=+1.98  p=0.0474
+    vs WGeo-EWMA     : Δmean=+0.000659 DM=+1.96  p=0.0496
+    vs WGeo-Hetero   : Δmean=-0.000032 DM=-0.09  p=0.9286
+    vs WGeo-GARCH-Ens: Δmean=+0.000074 DM=+0.20  p=0.8443
+    vs WGeo-Adaptive : Δmean=+0.000361 DM=+1.00  p=0.3155
+    vs WGeo-Ensemble : Δmean=+0.000712 DM=+2.16  p=0.0309
+[score] WAR-Select ETH/USDT h=21 ...
+  mean_crps=0.114724  best_non_wgeo=GARCH-N (0.112970)  Δ=+1.55%  DM=+0.66 p=0.5115  | DM_r=+0.74 p_r=0.4576
+    vs Static        : Δmean=+0.001023 DM=+0.38  p=0.7049
+    vs RW-Drift      : Δmean=+0.001023 DM=+0.38  p=0.7049
+    vs HS-Bootstrap  : Δmean=+0.001359 DM=+0.51  p=0.6089
+    vs GARCH-N       : Δmean=+0.001754 DM=+0.66  p=0.5115
+    vs GARCH-t       : Δmean=-0.002891 DM=-0.87  p=0.3867
+    vs GJR-GARCH-t   : Δmean=-0.002731 DM=-0.83  p=0.4064
+    vs WGeo          : Δmean=+0.005270 DM=+1.63  p=0.1021
+    vs WGeo-Gated    : Δmean=+0.002805 DM=+1.04  p=0.2967
+    vs WGeo-TheilSen : Δmean=+0.005320 DM=+1.65  p=0.0989
+    vs WGeo-EWMA     : Δmean=+0.005246 DM=+1.63  p=0.1040
+    vs WGeo-Hetero   : Δmean=+0.004218 DM=+1.33  p=0.1841
+    vs WGeo-GARCH-Ens: Δmean=+0.004394 DM=+1.42  p=0.1564
+    vs WGeo-Adaptive : Δmean=+0.004560 DM=+1.40  p=0.1624
+    vs WGeo-Ensemble : Δmean=+0.004908 DM=+1.64  p=0.1008
+[score] WAR-Select SOL/USDT h=1 ...
+  mean_crps=0.025086  best_non_wgeo=Static (0.025075)  Δ=+0.04%  DM=+0.11 p=0.9140  | DM_r=+0.12 p_r=0.9069
+    vs Static        : Δmean=+0.000011 DM=+0.11  p=0.9140
+    vs RW-Drift      : Δmean=+0.000011 DM=+0.11  p=0.9140
+    vs HS-Bootstrap  : Δmean=+0.000010 DM=+0.10  p=0.9179
+    vs GARCH-N       : Δmean=-0.000133 DM=-1.07  p=0.2833
+    vs GARCH-t       : Δmean=-0.000433 DM=-3.13  p=0.0017
+    vs GJR-GARCH-t   : Δmean=-0.000435 DM=-3.16  p=0.0016
+    vs WGeo          : Δmean=-0.000008 DM=-2.28  p=0.0225
+    vs WGeo-Gated    : Δmean=+0.000046 DM=+0.71  p=0.4800
+    vs WGeo-TheilSen : Δmean=-0.000008 DM=-2.36  p=0.0182
+    vs WGeo-EWMA     : Δmean=-0.000008 DM=-2.09  p=0.0364
+    vs WGeo-Hetero   : Δmean=-0.000082 DM=-1.42  p=0.1547
+    vs WGeo-GARCH-Ens: Δmean=-0.000015 DM=-0.18  p=0.8578
+    vs WGeo-Adaptive : Δmean=-0.000094 DM=-1.46  p=0.1437
+    vs WGeo-Ensemble : Δmean=+0.000056 DM=+2.59  p=0.0095
+[score] WAR-Select SOL/USDT h=5 ...
+  mean_crps=0.058315  best_non_wgeo=Static (0.057622)  Δ=+1.20%  DM=+1.02 p=0.3091  | DM_r=+1.13 p_r=0.2587
+    vs Static        : Δmean=+0.000694 DM=+1.02  p=0.3091
+    vs RW-Drift      : Δmean=+0.000694 DM=+1.02  p=0.3091
+    vs HS-Bootstrap  : Δmean=+0.000192 DM=+0.26  p=0.7941
+    vs GARCH-N       : Δmean=+0.000019 DM=+0.03  p=0.9785
+    vs GARCH-t       : Δmean=-0.000559 DM=-0.78  p=0.4378
+    vs GJR-GARCH-t   : Δmean=-0.000562 DM=-0.78  p=0.4330
+    vs WGeo          : Δmean=+0.001124 DM=+2.54  p=0.0112
+    vs WGeo-Gated    : Δmean=+0.000908 DM=+1.65  p=0.0983
+    vs WGeo-TheilSen : Δmean=+0.001130 DM=+2.55  p=0.0109
+    vs WGeo-EWMA     : Δmean=+0.001117 DM=+2.52  p=0.0117
+    vs WGeo-Hetero   : Δmean=+0.000656 DM=+1.45  p=0.1467
+    vs WGeo-GARCH-Ens: Δmean=+0.000617 DM=+1.12  p=0.2607
+    vs WGeo-Adaptive : Δmean=+0.000950 DM=+1.89  p=0.0589
+    vs WGeo-Ensemble : Δmean=+0.001162 DM=+2.47  p=0.0135
+[score] WAR-Select SOL/USDT h=21 ...
+  mean_crps=0.136713  best_non_wgeo=GARCH-N (0.133568)  Δ=+2.35%  DM=+0.60 p=0.5460  | DM_r=+0.79 p_r=0.4283
+    vs Static        : Δmean=+0.002306 DM=+0.43  p=0.6652
+    vs RW-Drift      : Δmean=+0.002306 DM=+0.43  p=0.6652
+    vs HS-Bootstrap  : Δmean=+0.001347 DM=+0.25  p=0.8043
+    vs GARCH-N       : Δmean=+0.003145 DM=+0.60  p=0.5460
+    vs GARCH-t       : Δmean=+0.002804 DM=+0.58  p=0.5588
+    vs GJR-GARCH-t   : Δmean=+0.002667 DM=+0.56  p=0.5764
+    vs WGeo          : Δmean=+0.007195 DM=+1.73  p=0.0834
+    vs WGeo-Gated    : Δmean=+0.004926 DM=+1.07  p=0.2826
+    vs WGeo-TheilSen : Δmean=+0.007266 DM=+1.75  p=0.0801
+    vs WGeo-EWMA     : Δmean=+0.007285 DM=+1.75  p=0.0800
+    vs WGeo-Hetero   : Δmean=+0.006445 DM=+1.51  p=0.1321
+    vs WGeo-GARCH-Ens: Δmean=+0.004796 DM=+1.08  p=0.2799
+    vs WGeo-Adaptive : Δmean=+0.007450 DM=+1.70  p=0.0895
+    vs WGeo-Ensemble : Δmean=+0.006880 DM=+1.62  p=0.1048
+[score] WAR-Select BNB/USDT h=1 ...
+  mean_crps=0.020203  best_non_wgeo=GARCH-N (0.020199)  Δ=+0.02%  DM=+0.04 p=0.9644  | DM_r=+0.07 p_r=0.9461
+    vs Static        : Δmean=-0.000136 DM=-2.00  p=0.0452
+    vs RW-Drift      : Δmean=-0.000136 DM=-2.00  p=0.0452
+    vs HS-Bootstrap  : Δmean=-0.000129 DM=-1.92  p=0.0544
+    vs GARCH-N       : Δmean=+0.000004 DM=+0.04  p=0.9644
+    vs GARCH-t       : Δmean=-0.000562 DM=-5.21  p=0.0000
+    vs GJR-GARCH-t   : Δmean=-0.000580 DM=-5.37  p=0.0000
+    vs WGeo          : Δmean=-0.000005 DM=-1.77  p=0.0764
+    vs WGeo-Gated    : Δmean=+0.000013 DM=+0.29  p=0.7725
+    vs WGeo-TheilSen : Δmean=-0.000005 DM=-1.83  p=0.0673
+    vs WGeo-EWMA     : Δmean=-0.000004 DM=-1.34  p=0.1798
+    vs WGeo-Hetero   : Δmean=-0.000074 DM=-0.97  p=0.3306
+    vs WGeo-GARCH-Ens: Δmean=+0.000038 DM=+0.48  p=0.6294
+    vs WGeo-Adaptive : Δmean=+0.000012 DM=+0.24  p=0.8089
+    vs WGeo-Ensemble : Δmean=+0.000059 DM=+4.01  p=0.0001
+[score] WAR-Select BNB/USDT h=5 ...
+  mean_crps=0.046257  best_non_wgeo=Static (0.046297)  Δ=-0.08%  DM=-0.10 p=0.9165  | DM_r=-0.12 p_r=0.9053
+    vs Static        : Δmean=-0.000039 DM=-0.10  p=0.9165
+    vs RW-Drift      : Δmean=-0.000039 DM=-0.10  p=0.9165
+    vs HS-Bootstrap  : Δmean=-0.000601 DM=-1.62  p=0.1044
+    vs GARCH-N       : Δmean=-0.000218 DM=-0.60  p=0.5477
+    vs GARCH-t       : Δmean=-0.001662 DM=-4.09  p=0.0000
+    vs GJR-GARCH-t   : Δmean=-0.001654 DM=-4.13  p=0.0000
+    vs WGeo          : Δmean=+0.000328 DM=+1.11  p=0.2690
+    vs WGeo-Gated    : Δmean=+0.000281 DM=+0.87  p=0.3818
+    vs WGeo-TheilSen : Δmean=+0.000334 DM=+1.12  p=0.2612
+    vs WGeo-EWMA     : Δmean=+0.000341 DM=+1.15  p=0.2491
+    vs WGeo-Hetero   : Δmean=-0.000339 DM=-0.98  p=0.3271
+    vs WGeo-GARCH-Ens: Δmean=+0.000149 DM=+0.45  p=0.6508
+    vs WGeo-Adaptive : Δmean=+0.000359 DM=+1.23  p=0.2202
+    vs WGeo-Ensemble : Δmean=+0.000476 DM=+1.62  p=0.1045
+[score] WAR-Select BNB/USDT h=21 ...
+  mean_crps=0.105347  best_non_wgeo=Static (0.105553)  Δ=-0.19%  DM=-0.08 p=0.9325  | DM_r=-0.09 p_r=0.9255
+    vs Static        : Δmean=-0.000206 DM=-0.08  p=0.9325
+    vs RW-Drift      : Δmean=-0.000206 DM=-0.08  p=0.9325
+    vs HS-Bootstrap  : Δmean=-0.001408 DM=-0.63  p=0.5309
+    vs GARCH-N       : Δmean=-0.000249 DM=-0.11  p=0.9138
+    vs GARCH-t       : Δmean=-0.004597 DM=-1.97  p=0.0484
+    vs GJR-GARCH-t   : Δmean=-0.004695 DM=-2.06  p=0.0393
+    vs WGeo          : Δmean=+0.002352 DM=+0.80  p=0.4232
+    vs WGeo-Gated    : Δmean=+0.001500 DM=+0.59  p=0.5530
+    vs WGeo-TheilSen : Δmean=+0.002386 DM=+0.81  p=0.4178
+    vs WGeo-EWMA     : Δmean=+0.002379 DM=+0.81  p=0.4176
+    vs WGeo-Hetero   : Δmean=+0.000063 DM=+0.02  p=0.9829
+    vs WGeo-GARCH-Ens: Δmean=+0.001414 DM=+0.54  p=0.5896
+    vs WGeo-Adaptive : Δmean=+0.002129 DM=+0.73  p=0.4648
+    vs WGeo-Ensemble : Δmean=+0.002728 DM=+1.00  p=0.3182
+[score] WAR-Select XRP/USDT h=1 ...
+  mean_crps=0.024428  best_non_wgeo=HS-Bootstrap (0.024548)  Δ=-0.49%  DM=-1.47 p=0.1409  | DM_r=-1.64 p_r=0.1003
+    vs Static        : Δmean=-0.000138 DM=-1.67  p=0.0945
+    vs RW-Drift      : Δmean=-0.000138 DM=-1.67  p=0.0945
+    vs HS-Bootstrap  : Δmean=-0.000120 DM=-1.47  p=0.1409
+    vs GARCH-N       : Δmean=-0.000269 DM=-2.10  p=0.0356
+    vs GARCH-t       : Δmean=-0.001438 DM=-8.64  p=0.0000
+    vs GJR-GARCH-t   : Δmean=-0.001444 DM=-8.55  p=0.0000
+    vs WGeo          : Δmean=-0.000006 DM=-1.74  p=0.0824
+    vs WGeo-Gated    : Δmean=+0.000025 DM=+0.49  p=0.6230
+    vs WGeo-TheilSen : Δmean=-0.000005 DM=-1.84  p=0.0656
+    vs WGeo-EWMA     : Δmean=-0.000004 DM=-1.28  p=0.2017
+    vs WGeo-Hetero   : Δmean=-0.000141 DM=-1.47  p=0.1423
+    vs WGeo-GARCH-Ens: Δmean=+0.000030 DM=+0.29  p=0.7698
+    vs WGeo-Adaptive : Δmean=+0.000028 DM=+0.46  p=0.6422
+    vs WGeo-Ensemble : Δmean=+0.000069 DM=+4.27  p=0.0000
+[score] WAR-Select XRP/USDT h=5 ...
+  mean_crps=0.056216  best_non_wgeo=Static (0.056199)  Δ=+0.03%  DM=+0.04 p=0.9712  | DM_r=+0.04 p_r=0.9690
+    vs Static        : Δmean=+0.000017 DM=+0.04  p=0.9712
+    vs RW-Drift      : Δmean=+0.000017 DM=+0.04  p=0.9712
+    vs HS-Bootstrap  : Δmean=-0.000526 DM=-1.14  p=0.2539
+    vs GARCH-N       : Δmean=-0.001042 DM=-1.94  p=0.0524
+    vs GARCH-t       : Δmean=-0.004123 DM=-6.02  p=0.0000
+    vs GJR-GARCH-t   : Δmean=-0.003996 DM=-5.78  p=0.0000
+    vs WGeo          : Δmean=+0.000712 DM=+2.53  p=0.0113
+    vs WGeo-Gated    : Δmean=+0.000619 DM=+1.72  p=0.0851
+    vs WGeo-TheilSen : Δmean=+0.000713 DM=+2.53  p=0.0114
+    vs WGeo-EWMA     : Δmean=+0.000733 DM=+2.60  p=0.0092
+    vs WGeo-Hetero   : Δmean=-0.000021 DM=-0.05  p=0.9621
+    vs WGeo-GARCH-Ens: Δmean=+0.000273 DM=+0.64  p=0.5248
+    vs WGeo-Adaptive : Δmean=+0.000775 DM=+2.24  p=0.0252
+    vs WGeo-Ensemble : Δmean=+0.000827 DM=+2.79  p=0.0052
+[score] WAR-Select XRP/USDT h=21 ...
+  mean_crps=0.136449  best_non_wgeo=Static (0.132709)  Δ=+2.82%  DM=+1.29 p=0.1961  | DM_r=+1.39 p_r=0.1636
+    vs Static        : Δmean=+0.003740 DM=+1.29  p=0.1961
+    vs RW-Drift      : Δmean=+0.003740 DM=+1.29  p=0.1961
+    vs HS-Bootstrap  : Δmean=+0.003171 DM=+1.10  p=0.2727
+    vs GARCH-N       : Δmean=-0.000025 DM=-0.01  p=0.9934
+    vs GARCH-t       : Δmean=-0.007938 DM=-2.22  p=0.0262
+    vs GJR-GARCH-t   : Δmean=-0.007051 DM=-1.99  p=0.0470
+    vs WGeo          : Δmean=+0.007231 DM=+2.81  p=0.0049
+    vs WGeo-Gated    : Δmean=+0.005947 DM=+2.21  p=0.0270
+    vs WGeo-TheilSen : Δmean=+0.007299 DM=+2.84  p=0.0045
+    vs WGeo-EWMA     : Δmean=+0.007313 DM=+2.84  p=0.0045
+    vs WGeo-Hetero   : Δmean=+0.003569 DM=+1.25  p=0.2125
+    vs WGeo-GARCH-Ens: Δmean=+0.004275 DM=+1.54  p=0.1243
+    vs WGeo-Adaptive : Δmean=+0.006880 DM=+2.45  p=0.0142
+    vs WGeo-Ensemble : Δmean=+0.007346 DM=+2.85  p=0.0043
+
+[score] WAR-Select: vanilla DM 0/15 cells p<0.05; residualised DM 0/15 cells p<0.05.
+
+  symbol  h    n  mean_crps best_baseline  baseline_crps      Δ%      DM      p    DM_r    p_r
+BTC/USDT  1 2470     0.0162        Static         0.0162 -0.1770 -0.5986 0.5494 -0.6234 0.5330
+BTC/USDT  5 2466     0.0375        Static         0.0374  0.3879  0.4667 0.6407  0.4804 0.6309
+BTC/USDT 21 2450     0.0859       GARCH-N         0.0848  1.1900  0.4655 0.6416  0.5048 0.6137
+ETH/USDT  1 2470     0.0218  HS-Bootstrap         0.0219 -0.4895 -1.7183 0.0858 -1.8465 0.0648
+ETH/USDT  5 2466     0.0500        Static         0.0498  0.2681  0.3413 0.7329  0.3638 0.7160
+ETH/USDT 21 2450     0.1147       GARCH-N         0.1130  1.5522  0.6565 0.5115  0.7429 0.4576
+SOL/USDT  1 1380     0.0251        Static         0.0251  0.0422  0.1080 0.9140  0.1170 0.9069
+SOL/USDT  5 1376     0.0583        Static         0.0576  1.2041  1.0172 0.3091  1.1294 0.2587
+SOL/USDT 21 1360     0.1367       GARCH-N         0.1336  2.3548  0.6037 0.5460  0.7921 0.4283
+BNB/USDT  1 2389     0.0202       GARCH-N         0.0202  0.0208  0.0446 0.9644  0.0676 0.9461
+BNB/USDT  5 2385     0.0463        Static         0.0463 -0.0845 -0.1048 0.9165 -0.1190 0.9053
+BNB/USDT 21 2369     0.1053        Static         0.1056 -0.1949 -0.0847 0.9325 -0.0935 0.9255
+XRP/USDT  1 2210     0.0244  HS-Bootstrap         0.0245 -0.4876 -1.4725 0.1409 -1.6435 0.1003
+XRP/USDT  5 2206     0.0562        Static         0.0562  0.0294  0.0361 0.9712  0.0389 0.9690
+XRP/USDT 21 2190     0.1364        Static         0.1327  2.8185  1.2928 0.1961  1.3932 0.1636

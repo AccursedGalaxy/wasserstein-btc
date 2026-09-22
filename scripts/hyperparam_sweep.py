@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from wbtc.backtest import h_step_log_return, load_returns
+from wbtc.backtest import h_step_log_return, PANEL_DATA_END, load_returns
 from wbtc.forecasters import WassersteinGeodesicTheilSen
 from wbtc.quantiles import make_grid
 from wbtc.scoring import crps_from_quantiles
@@ -73,7 +73,7 @@ def evaluate_at(
 
 
 def main():
-    df = load_returns(DATA)
+    df = load_returns(DATA, end=PANEL_DATA_END)
     returns = df["r"].to_numpy()
     early_mask, late_mask = epoch_indices(df)
     print(

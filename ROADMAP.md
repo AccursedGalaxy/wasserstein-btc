@@ -55,6 +55,12 @@ single PR and each strengthens the paper.
   final-year test set" item with a longer window (12 months vs 12
   months) chosen so h=21 has ≈250 forecasts per cell (vs ~130 at six
   months) — adequate DM power.
+- [x] **Wasserstein Autoregression benchmark** (Zhang-Kokoszka-Petersen
+  2022) in every panel as `WAR-1` / `WAR-1-last` / `WAR-Select`, with a §4
+  falsification bullet and `docs/RESULTS_WAR.md` (2026-09-22). Closes
+  `PREREG.md` credibility failure 2. **Verdict: the extrapolation claim
+  fails at h=21** (WAR with WGeo's h-day rule wins 4/5 assets). Any v0.6
+  work on long horizons starts from mean reversion, not from the slope.
 - [ ] **XRP/USDT into the panel.** Currently cached but not in
   `METHODS`. Add to `SYMBOLS` in `scripts/run_long_horizon.py`. 5-asset
   panel is more convincing than 4 for cross-asset generalisation.

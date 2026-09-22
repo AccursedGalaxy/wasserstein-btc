@@ -37,6 +37,9 @@ const FAMILY_BY_METHOD = new Map();
 const METHOD_DESC = {
   // baselines
   "Static": ["baseline", "Unconditional empirical quantiles of the training window — the constant predictor that's surprisingly hard to beat."],
+  "WAR-1": ["baseline", "Wasserstein Autoregression WAR(1) (Zhang-Kokoszka-Petersen 2022) on the same rolling-window densities: shrink today's quantile vector toward the training-window barycentre."],
+  "WAR-1-last": ["baseline", "WAR(1) with WGeo's h-day location rule (terminal daily median only)."],
+  "WAR-Select": ["baseline", "WAR(p) with the paper's in-sample selection of training window K and order p."],
   "HS-Bootstrap": ["baseline", "Historical simulation via stationary bootstrap on the training tail."],
   "GARCH-N": ["baseline", "GARCH(1,1) with Gaussian innovations — the workhorse volatility model."],
   "GARCH-t": ["baseline", "GARCH(1,1) with Student-t innovations, fit per step."],

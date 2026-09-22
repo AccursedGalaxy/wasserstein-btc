@@ -15,7 +15,8 @@ recency-weighted slope (`WGeo-EWMA`, §2.6), GARCH-conditioned dispersion
 §2.8). The v0.4 additions are the quantile-space Wasserstein-2 barycentre
 ensemble (`WGeo-Ensemble`, §2.9) and the variance-reduced residualised
 Diebold-Mariano test (§2.10, a Giacomini-White-style augmented test of the
-same unconditional EPA null). Contains the **explicit falsification
+same unconditional EPA null). §2.11 (2026-09-22) is the Wasserstein
+Autoregression benchmark and its caveats. Contains the **explicit falsification
 criteria** (§4) that the backtests are written to test against. Current
 version: v0.4.
 
@@ -48,6 +49,15 @@ BTC at h ∈ {1, 5, 21}: HAR-RV (Corsi 2009), CAViaR-SAV (Engle-Manganelli
 bivariate VAR+GARCH using BTC + ETH jointly. Restricted to BTC so the
 heavier per-step fits (FIGARCH MLE, CAViaR per-quantile QR) complete in
 tractable time. Same walk-forward / CRPS protocol as `RESULTS_LONG.md`.
+
+## [RESULTS_WAR.md](RESULTS_WAR.md) — the published-competitor benchmark
+
+Wasserstein Autoregression (Zhang, Kokoszka & Petersen 2022) on the same
+rolling-window densities as WGeo: 5 assets × 3 horizons for the three
+panel variants, plus the location-rule / window / stride sensitivities on
+BTC and ETH. Read the "Reading" section first; the headline residualised
+comparison against `WGeo-Ensemble` and the §4 falsification count live in
+`RESULTS_LONG.md` Headline 3. Method and caveats: `THEORY.md §2.11`.
 
 ## [RESULTS_VAR_ES.md](RESULTS_VAR_ES.md) — tail-calibration evidence
 
