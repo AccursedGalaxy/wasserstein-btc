@@ -88,13 +88,20 @@ risk team would actually use."
   dimensions (Brenier maps in 2D+ aren't quantile functions), so this
   is a real research problem — likely via Sliced-Wasserstein
   (Bonneel et al. 2015) or low-rank optimal-transport.
-- [ ] **Conformal calibration layer.** Adding split-conformal on top of
-  the WGeo forecast quantiles to guarantee marginal coverage under
-  arbitrary deviations from i.i.d. The (Lei, Wasserman, etc.) literature
-  has the machinery.
-- [ ] **Live paper-trading on the next 6 months.** Forecasts written to
-  a sealed log on day t, evaluated against the realised return on day
-  t+h. Beating CRPS on past data is necessary but not sufficient.
+- [x] **Conformal calibration layer** (2026-09-22, `wbtc.conformal`,
+  `THEORY.md §2.12`, `docs/RESULTS_CONFORMAL.md`). Rolling per-level
+  split-conformal offsets; online wrapper + offline path evaluator. Verdict:
+  coverage insurance, not a CRPS gain — the h=21 coverage gap halves in
+  5/5 assets at +5.8 % CRPS; at h ≤ 5 the base is already calibrated. The
+  "arbitrary deviations from i.i.d." guarantee is only approximate under a
+  rolling window; an adaptive-conformal (Gibbs-Candès 2021) step-size
+  variant would make it exact in the long-run sense and is the natural
+  follow-up. Not in the headline forecaster.
+- [~] **Live paper-trading on the next 6 months.** The sealed log exists:
+  `wbtc forecast-all` appends one row per (asof, asset, horizon) to
+  `results/live/log.jsonl` (local, gitignored) with base and calibrated
+  quantiles. Still open: a scorer that reads the log and reports realised
+  CRPS/coverage once targets resolve, and a daily runner.
 
 ## Long-term (v1.0 — ecosystem)
 

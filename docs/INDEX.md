@@ -59,6 +59,16 @@ BTC and ETH. Read the "Reading" section first; the headline residualised
 comparison against `WGeo-Ensemble` and the §4 falsification count live in
 `RESULTS_LONG.md` Headline 3. Method and caveats: `THEORY.md §2.11`.
 
+## [RESULTS_CONFORMAL.md](RESULTS_CONFORMAL.md) — the conformal calibration layer
+
+Split-conformal offsets (per quantile level, rolling window) on top of the
+horizon-specific default forecaster and a GARCH-N control, 5 assets × 3
+horizons, no look-ahead (harness lag h+1). Read the "Summary by horizon"
+table first: coverage gap vs CRPS cost, late epoch. Window chosen on the
+early epoch. Method and the harness-lag note: `THEORY.md §2.12`;
+falsification criterion and outcome: `THEORY.md §4`. Regenerate with
+`uv run wbtc conformal` (~5 min on 16 cores).
+
 ## [RESULTS_VAR_ES.md](RESULTS_VAR_ES.md) — tail-calibration evidence
 
 VaR / Expected-Shortfall backtests on every forecaster in the panel:

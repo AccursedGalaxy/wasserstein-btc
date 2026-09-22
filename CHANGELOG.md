@@ -4,6 +4,41 @@ All notable changes to this project will be documented here. Dates ISO-8601.
 
 ## [Unreleased]
 
+### Added
+
+- **2026-09-22 — split-conformal calibration layer** (`wbtc.conformal`,
+  `THEORY.md §2.12`). Per-level rolling split-conformal offsets on top of any
+  `fit`/`predict` forecaster: `conformalize_path` (offline, honours the harness
+  lag `h+1`) and `ConformalCalibrator` (online wrapper, tested to agree with the
+  offline path). Panel evaluation in `scripts/run_conformal.py` /
+  `wbtc conformal` → `docs/RESULTS_CONFORMAL.md`. Verdict: coverage gap at h=21
+  halves in 5/5 assets, CRPS +2–6 % at h≥5; a clear CRPS win only for a
+  Gaussian base at h=1. Not adopted into the headline forecaster.
+- **2026-09-22 — private live forecasts** (`wbtc.live`, `wbtc forecast-all`,
+  `wbtc forecast --conformal`). Today's calibrated forecast for every cached
+  asset × {1, 5, 21} days, written to `results/live/` (gitignored): a JSON
+  snapshot, an append-only sealed log (`log.jsonl`, one row per asof × asset ×
+  horizon — the ROADMAP "live paper-trading" log), and a self-contained HTML
+  page with price-level bands and forecast-vs-outcome history. Not published
+  on the dashboard by design.
+
+### Fixed
+
+- **2026-09-22 — `fetch_data.py` wrote the still-open daily bar and then froze
+  it.** `ts` is the bar *open* time; the resume path fetched from `last_ts + 1`
+  and `drop_duplicates(keep="first")` kept the stale mid-day snapshot over the
+  finalised bar. Every parquet had the 2026-05-23 bar (= `PANEL_DATA_END`, the
+  day of the last fetch) frozen mid-day: BTC close 75,017 on disk vs 76,752
+  true (2.3 %), similar for ETH/SOL/BNB/XRP. Fix: re-fetch the last two bars
+  on resume, `keep="last"`, and `drop_unclosed()` before writing. The five
+  parquets were repaired (one bar each). `results/long_*`, `var_es_*`,
+  `conformal_*` and the viewer caches were generated before the repair; the
+  affected return is the final one of the panel, so headline numbers move in
+  the fourth decimal at most — regenerate on the next panel run rather than
+  now. `wbtc.live` additionally anchors only on closed bars, reports the
+  settlement instants (`asof_close_utc`, `target_close_utc`), and refuses to
+  seal a stale forecast.
+
 ### Changed
 
 - **2026-09-22 — panel data end pinned.** `wbtc.backtest.PANEL_DATA_END =

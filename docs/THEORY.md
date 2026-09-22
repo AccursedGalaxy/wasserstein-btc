@@ -450,6 +450,61 @@ econometric baselines' disadvantage at 1 day. The pre-registered v0.5
 headline (vs `Static`, vs `GARCH-N`) is untouched by this; what changes is
 the interpretation: the long-horizon edge is not evidence for extrapolation.
 
+### 2.12 Split-conformal calibration layer (2026-09-22, `wbtc.conformal`)
+
+Nothing in §2.2–2.9 forces $P(y_{t+h} \le \hat F^{-1}_{t+h}(u)) = u$. The
+$h$-day spread comes from a $\sqrt{h}$ rule (or a GARCH multiplier), the
+location from a tangent-space slope; both can be off in a regime the
+training window has not seen. The VaR/ES panel shows the tails are
+acceptable at $h \le 5$; at $h = 21$ the body and the 95 % level are not
+(`RESULTS_CONFORMAL.md`, base rows). The conformal-prediction literature
+supplies a distribution-free repair that needs no model of *why* the base
+is mis-calibrated.
+
+**Method (per level, rolling split-conformal).** For each grid level $u_k$
+treat past forecast errors as conformity scores,
+
+$$e_{s,k} = y_{s+h} - \hat F^{-1}_{s+h}(u_k), \qquad s \in \text{calibration window},$$
+
+and set the offset $d_k$ to the $\lceil (n+1) u_k \rceil$-th smallest of
+the $n$ scores. The reported quantile function is the isotonic projection
+(§2.4) of $\hat F^{-1}_{t+h} + d$. If the scores are exchangeable, then
+$P\big(y_{t+h} \le \hat F^{-1}_{t+h}(u_k) + d_k\big) \ge u_k$ in finite
+samples (Vovk-Gammerman-Shafer 2005; the per-level form is Romano,
+Patterson & Candès 2019, Theorem 1, applied at every grid level rather
+than to one interval). With a rolling window of $n$ origins the guarantee
+is approximate; its error is controlled by how non-exchangeable the scores
+are inside the window. Two facts matter for reading the results:
+
+* For $h > 1$ consecutive scores share $h-1$ returns, so $n$ overlapping
+  scores carry roughly $n/h$ independent blocks. With $n = 500$ and
+  $h = 21$ the 1 % and 99 % order statistics rest on about 24 effective
+  observations — which is where the layer over-shoots (§4 outcome).
+* The correction is a tangent vector at the base quantile function in the
+  quantile chart (§2.1): the calibrated forecast is the base transported
+  along direction $d$ for unit time, projected back onto
+  $\mathcal{P}_2(\mathbb{R})$. It changes the map from forecaster to
+  reported distribution, not the forecaster.
+
+**Cost: sharpness.** CRPS is strictly proper; a well-calibrated but wider
+forecast can score worse than a sharp mis-calibrated one on the body, and
+$K = 50$ noisy per-level order statistics add estimation variance. The
+criterion for this layer is therefore coverage, not CRPS (§4). Evaluated
+offline by `scripts/run_conformal.py` on the full walk-forward path with
+the harness lag (below), online by `ConformalCalibrator` in the live tool
+(`wbtc forecast-all`), and the two implementations are tested to agree to
+$10^{-12}$ (`tests/test_conformal.py`).
+
+**Harness convention, noted while wiring the lag.** In
+`wbtc.backtest._walk_forward_one` the training window at origin $t$ ends
+at $r_{t-1}$ while the target is $r_{t+1} + \dots + r_{t+h}$: one return,
+$r_t$, is skipped between them. Every panel number in this repository is
+therefore a forecast that is stale by one day — conservative, and left
+unchanged here so the locked panel stays comparable. The offline conformal
+evaluation respects it (a score at origin $s$ is usable at origin $t$ only
+when $t - 1 \ge s + h$, i.e. `lag = h + 1`); the live API, whose window
+ends at the origin itself, uses `lag = h`.
+
 ### 2.4 Monotonicity enforcement
 
 A quantile function must be non-decreasing. After extrapolation we apply
@@ -605,6 +660,30 @@ extrapolation claim unsupported if:
   reversion* explains the result as well as tangent-space *extrapolation*
   does, and the headline is a tie with the published method. Counted
   automatically in `RESULTS_LONG.md` Headline 3.
+
+**Conformal layer (2026-09-22, §2.12)** — the layer earns its place only
+if, on the late epoch, it lowers the coverage gap (mean absolute
+deviation between empirical and nominal coverage at 1/5/25/50/75/95/99 %)
+in a majority of cells where the base gap exceeds 0.02, and does not
+raise it where the base is already within 0.02. CRPS is reported but is
+not the criterion — a conformal layer buys coverage with sharpness. This
+criterion was written after the panel design but before the results were
+read.
+
+*Outcome (`RESULTS_CONFORMAL.md`, window 500 chosen on the early epoch):*
+**PASS on coverage, at a CRPS cost.** For the default forecasters the
+base is already calibrated at $h \in \{1, 5\}$ (gap 0.006 / 0.014; the
+layer moves it to 0.005 / 0.009) and mis-calibrated at $h = 21$ (0.045,
+95 % level breached at 84–90 % empirical, Kupiec $p \le 0.03$ in 3/5
+assets); the layer cuts the $h = 21$ gap to 0.026 in 5/5 assets but
+over-covers the 1 % level (0.05–0.07 empirical) because of the
+overlapping-score problem in §2.12. CRPS rises +0.3 % / +1.9 % / +5.8 % at
+$h = 1 / 5 / 21$ (significant in 1 / 5 / 4 of 5 cells). For a Gaussian
+GARCH-N base the layer *improves* CRPS at $h = 1$ in 5/5 assets (−1.1 %,
+significant in 4) while cutting the gap from 0.026 to 0.006 — it fixes
+the tails a Normal cannot. Conclusion: not adopted into the headline
+forecaster; used in the live tool as coverage insurance, with base and
+calibrated bands both shown.
 
 If we hit any of those, the results report says so plainly. No spinning.
 

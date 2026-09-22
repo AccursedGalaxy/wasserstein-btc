@@ -38,6 +38,8 @@ src/wbtc/
   var_es.py          VaR/ES tail tests: Kupiec, Christoffersen, Acerbi-Szekely
   density.py         intraday-density data object (per-day KDE -> K quantiles); no forecasters
   forecasters.py     all baselines + WGeo variants + WassersteinAR benchmark; every class has fit/predict
+  conformal.py       split-conformal layer: conformalize_path (offline) + ConformalCalibrator (online wrapper)
+  live.py            private daily forecasts (wbtc forecast-all) -> results/live/ (gitignored, NOT for the website)
   backtest.py        single-horizon walk-forward (compare_methods)
   long_horizon.py    multi-year walk-forward + per-year + per-regime breakdowns
   cli.py             `wbtc` CLI; dispatches to library / scripts/
@@ -50,6 +52,7 @@ scripts/
   run_extended_baselines.py v0.4 extended econometric panel (HAR-RV/CAViaR/MS/FIGARCH/SV/BVAR) on BTC
   run_var_es_backtest.py    VaR/ES tail-calibration panel (Kupiec, Christoffersen, Acerbi-Szekely)
   score_new_method.py       score ONE method against saved per-step losses (fast; no panel rerun)
+  run_conformal.py          conformal layer on the panel (default + GARCH-N bases) -> docs/RESULTS_CONFORMAL.md
   summarize_war.py          results/war_sensitivity.json -> docs/RESULTS_WAR.md
   hyperparam_sweep.py       4x4 grid on early epoch, verified on late epoch
   coverage_check.py         Kupiec LR test of forecast-quantile calibration
@@ -58,6 +61,7 @@ docs/
   RESEARCH_REPORT.md   paper-style writeup of the v0.3 contributions.
   RESULTS_VAR_ES.md    VaR/ES tail-calibration panel (Kupiec, Christoffersen, Acerbi-Szekely).
   RESULTS_WAR.md       Wasserstein-Autoregression benchmark scoring + sensitivities (summarize_war.py).
+  RESULTS_CONFORMAL.md conformal calibration layer: coverage gap vs CRPS cost per cell.
   PREREG.md            pre-reg v1.0 kill conditions for the intraday-density track (locked).
   RESULTS_LONG.md      v0.3 long-horizon report. The current source of truth.
   archive/             superseded reports: v0.1 RESULTS.md, v0.4 RESULTS_EXTENDED.md. Provenance only.
@@ -151,6 +155,23 @@ uv run wbtc gate-1                          # seconds; exit code is the verdict
 Read `docs/PREREG.md` first. The gate script and the density constants are
 frozen; changing either needs a dated amendment in that document.
 
+### Get today's calibrated forecasts for personal use (NOT for the website)
+```
+uv run wbtc forecast-all              # fetches, then writes results/live/{latest.json,log.jsonl,forecasts.html}
+uv run wbtc forecast-all --no-fetch   # offline
+```
+`results/live/` is gitignored and must stay private; Robin uses it for his
+own trading. Do not wire it into `viewer/` or CI. The sealed log is
+append-only (same-day reruns are no-ops for the log).
+
+### Evaluate the conformal layer on the panel (~5 min, 16 cores)
+```
+uv run wbtc conformal                 # -> docs/RESULTS_CONFORMAL.md, results/conformal_*.json
+```
+Window selection uses the early epoch; late epoch is the report. Base and
+calibrated numbers are compared only on origins where every candidate
+window was active.
+
 ### Run the hyperparameter sweep (~5 min)
 ```
 uv run wbtc sweep
@@ -172,6 +193,11 @@ uv run wbtc sweep
   editor not knowing the uv venv. Runtime is fine; ignore those diagnostics.
 - **Don't use `-h` as a short option** in argparse subcommands; it collides
   with `--help`. Use `-H` if needed (we use `-H` for `--horizon`).
+- **The harness skips one return between window and target.** In
+  `_walk_forward_one` the window ends at `r[t-1]` and the target starts at
+  `r[t+1]`, so panel forecasts are stale by one day (conservative). Kept as
+  is to preserve the locked panel; `conformalize_path` needs `lag = h + 1`
+  on harness output and `lag = h` on live-API output. See THEORY.md §2.12.
 - **The 2020 COVID year is the known weak regime.** If you propose a change
   that improves overall CRPS, check it didn't make 2020 worse. If you fix
   2020, check the rest didn't regress.

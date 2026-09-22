@@ -29,3 +29,6 @@ viewer/public/data.json
 
 # private outreach drafts (target lists, personalised cold emails)
 outreach/
+
+# private live-trading forecasts (wbtc forecast-all): local only
+results/live/

@@ -1,0 +1,27 @@
+{
+ "chosen_window": 250,
+ "selection": {
+  "125": {
+   "mean_dcrps_pct": 4.3395829948243545,
+   "mad_base": 0.03502216916730491,
+   "mad_cal": 0.03839089717689384,
+   "n_improved": 1,
+   "n_cells": 15
+  },
+  "250": {
+   "mean_dcrps_pct": 2.096571078244987,
+   "mad_base": 0.03502216916730491,
+   "mad_cal": 0.03074330215730437,
+   "n_improved": 1,
+   "n_cells": 15
+  },
+  "500": {
+   "mean_dcrps_pct": 2.1398415102329857,
+   "mad_base": 0.03502216916730491,
+   "mad_cal": 0.029939753988953415,
+   "n_improved": 1,
+   "n_cells": 15
+  }
+ },
+ "panel_data_end": "2026-05-23"
+}

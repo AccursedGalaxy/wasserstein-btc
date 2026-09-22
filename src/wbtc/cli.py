@@ -40,6 +40,11 @@ from . import (
     load_returns,
 )
 from .data import DATA_DIR
+from .live import (
+    DEFAULT_CALIB_WINDOW,
+    DEFAULT_HORIZONS as DEFAULT_LIVE_HORIZONS,
+    DEFAULT_SYMBOLS as DEFAULT_LIVE_SYMBOLS,
+)
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 RESULTS = ROOT / "results"
@@ -154,6 +159,55 @@ def _fan_chart_png(
 
 
 def cmd_forecast(args: argparse.Namespace) -> int:
+    if args.conformal:
+        from .live import live_forecast
+
+        lf = live_forecast(args.symbol, args.horizon, train_window=args.train_window)
+        if args.json:
+            print(json.dumps(lf.to_dict(), indent=2))
+            return 0
+        state = f"on (n={lf.n_calib})" if lf.calibration_active else "off"
+        print(
+            f"{args.symbol}  asof {lf.asof.date()}  h={lf.horizon}d  "
+            f"method={lf.method}  conformal={state}"
+        )
+        print(f"  last close {lf.last_close:,.2f}  ->  target {lf.target_date.date()}")
+        print(f"  {'level':>6} {'base':>10} {'conformal':>10} {'price':>12}")
+        for u in [0.05, 0.25, 0.5, 0.75, 0.95]:
+            print(
+                f"  q{u:>4.2f} {(np.exp(lf.quantile(u, False)) - 1) * 100:>+9.2f}% "
+                f"{(np.exp(lf.quantile(u)) - 1) * 100:>+9.2f}% {lf.price(u):>12,.2f}"
+            )
+        cov = lf.base_coverage_recent
+        print(
+            f"  base hit-rate over last {lf.calib_window} outcomes: "
+            f"q05 {cov.get(0.05, float('nan')):.3f}  q95 {cov.get(0.95, float('nan')):.3f}"
+        )
+        if lf.stale:
+            print("  WARNING: data cache is behind; anchor is not the latest closed bar.")
+        if args.plot:
+            from . import ForecastResult
+
+            shim = ForecastResult(
+                symbol=lf.symbol,
+                asof=lf.asof,
+                horizon=lf.horizon,
+                method=f"{lf.method}+conformal",
+                quantile_levels=lf.quantile_levels,
+                quantile_values=lf.calibrated_quantiles,
+                train_window_days=lf.train_window,
+                train_data_first=lf.asof,
+                train_data_last=lf.asof,
+            )
+            df = load_returns(args.symbol)
+            df = df[df["ts"] <= lf.asof].reset_index(drop=True)
+            png = (
+                RESULTS
+                / f"forecast_{args.symbol.lower().replace('/', '')}_h{args.horizon}_conformal.png"
+            )
+            _fan_chart_png(df, shim, png)
+            print(f"\nfan chart -> {png}", file=sys.stderr)
+        return 0
     fc = api_forecast(
         args.symbol, horizon=args.horizon, train_window_days=args.train_window
     )
@@ -245,6 +299,35 @@ def cmd_gate_1(args: argparse.Namespace) -> int:
     return int(mod.main() or 0)
 
 
+def cmd_conformal(args: argparse.Namespace) -> int:
+    """Evaluate the split-conformal layer on the long-horizon panel."""
+    mod = _load_script("run_conformal")
+    return int(mod.main([]) or 0)
+
+
+def cmd_forecast_all(args: argparse.Namespace) -> int:
+    """Today's calibrated forecasts for every cached asset -> results/live/ (local only)."""
+    from .live import run_daily
+
+    if not args.no_fetch:
+        mod = _load_script("fetch_data")
+        try:
+            mod.main(list(args.symbols))
+        except Exception as e:  # offline: forecast from the cache, but say so
+            print(f"[forecast-all] fetch failed ({e}); using cached data", file=sys.stderr)
+    fcs = run_daily(
+        args.symbols,
+        args.horizons,
+        out_dir=Path(args.out),
+        calib_window=args.calib_window,
+        n_jobs=args.n_jobs,
+        quiet=args.json,
+    )
+    if args.json:
+        print(json.dumps([fc.to_dict() for fc in fcs], indent=1))
+    return 0
+
+
 def cmd_extended_baselines(args: argparse.Namespace) -> int:
     """Extended econometric baselines (HAR-RV, CAViaR, MS, FIGARCH, SV, BVAR)."""
     mod = _load_script("run_extended_baselines")
@@ -310,7 +393,30 @@ def build_parser() -> argparse.ArgumentParser:
     p_fc.add_argument(
         "--plot", action="store_true", help="Also write a fan chart PNG to results/."
     )
+    p_fc.add_argument(
+        "--conformal",
+        action="store_true",
+        help="Apply the split-conformal calibration layer (a few seconds).",
+    )
     p_fc.set_defaults(fn=cmd_forecast)
+
+    p_fa = sub.add_parser(
+        "forecast-all",
+        help="Today's conformal forecasts for all assets -> results/live/ (local, private).",
+    )
+    p_fa.add_argument("--symbols", nargs="+", default=list(DEFAULT_LIVE_SYMBOLS))
+    p_fa.add_argument("--horizons", nargs="+", type=int, default=list(DEFAULT_LIVE_HORIZONS))
+    p_fa.add_argument("--calib-window", type=int, default=DEFAULT_CALIB_WINDOW)
+    p_fa.add_argument("--out", default=str(RESULTS / "live"))
+    p_fa.add_argument("--no-fetch", action="store_true", help="Skip the Binance refresh.")
+    p_fa.add_argument("--n-jobs", type=int, default=-1)
+    p_fa.add_argument("--json", action="store_true", help="Print JSON instead of the table.")
+    p_fa.set_defaults(fn=cmd_forecast_all)
+
+    p_cf = sub.add_parser(
+        "conformal", help="Evaluate the conformal layer on the research panel (~5 min)."
+    )
+    p_cf.set_defaults(fn=cmd_conformal)
 
     p_bt = sub.add_parser(
         "backtest", help="Quick single-symbol single-horizon backtest."

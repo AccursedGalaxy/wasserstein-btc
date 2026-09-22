@@ -102,6 +102,9 @@ uv run wbtc info                              # what data do I have?
 uv run wbtc fetch                             # fetch / update default panel from Binance
 uv run wbtc forecast BTC/USDT -H 5 --plot     # forecast & fan-chart PNG
 uv run wbtc forecast BTC/USDT -H 5 --json     # JSON for scripting
+uv run wbtc forecast BTC/USDT -H 21 --conformal  # + split-conformal calibration (few seconds)
+uv run wbtc forecast-all                      # all assets × {1,5,21}d -> results/live/ (local, gitignored)
+uv run wbtc conformal                         # evaluate the conformal layer on the panel (~5 min)
 uv run wbtc backtest --quick                  # fast single-symbol backtest
 uv run wbtc backtest-long                     # full multi-asset (~30 min)
 uv run wbtc extended-baselines                # HAR-RV/CAViaR/MS/FIGARCH/SV/BVAR vs WGeo on BTC (~2h)
@@ -157,6 +160,7 @@ docs/
   RESULTS_LONG.md     auto-regenerated 4-asset × 3-horizon evidence
   RESULTS_VAR_ES.md   VaR / Expected-Shortfall tail-calibration panel
   RESULTS_WAR.md      Wasserstein-Autoregression benchmark: scoring + sensitivity
+  RESULTS_CONFORMAL.md split-conformal calibration layer: coverage vs CRPS cost
   PREREG.md           pre-reg v1.0: kill conditions for the intraday track
   archive/            superseded reports (v0.1 RESULTS.md, v0.4 RESULTS_EXTENDED.md)
   INDEX.md            one-paragraph orientation to every doc

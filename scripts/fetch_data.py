@@ -79,6 +79,15 @@ def fetch_all(
     return df
 
 
+def drop_unclosed(df: pd.DataFrame, timeframe: str, now_ms: int) -> pd.DataFrame:
+    """Drop the bar that is still open: ``ts`` is the bar *open* time, so a
+    bar is closed only when ``ts + step <= now``. Writing an open bar freezes
+    a mid-bar snapshot as if it were the close."""
+    step = pd.Timedelta(milliseconds=TIMEFRAME_MS[timeframe])
+    now = pd.Timestamp(now_ms, unit="ms", tz="UTC")
+    return df[df["ts"] + step <= now].reset_index(drop=True)
+
+
 def fetch_one(
     exchange: ccxt.Exchange, symbol: str, timeframe: str = DEFAULT_TIMEFRAME
 ) -> None:
@@ -86,13 +95,15 @@ def fetch_one(
     if pq.exists():
         existing = pd.read_parquet(pq)
         last_ts = existing["ts"].max()
-        since_ms = int(last_ts.timestamp() * 1000) + 1
-        print(f"[fetch] {symbol}: resuming from {last_ts.isoformat()}")
+        # Re-fetch the last two bars so a bar that was still open when it was
+        # last written gets replaced by its finalised version (keep="last").
+        since_ms = int(last_ts.timestamp() * 1000) - 2 * TIMEFRAME_MS[timeframe]
+        print(f"[fetch] {symbol}: resuming from {last_ts.isoformat()} (minus 2 bars)")
         new = fetch_all(exchange, symbol, since_ms, timeframe)
         if not new.empty:
             df = (
                 pd.concat([existing, new], ignore_index=True)
-                .drop_duplicates(subset="ts")
+                .drop_duplicates(subset="ts", keep="last")
                 .sort_values("ts")
                 .reset_index(drop=True)
             )
@@ -104,6 +115,7 @@ def fetch_one(
         since_ms = exchange.parse8601(listed)
         df = fetch_all(exchange, symbol, since_ms, timeframe)
 
+    df = drop_unclosed(df, timeframe, exchange.milliseconds())
     df.to_parquet(pq, index=False)
     print(
         f"[fetch] {symbol}: wrote {pq.name} "

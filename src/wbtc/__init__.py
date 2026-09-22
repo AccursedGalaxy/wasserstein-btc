@@ -52,6 +52,7 @@ from .forecasters import (
     WassersteinAR,
     WassersteinARSelect,
 )
+from .conformal import ConformalCalibrator
 from .quantiles import make_grid
 from .scoring import crps_from_quantiles, diebold_mariano
 from .var_es import (
@@ -92,6 +93,8 @@ __all__ = [
     "WGeoGarchEnsemble",
     "WassersteinAR",
     "WassersteinARSelect",
+    # calibration
+    "ConformalCalibrator",
     # high-level API
     "ForecastResult",
     "default_forecaster",
