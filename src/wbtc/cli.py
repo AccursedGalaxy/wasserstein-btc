@@ -30,7 +30,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
 from . import (
     __version__,
@@ -329,63 +328,6 @@ def cmd_forecast_all(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_trade_brief(args: argparse.Namespace) -> int:
-    """Private trading brief -> results/live/brief.md (and stdout)."""
-    from .brief import build_brief, load_config
-    from .live import run_daily
-
-    out = Path(args.out)
-    cfg = load_config(out)
-    latest = out / "latest.json"
-    need_refresh = args.refresh or not latest.exists()
-    if not need_refresh:
-        d = json.loads(latest.read_text())
-        need_refresh = any(r.get("stale") for r in d["forecasts"])
-        if not need_refresh:
-            # forecast anchor must be the last closed bar as of now
-            last_close = max(pd.Timestamp(r["asof_close_utc"]) for r in d["forecasts"])
-            need_refresh = pd.Timestamp.now("UTC") >= last_close + pd.Timedelta(days=1)
-    if need_refresh:
-        if not args.no_fetch:
-            mod = _load_script("fetch_data")
-            try:
-                mod.main(list(cfg.symbols))
-            except Exception as e:
-                print(f"[trade-brief] fetch failed ({e}); using cached data", file=sys.stderr)
-        run_daily(cfg.symbols, cfg.horizons, out_dir=out, quiet=True)
-    text = build_brief(out, cfg)
-    (out / "brief.md").write_text(text)
-    print(text)
-    print(f"[trade-brief] -> {out / 'brief.md'}", file=sys.stderr)
-    return 0
-
-
-def cmd_journal(args: argparse.Namespace) -> int:
-    """Append one decision to the private trading journal (results/live/journal.jsonl)."""
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    rec = {
-        "ts": pd.Timestamp.now("UTC").isoformat(),
-        "symbol": args.symbol,
-        "action": args.action,
-        "size": args.size,
-        "entry": args.entry,
-        "stop": args.stop,
-        "target": args.target,
-        "horizon_days": args.horizon,
-        "reason": args.reason,
-        "forecast_asof": None,
-    }
-    latest = out / "latest.json"
-    if latest.exists():
-        d = json.loads(latest.read_text())
-        rec["forecast_asof"] = max(r["asof"] for r in d["forecasts"])
-    with (out / "journal.jsonl").open("a") as f:
-        f.write(json.dumps(rec) + "\n")
-    print(json.dumps(rec, indent=1))
-    return 0
-
-
 def cmd_extended_baselines(args: argparse.Namespace) -> int:
     """Extended econometric baselines (HAR-RV, CAViaR, MS, FIGARCH, SV, BVAR)."""
     mod = _load_script("run_extended_baselines")
@@ -475,27 +417,6 @@ def build_parser() -> argparse.ArgumentParser:
         "conformal", help="Evaluate the conformal layer on the research panel (~5 min)."
     )
     p_cf.set_defaults(fn=cmd_conformal)
-
-    p_tb = sub.add_parser(
-        "trade-brief",
-        help="Private trading brief (market, forecasts, analogues, Bitget, sizing, scorecard).",
-    )
-    p_tb.add_argument("--out", default=str(RESULTS / "live"))
-    p_tb.add_argument("--refresh", action="store_true", help="Force fetch + re-forecast.")
-    p_tb.add_argument("--no-fetch", action="store_true")
-    p_tb.set_defaults(fn=cmd_trade_brief)
-
-    p_j = sub.add_parser("journal", help="Append a decision to the private trading journal.")
-    p_j.add_argument("--out", default=str(RESULTS / "live"))
-    p_j.add_argument("--symbol", required=True)
-    p_j.add_argument("--action", required=True, help="e.g. 'long', 'short', 'flat', 'close', 'hold'")
-    p_j.add_argument("--size", default=None, help="qty or notional as text, e.g. '0.0003 BTC ($26)'")
-    p_j.add_argument("--entry", type=float, default=None)
-    p_j.add_argument("--stop", type=float, default=None)
-    p_j.add_argument("--target", type=float, default=None)
-    p_j.add_argument("--horizon", type=int, default=None)
-    p_j.add_argument("--reason", required=True)
-    p_j.set_defaults(fn=cmd_journal)
 
     p_bt = sub.add_parser(
         "backtest", help="Quick single-symbol single-horizon backtest."
